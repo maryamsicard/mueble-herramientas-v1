@@ -159,6 +159,7 @@ h3 { font-size: 13px; font-weight: 650; }
         </div>
         <div class="control-group">
           <div class="actions" role="group" aria-label="Vista del mueble">
+            <button type="button" data-facade>Ver fachada</button>
             <button type="button" data-view="front">Frente</button>
             <button type="button" data-view="angle" aria-pressed="true">Perspectiva</button>
             <button type="button" data-view="detail">Detalle del apoyo</button>
@@ -256,7 +257,7 @@ h3 { font-size: 13px; font-weight: 650; }
           </div>
         </div>
         <div class="control-group">
-          <h3>Chapas de combinación</h3>
+          <h3>Bloqueo por pares · simulación</h3>
           <div class="actions" role="group" aria-label="Chapas">
             <button type="button" data-lock="0">Chapa 1–2</button>
             <button type="button" data-lock="1">Chapa 3–4</button>
@@ -267,7 +268,7 @@ h3 { font-size: 13px; font-weight: 650; }
       <p class="tl-status text-small text-muted" role="status" aria-live="polite"></p>
     </aside>
     <section class="tl-scene" aria-label="Visor del mueble">
-      <canvas class="tl-canvas" aria-label="Modelo tridimensional. Arrastra para girar o toca una puerta, chapa o charola." role="img"></canvas>
+      <canvas class="tl-canvas" aria-label="Modelo tridimensional. Arrastra para girar o toca una puerta o charola." role="img"></canvas>
       <svg class="cotas" aria-hidden="true" hidden>
         <g data-cota="width"><line></line><line></line><line></line><text></text></g>
         <g data-cota="height"><line></line><line></line><line></line><text></text></g>
@@ -276,7 +277,7 @@ h3 { font-size: 13px; font-weight: 650; }
       <div class="scene-footer text-small text-muted">
         <div class="scene-phase"><strong class="tl-phase">Charola guardada</strong><span class="tl-phase-tray"></span></div>
         <input type="range" min="0" max="2" step="1" value="0" data-stage aria-label="Recorrido de la charola">
-        <p class="scene-note">Arrastra para girar · toca las puertas, chapas o charolas para accionarlas.</p>
+        <p class="scene-note">Arrastra para girar · toca las puertas o charolas para accionarlas.</p>
       </div>
     </section>
   </main>
@@ -457,7 +458,6 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     const bg = color('var(--background, Canvas)');
     const fg = color('var(--foreground, CanvasText)');
-    const blue = color('var(--blue, var(--viz-series-1, Highlight))');
     const gold = color('var(--yellow, var(--orange, Highlight))');
     const pine = blend([.89,.77,.59],bg,.10);
     const tray = blend([.88,.88,.875],bg,.08);
@@ -467,7 +467,9 @@ h3 { font-size: 13px; font-weight: 650; }
       edge:blend(fg,bg,.19), door:blend(pine,bg,.08),
       steel:blend(bg,fg,.48), work:blend(pine,bg,.15),
       peg:blend([1,1,1],bg,.04), hole:blend(bg,fg,.64),
-      tray, accent:blue, lock:gold, led:blend(bg,gold,.43),
+      tray, led:blend(bg,gold,.43),
+      exterior:blend([.85,.71,.53],bg,.08),
+      rail:blend([.90,.75,.55],bg,.09),
       warmLight:blend([1,.88,.62],bg,.12), diffuser:blend([1,.95,.78],bg,.10)
     };
   }
@@ -529,16 +531,48 @@ h3 { font-size: 13px; font-weight: 650; }
       face([[a-r,b,plane],[a,b+r,plane],[a+r,b,plane],[a,b-r,plane]].map(transform),p.hole,id);
     }
   }
-  function woodGrain(length, breadth, color, point, seed, id=noHit) {
-    const count=Math.ceil(breadth/2.6);
+  function woodGrain(length, breadth, color, point, seed, id=noHit, visible=false) {
+    const count=Math.ceil(breadth/(visible?1.45:2.6));
+    const lineWidth=visible?.14:.065;
     for(let i=1;i<count;i++){
       const phase=i*2.39+seed;
       const center=breadth*i/count+Math.sin(phase)*.34;
-      const wave=u=>center+Math.sin(u*.11+phase)*.19+Math.sin(u*.035+phase)*.34;
-      const tint=blend(color,i%4===0?palette.bg:palette.fg,.025+(i%4)*.021);
+      const wave=u=>clamp(center+Math.sin(u*.11+phase)*.19+Math.sin(u*.035+phase)*.34,0,breadth-lineWidth);
+      const tint=blend(color,i%4===0?palette.bg:palette.fg,(visible?.085:.025)+(i%4)*.024);
       for(let u=0;u<length;u+=13){
         const v=Math.min(u+13,length);
-        face([point(u,wave(u)),point(v,wave(v)),point(v,wave(v)+.065),point(u,wave(u)+.065)],tint,id);
+        face([point(u,wave(u)),point(v,wave(v)),point(v,wave(v)+lineWidth),point(u,wave(u)+lineWidth)],tint,id);
+      }
+    }
+  }
+
+  function boardSurface(length,breadth,point,color,seed,id=noHit){
+    face([point(0,0),point(length,0),point(length,breadth),point(0,breadth)],color,id);
+    woodGrain(length-.4,breadth-.34,color,(u,v)=>point(u+.2,v+.17,.009),seed,id,true);
+  }
+
+  function plankedSurface(length,breadth,point,seed,id=noHit) {
+    const count=Math.max(2,Math.round(breadth/7.2));
+    const pitch=breadth/count;
+    const gap=.16;
+    for(let i=0;i<count;i++){
+      const t=Math.sin(seed*6.71+i*3.48);
+      const color=blend(palette.exterior,t<0?palette.fg:palette.bg,Math.abs(t)*.11);
+      const origin=i*pitch+gap/2;
+      boardSurface(length,pitch-gap,(u,v,lift=0)=>point(u,v+origin,lift),color,seed+i,id);
+    }
+  }
+
+  function cladSides(left,rear) {
+    for(const side of [-1,1]){
+      const x=side*(-left-.012);
+      const point=(y,z,lift=0)=>[x+side*lift,y,z];
+      plankedSurface(175.5,-rear-7,(u,v,lift)=>point(21.5+u,rear+3.5+v,lift),side+23);
+      for(const z of [rear,-3.5]){
+        boardSurface(175.5,3.5,(u,v,lift)=>point(21.5+u,z+v,lift),palette.rail,side+52);
+      }
+      for(const [y,h] of [[18,3.5],[197,3]]){
+        boardSurface(-rear,h,(u,v,lift)=>point(y+v,rear+u,lift),palette.rail,side+y);
       }
     }
   }
@@ -671,12 +705,17 @@ h3 { font-size: 13px; font-weight: 650; }
     box(left,18,rear,edges[2]-left,182,1.9,p.panel);
     const litBack=sideLight?blend(p.panel,p.warmLight,.22):p.panel;
     box(edges[2],18,rear,-left-edges[2],182,1.9,litBack);
-    box(left,18,rear,width,3.5,body,p.frame);
-    box(left,197,rear,width,3,body,p.frame);
+    box(left+.025,18,rear,width-.05,3.5,body,p.frame);
+    box(left+.025,197,rear,width-.05,2.975,body,p.frame);
     const skin=1.8;
+    plankedSurface(width,-rear,(u,v,lift=0)=>[left+u,199.985+lift,rear+v],65);
+    for(const [y,h] of [[18,3.5],[197,3]]){
+      boardSurface(width,h,(u,v,lift=0)=>[left+u,y+v,.012+lift],p.rail,y);
+    }
     const interiorDepth=interiorFront-back;
-    box(left,21.5,back,skin,175.5,-back,p.frame);
-    box(-left-skin,21.5,back,skin,175.5,-back,p.frame);
+    box(left+.025,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23));
+    box(-left-skin,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23));
+    cladSides(left,rear);
     box(left+skin,21.5,back,4.5-skin,175.5,interiorDepth,p.frame);
     box(-left-4.5,21.5,back,4.5-skin,175.5,interiorDepth,p.frame);
     box(edges[0]+span,21.5,back,2.5,65.7,interiorDepth,p.frame);
@@ -721,23 +760,20 @@ h3 { font-size: 13px; font-weight: 650; }
       const co=Math.cos(theta), si=Math.sin(theta);
       const t=([x,y,z]) => [pivot+x*co-z*si,y,doorOriginZ+x*si+z*co];
       const id=i+1;
-      box(local,22,0,leaf,174.6,2.1,p.door,id,t);
-      if(i===1 || i===2) box(i===1?0:-2.25,22,0,2.25,174.6,2.1,p.door,id,t);
-      woodGrain(171,leaf-1.4,p.door,(u,v)=>t([local+.7+v,23.75+u,2.127]),i+1,id);
+      const y=22, height=174.6;
+      const faceStart=i===2?-2.25:local;
+      const faceWidth=leaf+(i===1 || i===2?2.25:0);
+      box(faceStart,y,0,faceWidth,height,1.51,blend(p.door,p.fg,.17),id,t);
+      plankedSurface(height,faceWidth,(u,v,lift=0)=>t([faceStart+v,y+u,1.57+lift]),i+4,id);
+      for(const [railY,railHeight] of [[y,8],[y+height/2-6,12],[y+height-8,8]]){
+        box(faceStart,railY,1.55,faceWidth,railHeight,.53,p.rail,id,t);
+        boardSurface(faceWidth,railHeight,
+          (u,v,lift=0)=>t([faceStart+u,railY+v,2.09+lift]),p.rail,i+railY,id);
+      }
       const inset=3.7;
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
       box(local+inset,29,-1.25,leaf-2*inset,159,1.1,p.steel,id,t);
       pegboard(local+inset,29,doorPegboardZ,leaf-2*inset,159,-1,id,t);
-      const handle=sign>0?leaf-5:local+3.1;
-      box(handle,107,2.25,1.9,13,1.65,p.edge,id,t);
-      if(sign>0){
-        const lockId=6+Math.floor(i/2);
-        box(leaf-7.4,98,2.22,6.3,5.2,1.05,p.edge,lockId,t);
-        box(leaf-6.8,98.6,3.28,5.1,3.95,.28,locked[i/2]?p.lock:p.steel,lockId,t);
-        for(let n=0;n<4;n++) box(leaf-6.35+n*1.14,99.8,3.57,.72,1.4,.22,p.hole,lockId,t);
-      } else {
-        box(local+1.05,98.55,2.23,2.1,4.1,.75,p.steel,6+Math.floor(i/2),t);
-      }
     }
   }
 
@@ -1094,6 +1130,15 @@ h3 { font-size: 13px; font-weight: 650; }
       zoom=1;
     }
   }
+  get('[data-facade]').addEventListener('click',()=>{
+    if(active>=0 || trays.some(tray=>tray.offset>.01)){
+      update('Guarda la charola antes de cerrar las puertas.');
+      return;
+    }
+    doorOpen.fill(false);
+    setView('angle');
+    change('Fachada cerrada · travesaños centrales de 12 cm.');
+  });
   viewButtons.forEach(button=>button.addEventListener('click',()=>{
     const view=button.dataset.view;
     if(view==='detail'){
@@ -1142,7 +1187,6 @@ h3 { font-size: 13px; font-weight: 650; }
     const hit=hitAt(event);
     if(hit>=10) advanceTray(hit-10);
     else if(hit===8) toggleSideLight();
-    else if(hit>=6) toggleLock(hit-6);
     else if(hit===5) toggleLight();
     else if(hit>0) toggleDoor(hit-1);
   });
