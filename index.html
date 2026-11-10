@@ -16,7 +16,7 @@
   --selected: #f1e4dc;
   --blue: #31637b;
   --yellow: #bf8b3d;
-  font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 13px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--background); color: var(--foreground); }
@@ -30,34 +30,42 @@ select { padding: 6px 8px; background: var(--panel); max-width: 100%; }
 button:focus-visible, select:focus-visible, [role="tabpanel"]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 [hidden] { display: none !important; }
 h1, h2, h3, p { margin: 0; }
-h1 { font-size: 17px; font-weight: 650; }
-h2 { font-size: 16px; font-weight: 650; }
+h1 { font-size: 18px; font-weight: 650; }
+h2 { font-size: 13px; font-weight: 650; }
 h3 { font-size: 13px; font-weight: 650; }
-.text-small { font-size: 12px; }
+.text-small { font-size: 11px; }
 .text-muted { color: var(--muted-foreground); }
 .tabular-nums { font-variant-numeric: tabular-nums; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
-.simulator { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; min-height: 565px; }
+.simulator { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; min-height: 395px; }
 .site-header {
   display: flex; align-items: center; justify-content: space-between; gap: 10px 22px;
   padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border);
 }
-.site-header .tl-dims { color: var(--primary); font-weight: 650; }
+.site-title { flex: 0 0 auto; }
+.view-heading {
+  flex: 1; min-width: 0; padding-left: 14px; border-left: 1px solid var(--border);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: baseline;
+  color: var(--muted-foreground); font-size: 11px; line-height: 1.35;
+}
+.view-heading strong { color: var(--primary); margin-right: 6px; }
+.view-heading .tl-dims { white-space: nowrap; font-size: 10px; }
 .simulator-main {
   display: grid; min-height: 0;
-  grid-template-columns: 365px minmax(0, 1fr);
+  grid-template-columns: 350px minmax(0, 1fr);
   grid-template-areas: "controls scene";
 }
 .sidebar {
   grid-area: controls; display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: 0; min-width: 0; background: var(--panel); border-right: 1px solid var(--border);
 }
-.control-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 9px; border-bottom: 1px solid var(--border); }
-.control-tabs button { flex: 1 1 auto; font-size: 12px; padding-inline: 6px; min-width: 0; white-space: nowrap; }
+.control-tabs { display: flex; gap: 4px; padding: 10px; border-bottom: 1px solid var(--border); }
+.control-tabs button { flex: 1 1 0; min-height: 29px; font-size: 11px; padding: 5px 3px; min-width: 0; white-space: nowrap; }
+.control-tabs button:last-child { flex-grow: 1.45; }
 .control-tabs button[aria-selected="true"] { font-weight: 650; }
-.control-panel { padding: 16px; overflow: auto; overscroll-behavior: contain; min-height: 0; }
-.panel-intro { display: grid; gap: 4px; margin-bottom: 16px; }
+.control-panel { padding: 12px 16px 18px; overflow: auto; overscroll-behavior: contain; min-height: 0; }
+.panel-intro { display: grid; gap: 4px; margin-bottom: 12px; }
 .control-group { display: grid; gap: 8px; }
 .control-group + .control-group { margin-top: 17px; padding-top: 15px; border-top: 1px solid var(--border); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -69,52 +77,84 @@ h3 { font-size: 13px; font-weight: 650; }
 .measurements div { display: grid; gap: 2px; }
 .measurements dt { color: var(--muted-foreground); font-size: 12px; }
 .measurements dd { margin: 0; font-weight: 650; }
-.tl-status { min-height: 38px; margin: 0; padding: 9px 14px; border-top: 1px solid var(--border); background: var(--background); }
+.tl-status { min-height: 31px; margin: 0; padding: 7px 12px; border-top: 1px solid var(--border); background: var(--background); }
 
-.tl-scene {
-  grid-area: scene; min-width: 0; min-height: 0;
-  display: grid; grid-template-rows: minmax(0, 1fr) auto;
-  background: radial-gradient(ellipse at 50% 40%, #fdfaf6, #eee5dc);
+.summary-card {
+  background: var(--background); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 14px; padding: 10px 12px;
 }
+.summary-card h2 {
+  margin-bottom: 7px; color: var(--muted-foreground); font-size: 11px;
+  text-transform: uppercase; letter-spacing: .13em;
+}
+.summary-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px 12px; margin: 0; }
+.summary-metrics dt { color: var(--muted-foreground); font-size: 11px; }
+.summary-metrics dd { margin: 0; font-weight: 650; line-height: 1.35; }
+.tray-field { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); }
+.tray-field select { display: block; width: 100%; }
+[aria-labelledby="tab-charolas"] .control-group + .control-group { margin-top: 13px; padding-top: 0; border-top: 0; }
+.tl-scene { grid-area: scene; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: linear-gradient(#faf7f3, #f1ece6); }
 .tl-canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; }
 .tl-canvas:active { cursor: grabbing; }
-.scene-footer { padding: 8px 16px 12px; border-top: 1px solid var(--border); background: #f6f1eb; }
+.cotas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cotas line { stroke: #a16a54; stroke-width: 1; }
+.cotas text {
+  fill: #69372b; stroke: #faf7f3; stroke-width: 3px; stroke-linejoin: round;
+  paint-order: stroke; text-anchor: middle; font-size: 11px; font-weight: 650;
+}
+.scene-footer {
+  position: absolute; inset: auto 0 0; display: grid; gap: 4px; padding: 20px 17px 11px;
+  background: linear-gradient(transparent, #faf7f3f2 32%, #faf7f3 94%);
+}
+.scene-phase { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.scene-footer input { width: 100%; margin: 0; accent-color: var(--primary); }
 
-@media (max-width: 760px) {
-  .simulator { height: auto; min-height: 100dvh; }
-  .site-header { flex-wrap: wrap; padding: 9px 12px; gap: 3px 18px; }
+@media (max-width: 860px) and (min-height: 500px), (max-width: 580px) {
+  .site-header { align-items: stretch; flex-direction: column; padding: 7px 10px; gap: 6px; }
+  .site-title h1 { font-size: 15px; }
+  .view-heading { padding: 6px 0 0; border-left: 0; border-top: 1px solid var(--border); display: block; }
+  .view-heading .tl-dims { display: none; }
   .simulator-main {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: clamp(305px, 52svh, 495px) auto;
+    grid-template-rows: minmax(146px,47%) minmax(0, 1fr);
     grid-template-areas: "scene" "controls";
   }
-  .sidebar { border-right: 0; border-top: 1px solid var(--border); grid-template-rows: auto auto auto; }
-  .control-panel { overflow: visible; padding: 13px 12px; }
-  .control-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(72px, 1.3fr); gap: 3px; padding: 7px 6px; }
-  .control-tabs button { min-height: 40px; padding-inline: 2px; font-size: 11px; }
+  .sidebar { border-right: 0; border-top: 1px solid var(--border); }
+  .control-tabs { padding: 6px; }
+  .control-panel { padding: 9px 12px 14px; }
+  .scene-footer { padding: 11px 10px 8px; }
+  .scene-footer .scene-note { display: none; }
+}
+@media (max-height: 499px) and (min-width: 581px) {
+  .simulator-main { grid-template-columns: 305px minmax(0, 1fr); }
+  .site-header { padding: 6px 12px; }
+  .control-tabs { padding: 6px; }
 }
 </style>
 </head>
 <body>
 <div id="trofast-lab" class="simulator">
   <header class="site-header">
-    <div>
-      <h1>Mueble TROFAST · Simulador 3D</h1>
-      <p class="text-small text-muted">Modelo conceptual · medidas en cm</p>
+    <div class="site-title">
+      <h1>MUEBLE TROFAST · Simulador 3D</h1>
+      <p class="text-small text-muted">Modelo conceptual editable · unidades en cm</p>
     </div>
-    <p class="text-small tl-dims tabular-nums" aria-label="Dimensiones del mueble cerrado"></p>
+    <div class="view-heading">
+      <p><strong class="view-title">Perspectiva</strong><span class="view-copy">Arrastra para girar y toca las piezas para accionarlas.</span></p>
+      <p class="tl-dims tabular-nums" aria-label="Dimensiones del mueble cerrado"></p>
+    </div>
   </header>
   <main class="simulator-main">
     <aside class="sidebar" aria-label="Controles del simulador">
       <div class="control-tabs" role="tablist" aria-label="Secciones del simulador">
-        <button type="button" role="tab" id="tab-vista" aria-controls="panel-vista" aria-selected="true" tabindex="0">Vista</button>
+        <button type="button" role="tab" id="tab-vista" aria-controls="panel-vista" aria-selected="false" tabindex="-1">Vista</button>
         <button type="button" role="tab" id="tab-medidas" aria-controls="panel-medidas" aria-selected="false" tabindex="-1">Medidas</button>
-        <button type="button" role="tab" id="tab-charolas" aria-controls="panel-charolas" aria-selected="false" tabindex="-1">Charolas</button>
+        <button type="button" role="tab" id="tab-charolas" aria-controls="panel-charolas" aria-selected="true" tabindex="0">Charolas</button>
         <button type="button" role="tab" id="tab-puertas" aria-controls="panel-puertas" aria-selected="false" tabindex="-1">Puertas</button>
         <button type="button" role="tab" id="tab-herramientas" aria-controls="panel-herramientas" aria-selected="false" tabindex="-1">Herramientas</button>
       </div>
 
-      <section class="control-panel" id="panel-vista" role="tabpanel" aria-labelledby="tab-vista" tabindex="0">
+      <section class="control-panel" id="panel-vista" role="tabpanel" aria-labelledby="tab-vista" tabindex="0" hidden>
         <div class="panel-intro">
           <h2>Vistas de inspección</h2>
           <p class="text-small text-muted">Gira el modelo para explorar el mueble o elige una vista.</p>
@@ -148,6 +188,7 @@ h3 { font-size: 13px; font-weight: 650; }
           </div>
         </div>
         <div class="control-group">
+          <label><input type="checkbox" data-cotas checked> Mostrar cotas en el modelo</label>
           <dl class="measurements">
             <div><dt>Cuerpo cerrado · ancho × fondo × alto</dt><dd class="tl-size tabular-nums"></dd></div>
             <div><dt>Cubierta del banco · ancho y altura de trabajo</dt><dd class="tl-table tabular-nums"></dd></div>
@@ -156,18 +197,27 @@ h3 { font-size: 13px; font-weight: 650; }
         </div>
       </section>
 
-      <section class="control-panel" id="panel-charolas" role="tabpanel" aria-labelledby="tab-charolas" tabindex="0" hidden>
+      <section class="control-panel" id="panel-charolas" role="tabpanel" aria-labelledby="tab-charolas" tabindex="0">
+        <section class="summary-card" aria-labelledby="summary-title">
+          <h2 id="summary-title">Medidas actuales del mueble</h2>
+          <dl class="summary-metrics">
+            <div><dt>Ancho total</dt><dd data-summary="width"></dd></div>
+            <div><dt>Fondo total</dt><dd data-summary="depth"></dd></div>
+            <div><dt>Altura de la cubierta</dt><dd>90 cm</dd></div>
+            <div><dt>Altura total con ruedas</dt><dd>200 cm</dd></div>
+          </dl>
+        </section>
         <div class="panel-intro">
-          <h2>Charolas TROFAST</h2>
-          <p class="text-small text-muted">Prueba la extracción y acomoda las charolas de las columnas derechas.</p>
+          <h2>Simulación de charolas</h2>
+          <p class="text-small text-muted">Elige una charola para probar su recorrido.</p>
         </div>
         <div class="control-group">
-          <label for="tl-tray"><strong>Charola de prueba</strong></label>
-          <div class="actions">
+          <div class="control-group tray-field">
+            <label for="tl-tray"><strong>Charola de prueba</strong></label>
             <select id="tl-tray"></select>
-            <button type="button" class="btn-primary" data-tray-action>Deslizar</button>
+            <p class="tl-gap text-small text-muted tabular-nums" aria-live="polite" hidden></p>
           </div>
-          <p class="tl-gap text-small text-muted tabular-nums" aria-live="polite" hidden></p>
+          <div class="actions"><button type="button" class="btn-primary" data-tray-action>Deslizar</button></div>
         </div>
         <div class="control-group">
           <h3>Distribución de las columnas altas</h3>
@@ -226,7 +276,16 @@ h3 { font-size: 13px; font-weight: 650; }
     </aside>
     <section class="tl-scene" aria-label="Visor del mueble">
       <canvas class="tl-canvas" aria-label="Modelo tridimensional. Arrastra para girar o toca una puerta, chapa o charola." role="img"></canvas>
-      <p class="scene-footer text-small text-muted">Arrastra para girar · toca las puertas, chapas o charolas para accionarlas.</p>
+      <svg class="cotas" aria-hidden="true" hidden>
+        <g data-cota="width"><line></line><line></line><line></line><text></text></g>
+        <g data-cota="height"><line></line><line></line><line></line><text></text></g>
+        <g data-cota="depth"><line></line><line></line><line></line><text></text></g>
+      </svg>
+      <div class="scene-footer text-small text-muted">
+        <div class="scene-phase"><strong class="tl-phase">Charola guardada</strong><span class="tl-phase-tray"></span></div>
+        <input type="range" min="0" max="2" step="1" value="0" data-stage aria-label="Recorrido de la charola">
+        <p class="scene-note">Arrastra para girar · toca las puertas, chapas o charolas para accionarlas.</p>
+      </div>
     </section>
   </main>
 </div>
@@ -244,7 +303,13 @@ h3 { font-size: 13px; font-weight: 650; }
   const status = get('.tl-status');
   const tabs = [...root.querySelectorAll('[role="tab"]')];
   const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([location.pathname,location.search])}`;
-  let currentTab = tabs[0].id;
+  let currentTab = 'tab-charolas';
+  const stageSlider = get('[data-stage]');
+  const dimensionsToggle = get('[data-cotas]');
+  const dimensionOverlay = get('.cotas');
+  const dimensionMarks = Object.fromEntries([...root.querySelectorAll('[data-cota]')].map(group=>[
+    group.dataset.cota, {lines:[...group.querySelectorAll('line')],label:group.querySelector('text')}
+  ]));
   function selectTab(id, focus = false) {
     const next = tabs.find(tab=>tab.id===id);
     if(!next) return;
@@ -715,7 +780,8 @@ h3 { font-size: 13px; font-weight: 650; }
       canvas.width=pixelW;
       canvas.height=pixelH;
     }
-    const scale=Math.min(width/239,(height-86)/220)*zoom;
+    const showCotas=dimensionsToggle.checked && (viewMode==='angle' || viewMode==='front');
+    const scale=Math.min(width/(showCotas?268:239),Math.max(40,height-78)/220)*zoom;
     const focus=viewMode==='detail' && trays[selected].h ? trays[selected] : null;
     const centerX=focus?spec.edges[focus.bay]+spec.span/2:viewMode==='posts'?spec.edges[2]+spec.span+1.25:0;
     const centerY=focus?(focus.top+trayBottom(focus))/2:100;
@@ -727,8 +793,10 @@ h3 { font-size: 13px; font-weight: 650; }
       const inward=(x-centerX)*sy+(z-centerZ)*cy;
       const vertical=(y-centerY)*cp-inward*sp;
       const depth=(y-centerY)*sp+inward*cp;
-      return [2*horizontal*scale/width,2*(vertical*scale-12)/height,-depth/260];
+      return [2*horizontal*scale/width,2*(vertical*scale+8)/height,-depth/260];
     };
+    dimensionOverlay.toggleAttribute('hidden',!showCotas);
+    if(showCotas) drawCotas(spec,width,height);
     readPalette();
     positions=[];
     hitTriangles=[];
@@ -740,6 +808,37 @@ h3 { font-size: 13px; font-weight: 650; }
     if(animating) schedule();
     else previous=0;
   }
+  function drawCotas(spec,width,height) {
+    dimensionOverlay.setAttribute('viewBox','0 0 '+width+' '+height);
+    const point = world => {
+      const [x,y]=project(world);
+      return [(x+1)*width/2,(1-y)*height/2];
+    };
+    const line = (node,a,b) => {
+      node.setAttribute('x1',a[0]); node.setAttribute('y1',a[1]);
+      node.setAttribute('x2',b[0]); node.setAttribute('y2',b[1]);
+    };
+    const mark = (key,first,last,text,offset,show=true) => {
+      const {lines,label}=dimensionMarks[key];
+      label.parentElement.toggleAttribute('hidden',!show);
+      if(!show) return;
+      const a=point(first), b=point(last);
+      line(lines[0],a,b);
+      const length=Math.hypot(b[0]-a[0],b[1]-a[1])||1;
+      const dx=(a[1]-b[1])*4/length, dy=(b[0]-a[0])*4/length;
+      line(lines[1],[a[0]-dx,a[1]-dy],[a[0]+dx,a[1]+dy]);
+      line(lines[2],[b[0]-dx,b[1]-dy],[b[0]+dx,b[1]+dy]);
+      label.setAttribute('x',clamp((a[0]+b[0])/2+offset[0],37,width-37));
+      label.setAttribute('y',(a[1]+b[1])/2+offset[1]);
+      label.textContent=text;
+    };
+    const right=-spec.left;
+    mark('width',[spec.left,4,8],[right,4,8],'Ancho '+spec.width+' cm',[0,14]);
+    mark('height',[right+9,4,1],[right+9,200,1],'Alto 200 cm',[24,-5]);
+    mark('depth',[right+10,6,2.4-spec.depth],[right+10,6,2.4],
+      'Fondo '+spec.depth+' cm',[12,-7],Math.abs(Math.sin(yaw))>.18 && width>=500);
+  }
+
   function hitAt(event) {
     const rect=canvas.getBoundingClientRect();
     const x=2*(event.clientX-rect.left)/rect.width-1;
@@ -782,6 +881,12 @@ h3 { font-size: 13px; font-weight: 650; }
   refreshTrayOptions();
   tools.forEach((tool,index)=>toolPicker.append(option(index,tool.name)));
   boards.forEach((board,index)=>panelPicker.append(option(index,board)));
+  const viewCopy = {
+    angle:['Perspectiva','Arrastra para girar el mueble o toca las piezas para accionarlas.'],
+    front:['Vista frontal','Compara el banco de trabajo y las dos columnas de charolas.'],
+    detail:['Detalle del apoyo','Acércate al reborde y al apoyo de la charola seleccionada.'],
+    posts:['Montantes abiertos','Vista de inspección del espacio entre los apoyos de las columnas derechas.']
+  };
   const stageLabel = ['Deslizar','Retirar','Guardar'];
   function update(message) {
     const spec=dimensions();
@@ -789,6 +894,10 @@ h3 { font-size: 13px; font-weight: 650; }
     get('.tl-dims').textContent=size;
     get('.tl-size').textContent=size;
     get('.tl-table').textContent=spec.tableWidth+' cm de ancho · 90 cm del piso';
+    get('[data-summary="width"]').textContent=spec.width+' cm';
+    get('[data-summary="depth"]').textContent=spec.depth+' cm';
+    get('.view-title').textContent=viewCopy[viewMode][0];
+    get('.view-copy').textContent=viewCopy[viewMode][1];
     versions.forEach((button,index)=>button.setAttribute('aria-pressed',index===version));
     doorButtons.forEach((button,index)=>{
       button.setAttribute('aria-pressed',doorOpen[index]);
@@ -802,8 +911,14 @@ h3 { font-size: 13px; font-weight: 650; }
     sideLightButton.setAttribute('aria-pressed',sideLight);
     viewButtons.forEach(button=>button.setAttribute('aria-pressed',button.dataset.view===viewMode));
     trayPicker.value=selected;
-    trayButton.textContent=stageLabel[selected===active?stage:0];
+    const currentStage=selected===active?stage:0;
+    trayButton.textContent=stageLabel[currentStage];
+    stageSlider.value=currentStage;
+    const phase=['Charola guardada','Charola deslizada','Charola retirada'][currentStage];
+    stageSlider.setAttribute('aria-valuetext',phase);
+    get('.tl-phase').textContent=phase;
     const tray=trays[selected];
+    get('.tl-phase-tray').textContent='Módulo '+(tray.bay+1)+' · '+tray.h+' cm';
     const column=levelsByBay[tray.bay-2]?.filter(neighbor=>neighbor.h) ?? [];
     const position=column.indexOf(tray);
     const above=position>=0?column[position+1]:undefined;
@@ -823,7 +938,7 @@ h3 { font-size: 13px; font-weight: 650; }
     try {
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
-        doors:doorOpen,locked,lamp,sideLight,selected,active,stage,tab:currentTab,
+        doors:doorOpen,locked,lamp,sideLight,selected,active,stage,tab:currentTab,interfaceRevision:2,cotas:dimensionsToggle.checked,
         placements:tools.map(({board,slot})=>[board,slot])
       }}));
     } catch {
@@ -843,7 +958,8 @@ h3 { font-size: 13px; font-weight: 650; }
     snapshot.locked.forEach((value,i)=>{locked[i]=Boolean(value) && !doorOpen[2*i] && !doorOpen[2*i+1];});
     lamp=Boolean(snapshot.lamp);
     sideLight=snapshot.sideLight!==false;
-    selectTab(snapshot.tab);
+    if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
+    dimensionsToggle.checked=snapshot.cotas!==false;
     selected=trays[snapshot.selected]?.h?snapshot.selected:selected;
     active=trays[snapshot.active]?.h && doorOpen[trays[snapshot.active].bay]?snapshot.active:-1;
     stage=active>=0 && snapshot.stage===2?2:active>=0?1:0;
@@ -889,6 +1005,9 @@ h3 { font-size: 13px; font-weight: 650; }
     change(sideLight?'Luces laterales encendidas.':'Luces laterales apagadas.');
   }
   function advanceTray(index) {
+    setTrayStage(index,active===index?(stage+1)%3:1);
+  }
+  function setTrayStage(index,nextStage) {
     const tray=trays[index];
     if(!tray?.h) return;
     selected=index;
@@ -898,7 +1017,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     doorOpen[tray.bay]=true;
     if(viewMode==='posts' && tray.bay>=2) setView('detail');
-    stage=active===index?(stage+1)%3:1;
+    stage=nextStage;
     active=stage===0?-1:index;
     const action=['guardada','deslizada','retirada por completo'][stage];
     change('Charola de '+tray.h+' cm del módulo '+(tray.bay+1)+' '+action+'.');
@@ -966,6 +1085,8 @@ h3 { font-size: 13px; font-weight: 650; }
     change('Seleccionaste '+trayPicker.selectedOptions[0].textContent+'.');
   });
   trayButton.addEventListener('click',()=>advanceTray(selected));
+  stageSlider.addEventListener('input',()=>setTrayStage(selected,Number(stageSlider.value)));
+  dimensionsToggle.addEventListener('change',()=>change(dimensionsToggle.checked?'Cotas visibles.':'Cotas ocultas.'));
   toolPicker.addEventListener('change',()=>update());
   panelPicker.addEventListener('change',()=>{
     const tool=tools[Number(toolPicker.value)];
@@ -1060,7 +1181,7 @@ h3 { font-size: 13px; font-weight: 650; }
   new ResizeObserver(schedule).observe(canvas);
   new MutationObserver(schedule).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change',schedule);
-  update('Selecciona una pestaña para explorar los controles.');
+  update('Elige una charola y pulsa «Deslizar».');
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
     restore(saved?.privateContent);
