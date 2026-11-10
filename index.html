@@ -193,6 +193,8 @@ h3 { font-size: 13px; font-weight: 650; }
             <div><dt>Cuerpo cerrado · ancho × fondo × alto</dt><dd class="tl-size tabular-nums"></dd></div>
             <div><dt>Cubierta del banco · ancho y altura de trabajo</dt><dd class="tl-table tabular-nums"></dd></div>
             <div><dt>Columnas altas</dt><dd>13 niveles por columna · paso de 13 cm</dd></div>
+            <div><dt>Abertura libre entre soportes</dt><dd class="tl-clear-opening tabular-nums"></dd></div>
+            <div class="tl-channel"><dt>Ancho interior y alto de ranura del mueble</dt><dd class="tabular-nums"></dd></div>
           </dl>
         </div>
       </section>
@@ -215,6 +217,7 @@ h3 { font-size: 13px; font-weight: 650; }
           <div class="control-group tray-field">
             <label for="tl-tray"><strong>Charola de prueba</strong></label>
             <select id="tl-tray"></select>
+            <p class="tl-tray-size text-small text-muted tabular-nums"></p>
             <p class="tl-gap text-small text-muted tabular-nums" aria-live="polite" hidden></p>
           </div>
           <div class="actions"><button type="button" class="btn-primary" data-tray-action>Deslizar</button></div>
@@ -377,9 +380,21 @@ h3 { font-size: 13px; font-weight: 650; }
   const trays = fixedTrays.flatMap((column,bay)=>column.map(([y,h],row)=>({bay,top:y+h,h,row,offset:0})));
   mixed.forEach((column,i)=>column.forEach((h,row)=>trays.push({bay:i+2,top:levels[row],h,row,offset:0})));
   const levelsByBay = [2,3].map(bay=>trays.filter(tray=>tray.bay===bay));
-  const trayBottom = tray=>tray.top-tray.h;
-  const smallFootprints = {10:[37.7,25.8],23:[35.9,23.9],36:[34.1,22.1]};
-  const groove = {lipThickness:.55, clearance:.25, wideLiner:2, narrowLiner:.75, cradle:1.2};
+  // Centimeters. Product bounds and sections measured from IKEA's RQP3 models.
+  const products = {
+    10:{article:'505.820.72',length:41.86,depth:29.92,height:10,heel:[38,26],inside:[37.7,25.8]},
+    23:{article:'405.821.00',length:41.86,depth:29.91,height:22.78,heel:[36.28,24.27],inside:[35.9,23.9]},
+    36:{article:'305.820.87',length:41.86,depth:29.91,height:35.61,heel:[34.47,22.48],inside:[34.1,22.1]}
+  };
+  const flange = {skirt:1.11,seat:1.2,tabDrop:2.7};
+  const groove = {clearance:.32,wideOpening:40.3,wideChannel:42.16,narrowOpening:30.5,cradle:1.2};
+  const nominalBottom = tray=>tray.top-tray.h;
+  const trayTop = tray=>version===0?tray.top:nominalBottom(tray)+products[tray.h].height;
+  const trayBottom = tray=>version===0?tray.top-products[tray.h].height:nominalBottom(tray);
+  const tabOutline = [[16.02,12.37],[16.65,12.62],[17.48,12.81],[18.14,12.76],
+    [18.54,12.48],[18.8,11.81],[18.77,11.34],[18.38,9.99],[18.10,10.47],
+    [17.39,11.25],[16.4,12.14]];
+  const formatCm = new Intl.NumberFormat('es-MX',{maximumFractionDigits:2}).format;
   let version = 0;
   const mixedExample = trays.findIndex(tray=>tray.bay===3 && tray.h===36);
   let selected = mixedExample;
@@ -404,7 +419,8 @@ h3 { font-size: 13px; font-weight: 650; }
     const edges = [left+4.5, left+7+span, 7, 9.5+span];
     const railBack=-8-d, railFront=-5.3, postDepth=7.5;
     const postBands=[[railBack,postDepth],[railFront-postDepth,postDepth]];
-    return {w,d,span,width,left,edges,depth:d+14,tableWidth:2*span+2.5,railBack,railFront,postBands};
+    const opening=version===0?groove.wideOpening:groove.narrowOpening;
+    return {w,d,span,width,left,edges,opening,depth:d+14,tableWidth:2*span+2.5,railBack,railFront,postBands};
   };
 
   const program = gl.createProgram();
@@ -580,82 +596,106 @@ h3 { font-size: 13px; font-weight: 650; }
   }
 
   function drawTray(tray,index,spec) {
-    const {w,d,edges,span} = spec;
-    const {bay,h,offset,top} = tray;
-    const y = trayBottom(tray);
-    const p = palette;
-    const id = 10+index;
-    const x = edges[bay]+(span-w)/2;
-    const front = -8+offset;
-    const z = front-d;
-    const color = sideLight && bay>=2 ? blend(p.tray,p.warmLight,.23) : p.tray;
-    const cap = blend(color,index===selected?p.fg:p.bg,index===selected?.12:.08);
-    const thickness=groove.lipThickness;
-    const fromOriginal = (u,v,height)=>version===0?[x+u,height,z+v]:[x+30-v,height,z+u];
-    const ring = (marginX,marginZ,height,radius) => {
-      const centers=[[marginX+radius,marginZ+radius],[42-marginX-radius,marginZ+radius],
-        [42-marginX-radius,30-marginZ-radius],[marginX+radius,30-marginZ-radius]];
+    const {edges,span} = spec;
+    const {bay,h,offset} = tray;
+    const product=products[h];
+    const {length,depth,heel,inside}=product;
+    const d=version===0?depth:length;
+    const y=trayBottom(tray);
+    const top=trayTop(tray);
+    const p=palette;
+    const id=10+index;
+    const x=edges[bay]+span/2;
+    const z=-8+offset-d/2;
+    const color=sideLight && bay>=2?blend(p.tray,p.warmLight,.16):p.tray;
+    const cap=blend(color,p.bg,index===selected?.23:.12);
+    const fromOriginal=(u,v,height)=>version===0?[x+u,height,z+v]:[x-v,height,z+u];
+    const ring=(width,depth,height,radius)=>{
+      const a=width/2-radius,b=depth/2-radius;
+      const centers=[[-a,-b],[a,-b],[a,b],[-a,b]];
       return centers.flatMap(([cx,cz],i)=>Array.from({length:5},(_,j)=>{
         const angle=Math.PI+(i+j/4)*Math.PI/2;
         return fromOriginal(cx+radius*Math.cos(angle),cz+radius*Math.sin(angle),height);
       }));
     };
-    const [baseWidth,baseDepth]=smallFootprints[h];
-    const bx=(42-baseWidth)/2;
-    const bz=(30-baseDepth)/2;
-    const shell=ring(bx-.4,bz-.4,y,4.5);
-    const neck=ring(1.62,1.17,top-thickness,5.7);
-    const lowerLip=ring(.06,.06,top-thickness,2.45);
-    const upperLip=ring(0,0,top,2.45);
-    const mouth=ring(1.98,1.55,top,5.8);
-    const bottom=ring(bx,bz,y+.55,4.7);
-    for(let i=0;i<shell.length;i++){
-      const n=(i+1)%shell.length;
-      const shade=[-.04,-.12,.03,-.10][Math.floor(i/5)];
-      face([shell[i],shell[n],neck[n],neck[i]],color,id,shade);
-      face([neck[i],neck[n],lowerLip[n],lowerLip[i]],color,id,-.17);
-      face([lowerLip[i],lowerLip[n],upperLip[n],upperLip[i]],cap,id,-.08);
-      face([upperLip[i],upperLip[n],mouth[n],mouth[i]],cap,id,.10);
-      face([mouth[i],mouth[n],bottom[n],bottom[i]],color,id,-.16);
-    }
-    face(shell,color,id,-.21);
-    face(bottom,color,id,-.08);
-    for(const u of [4.5,35.1]) for(const v of [.8,28.25]){
-      box(u,top-1.42,v,2.4,.87,.95,color,id,([a,b,c])=>fromOriginal(a,c,b));
+    const join=(a,b,tint,shades)=>{
+      for(let i=0;i<a.length;i++){
+        const next=(i+1)%a.length;
+        face([a[i],a[next],b[next],b[i]],tint,id,shades[Math.floor(i/5)]??shades[0]);
+      }
+    };
+
+    const floor=ring(heel[0]-1.1,heel[1]-1.05,y,6.1);
+    const roundedBase=ring(...heel,y+.78,6.6);
+    const neck=ring(39.12,27.18,top-1.39,7.85);
+    const underShoulder=ring(39.18,27.25,top-flange.seat,7.85);
+    const skirtUnder=ring(length-.17,depth-.17,top-flange.seat,3.16);
+    const skirt=ring(length,depth,top-flange.skirt,3.23);
+    const upperShoulder=ring(length,depth,top-.20,3.23);
+    const upperLip=ring(length-.24,depth-.24,top,3.11);
+    const mouth=ring(40.25,28.21,top,7.8);
+    const innerShoulder=ring(39.94,27.95,top-.15,7.72);
+    const innerNeck=ring(38.71,26.74,top-1.42,7.78);
+    const innerFloor=ring(...inside,y+.78,6.75);
+
+    join(floor,roundedBase,color,[-.09,-.17,-.03,-.12]);
+    join(roundedBase,neck,color,[-.04,-.12,.03,-.10]);
+    join(neck,underShoulder,color,[-.10]);
+    join(underShoulder,skirtUnder,color,[-.17]);
+    join(skirtUnder,skirt,color,[-.13]);
+    join(skirt,upperShoulder,color,[-.05,-.14,.015,-.10]);
+    join(upperShoulder,upperLip,cap,[.10]);
+    join(upperLip,mouth,cap,[.10]);
+    join(mouth,innerShoulder,color,[-.04]);
+    join(innerShoulder,innerNeck,color,[-.16]);
+    join(innerNeck,innerFloor,color,[-.16,-.20,-.11,-.17]);
+    face(floor,color,id,-.21);
+    face(innerFloor,color,id,-.08);
+
+    for(const su of [-1,1]) for(const sv of [-1,1]){
+      const tabTop=tabOutline.map(([u,v])=>fromOriginal(u*su,v*sv,top-flange.seat));
+      const tabFoot=tabOutline.map(([u,v])=>fromOriginal(u*su,v*sv,top-flange.tabDrop));
+      for(let i=0;i<tabOutline.length;i++){
+        const next=(i+1)%tabOutline.length;
+        face([tabTop[i],tabTop[next],tabFoot[next],tabFoot[i]],color,id,-.14);
+      }
+      face(tabFoot,color,id,-.22);
     }
     if((bay===2 && tray.row===2) || (bay===1 && tray.row===1)){
-      const inset=version===0?bx:bz;
-      const insetDepth=version===0?bz:bx;
-      const ix=x+inset+2, iz=z+insetDepth+2;
-      box(ix,y+.56,iz,(w-2*inset-4)*.53,.55,d-2*insetDepth-4,p.work,id);
-      box(ix,y+1.1,iz,.65,4,d-2*insetDepth-4,p.work,id);
-      box(ix,y+1.1,iz+d*.38,(w-2*inset-4)*.53,4,.65,p.work,id);
+      const [insideW,insideD]=version===0?inside:[inside[1],inside[0]];
+      const ix=x-insideW/2+2, iz=z-insideD/2+2;
+      box(ix,y+.79,iz,(insideW-4)*.53,.55,insideD-4,p.work,id);
+      box(ix,y+1.31,iz,.65,4,insideD-4,p.work,id);
+      box(ix,y+1.31,iz+d*.38,(insideW-4)*.53,4,.65,p.work,id);
     }
   }
 
   function traySupports(bay,spec) {
-    const {d,edges,span,railBack,railFront,postBands} = spec;
+    const {d,edges,span,opening,railBack,railFront,postBands} = spec;
     const p=palette;
     const column=trays.filter(tray=>tray.bay===bay);
     const occupied=column.filter(tray=>tray.h);
     const runs=bay<2
       ? [[21.5,87.2,column.filter(tray=>tray.top<90)],[154,197,column.filter(tray=>tray.top>90)]]
       : [[21.5,197,column]];
-    const liner=version===0?groove.wideLiner:groove.narrowLiner;
+    const liner=(span-opening)/2;
+    const backing=version===0?(span-groove.wideChannel)/2:0;
     const bands=bay<2?[[railBack,railFront-railBack]]:postBands;
-    const supportHeight=tray=>version===0?tray.top:bay<2?trayBottom(tray):tray.top-10;
-    const shelfThickness=version===0?groove.lipThickness:groove.cradle;
+    const supportHeight=tray=>version===0?tray.top:bay<2?nominalBottom(tray):tray.top-10;
+    const shelfThickness=version===0?flange.seat:groove.cradle;
     for(const [start,end,slots] of runs){
-      for(const x of [edges[bay],edges[bay]+span-liner]){
-        const cuts=slots.map(supportHeight).sort((a,b)=>a-b);
+      const cuts=slots.map(supportHeight).sort((a,b)=>a-b);
+      for(const [x,wallX] of [[edges[bay]+backing,edges[bay]],
+        [edges[bay]+span-liner,edges[bay]+span-backing]]){
         for(const [z,depth] of bands){
+          if(backing) box(wallX,start,z,backing,end-start,depth,p.liner);
           let cursor=start;
           for(const y of cuts){
             const shoulder=y-shelfThickness;
-            if(shoulder>cursor) box(x,cursor,z,liner,shoulder-cursor,depth,p.liner);
+            if(shoulder>cursor) box(x,cursor,z,liner-backing,shoulder-cursor,depth,p.liner);
             cursor=y+groove.clearance;
           }
-          if(cursor<end) box(x,cursor,z,liner,end-cursor,depth,p.liner);
+          if(cursor<end) box(x,cursor,z,liner-backing,end-cursor,depth,p.liner);
         }
       }
     }
@@ -784,7 +824,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const scale=Math.min(width/(showCotas?268:239),Math.max(40,height-78)/220)*zoom;
     const focus=viewMode==='detail' && trays[selected].h ? trays[selected] : null;
     const centerX=focus?spec.edges[focus.bay]+spec.span/2:viewMode==='posts'?spec.edges[2]+spec.span+1.25:0;
-    const centerY=focus?(focus.top+trayBottom(focus))/2:100;
+    const centerY=focus?(trayTop(focus)+trayBottom(focus))/2:100;
     const centerZ=viewMode==='posts'?(spec.railBack+spec.railFront)/2:focus?-8:0;
     const cy=Math.cos(yaw), sy=Math.sin(yaw);
     const cp=Math.cos(pitch), sp=Math.sin(pitch);
@@ -894,6 +934,10 @@ h3 { font-size: 13px; font-weight: 650; }
     get('.tl-dims').textContent=size;
     get('.tl-size').textContent=size;
     get('.tl-table').textContent=spec.tableWidth+' cm de ancho · 90 cm del piso';
+    get('.tl-clear-opening').textContent=formatCm(spec.opening)+' cm';
+    const channel=get('.tl-channel');
+    channel.hidden=version!==0;
+    channel.querySelector('dd').textContent=formatCm(groove.wideChannel)+' × '+formatCm(flange.seat+groove.clearance)+' cm · cotas de diseño';
     get('[data-summary="width"]').textContent=spec.width+' cm';
     get('[data-summary="depth"]').textContent=spec.depth+' cm';
     get('.view-title').textContent=viewCopy[viewMode][0];
@@ -919,13 +963,17 @@ h3 { font-size: 13px; font-weight: 650; }
     get('.tl-phase').textContent=phase;
     const tray=trays[selected];
     get('.tl-phase-tray').textContent='Módulo '+(tray.bay+1)+' · '+tray.h+' cm';
+    const product=products[tray.h];
+    get('.tl-tray-size').textContent='IKEA '+product.article+' · '+[
+      ...(version===0?[product.length,product.depth]:[product.depth,product.length]),product.height
+    ].map(formatCm).join(' × ')+' cm en el modelo 3D';
     const column=levelsByBay[tray.bay-2]?.filter(neighbor=>neighbor.h) ?? [];
     const position=column.indexOf(tray);
     const above=position>=0?column[position+1]:undefined;
     const below=column[position-1];
     const gaps=[];
-    if(above) gaps.push('arriba '+(trayBottom(above)-tray.top)+' cm');
-    if(below) gaps.push('abajo '+(trayBottom(tray)-below.top)+' cm');
+    if(above) gaps.push('arriba '+formatCm(trayBottom(above)-trayTop(tray))+' cm');
+    if(below) gaps.push('abajo '+formatCm(trayBottom(tray)-trayTop(below))+' cm');
     gapReadout.hidden=gaps.length===0;
     const gapText=gaps.length?'Separación instalada · '+gaps.join(' · '):'';
     if(gapReadout.textContent!==gapText) gapReadout.textContent=gapText;
