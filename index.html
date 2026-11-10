@@ -163,7 +163,7 @@ h3 { font-size: 13px; font-weight: 650; }
             <button type="button" data-view="front">Frente</button>
             <button type="button" data-view="angle" aria-pressed="true">Perspectiva</button>
             <button type="button" data-view="detail">Detalle del apoyo</button>
-            <button type="button" data-view="posts" data-posts-view>Ver montantes</button>
+            <button type="button" data-view="posts" data-posts-view>Ver guías y montantes</button>
           </div>
         </div>
       </section>
@@ -187,7 +187,7 @@ h3 { font-size: 13px; font-weight: 650; }
             <div><dt>Columnas altas</dt><dd>13 niveles por columna · paso de 13 cm</dd></div>
             <div><dt>Espacio libre entre pegboard y mueble interior</dt><dd class="tl-door-space tabular-nums"></dd></div>
             <div><dt>Abertura libre entre soportes</dt><dd class="tl-clear-opening tabular-nums"></dd></div>
-            <div class="tl-channel"><dt>Ancho interior y alto de ranura del mueble</dt><dd class="tabular-nums"></dd></div>
+            <div class="tl-channel"><dt>Ancho entre guías y alto del canal</dt><dd class="tabular-nums"></dd></div>
           </dl>
         </div>
       </section>
@@ -366,8 +366,10 @@ h3 { font-size: 13px; font-weight: 650; }
     [18.54,12.48],[18.8,11.81],[18.77,11.34],[18.38,9.99],[18.10,10.47],
     [17.39,11.25],[16.4,12.14]];
   const formatCm = new Intl.NumberFormat('es-MX',{maximumFractionDigits:2}).format;
-  const doorOriginZ=.28;
-  const doorPegboardZ=-1.6;
+  const doorOriginZ=1.3;
+  const doorPegboardZ=-2.62;
+  const doorRailFace=2.1;
+  const frameSideWidth=3;
   const pegboardThickness=.5;
   const frontRecess=12;
   const closedPegboardFace=doorOriginZ+doorPegboardZ-pegboardThickness/2;
@@ -388,18 +390,22 @@ h3 { font-size: 13px; font-weight: 650; }
   const dimensions = () => {
     const {w,d} = variants[version];
     const span = w + 2;
-    const width = 4 * span + 28;
-    const left = -width / 2;
+    const cabinetWidth=4*span+28;
+    const left=-cabinetWidth/2;
+    const width=cabinetWidth+2*frameSideWidth;
+    const outerLeft=left-frameSideWidth;
     const edges = [left+4.5, left+7+span, 7, 9.5+span];
     const interiorFront=-frontRecess;
     const trayFront=interiorFront-8;
     const railBack=trayFront-d, railFront=interiorFront-5.3, postDepth=7.5;
     const postBands=[[railBack,postDepth],[railFront-postDepth,postDepth]];
     const opening=version===0?groove.wideOpening:groove.narrowOpening;
-    const depth=d+14+frontRecess;
+    const rear=2.4-(d+14+frontRecess);
+    const doorFront=doorOriginZ+doorRailFace;
+    const depth=doorFront-rear;
     const doorClearance=Math.floor(closedPegboardFace-interiorFront);
-    return {w,d,span,width,left,edges,opening,depth,doorClearance,interiorFront,trayFront,
-      tableWidth:2*span+2.5,railBack,railFront,postBands};
+    return {w,d,span,width,cabinetWidth,left,outerLeft,edges,opening,depth,rear,doorFront,
+      doorClearance,interiorFront,trayFront,tableWidth:2*span+2.5,railBack,railFront,postBands};
   };
 
   const program = gl.createProgram();
@@ -642,7 +648,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
 
   function traySupports(bay,spec) {
-    const {d,edges,span,opening,railBack,railFront,postBands} = spec;
+    const {d,edges,span,opening,railBack,railFront} = spec;
     const p=palette;
     const column=trays.filter(tray=>tray.bay===bay);
     const occupied=column.filter(tray=>tray.h);
@@ -651,22 +657,35 @@ h3 { font-size: 13px; font-weight: 650; }
       : [[21.5,197,column]];
     const liner=(span-opening)/2;
     const backing=version===0?(span-groove.wideChannel)/2:0;
-    const bands=bay<2?[[railBack,railFront-railBack]]:postBands;
     const supportHeight=tray=>version===0?tray.top:bay<2?nominalBottom(tray):tray.top-10;
     const shelfThickness=version===0?flange.seat:groove.cradle;
-    for(const [start,end,slots] of runs){
-      const cuts=slots.map(supportHeight).sort((a,b)=>a-b);
-      for(const [x,wallX] of [[edges[bay]+backing,edges[bay]],
-        [edges[bay]+span-liner,edges[bay]+span-backing]]){
-        for(const [z,depth] of bands){
-          if(backing) box(wallX,start,z,backing,end-start,depth,p.liner);
+    const length=railFront-railBack;
+    if(bay>=2){
+      const railWidth=2, railHeight=1.9;
+      const lipStop=version===0?backing:.05;
+      const stopWidth=railWidth-liner+lipStop;
+      const left=edges[bay]+liner-railWidth;
+      const right=edges[bay]+span-liner;
+      for(const tray of column){
+        const seat=supportHeight(tray)-shelfThickness;
+        box(left,seat-railHeight,railBack,railWidth,railHeight,length,p.rail);
+        box(right,seat-railHeight,railBack,railWidth,railHeight,length,p.rail);
+        box(left,seat,railBack,stopWidth,shelfThickness+groove.clearance,length,p.liner);
+        box(right+railWidth-stopWidth,seat,railBack,stopWidth,shelfThickness+groove.clearance,length,p.liner);
+      }
+    } else {
+      for(const [start,end,slots] of runs){
+        const cuts=slots.map(supportHeight).sort((a,b)=>a-b);
+        for(const [x,wallX] of [[edges[bay]+backing,edges[bay]],
+          [edges[bay]+span-liner,edges[bay]+span-backing]]){
+          if(backing) box(wallX,start,railBack,backing,end-start,length,p.liner);
           let cursor=start;
           for(const y of cuts){
             const shoulder=y-shelfThickness;
-            if(shoulder>cursor) box(x,cursor,z,liner-backing,shoulder-cursor,depth,p.liner);
+            if(shoulder>cursor) box(x,cursor,railBack,liner-backing,shoulder-cursor,length,p.liner);
             cursor=y+groove.clearance;
           }
-          if(cursor<end) box(x,cursor,z,liner-backing,end-cursor,depth,p.liner);
+          if(cursor<end) box(x,cursor,railBack,liner-backing,end-cursor,length,p.liner);
         }
       }
     }
@@ -679,8 +698,7 @@ h3 { font-size: 13px; font-weight: 650; }
 
   function build(spec) {
     const p=palette;
-    const {width,left,edges,span,depth,interiorFront}=spec;
-    const rear=2.4-depth;
+    const {width,cabinetWidth,left,outerLeft,edges,span,rear,interiorFront}=spec;
     const back=rear+1.9;
     const body=0-rear;
     box(-129,-.4,-69,258,.3,135,p.floor);
@@ -694,12 +712,19 @@ h3 { font-size: 13px; font-weight: 650; }
     box(left,18,rear,edges[2]-left,182,1.9,p.panel);
     const litBack=blend(p.panel,p.warmLight,.22);
     box(edges[2],18,rear,-left-edges[2],182,1.9,litBack);
-    box(left+.025,18,rear,width-.05,3.5,body,p.frame);
-    box(left+.025,197,rear,width-.05,2.975,body,p.frame);
+    box(left+.025,18,rear,cabinetWidth-.05,3.5,body,p.frame);
+    box(left+.025,197,rear,cabinetWidth-.05,2.975,body,p.frame);
     const skin=1.8;
-    plankedSurface(width,-rear,(u,v,lift=0)=>[left+u,199.985+lift,rear+v],65);
+    plankedSurface(cabinetWidth,-rear,(u,v,lift=0)=>[left+u,199.985+lift,rear+v],65);
+    const frameBack=-3.05, frameFront=.28;
     for(const [y,h] of [[18,3.5],[197,3]]){
-      boardSurface(width,h,(u,v,lift=0)=>[left+u,y+v,.012+lift],p.rail,y);
+      box(outerLeft,y,frameBack,width,h,frameFront-frameBack,p.rail);
+      boardSurface(width,h,(u,v,lift=0)=>[outerLeft+u,y+v,frameFront+.012+lift],p.rail,y);
+    }
+    for(const x of [outerLeft,-left]){
+      box(x,21.5,frameBack,frameSideWidth,175.5,frameFront-frameBack,p.rail);
+      boardSurface(175.5,frameSideWidth,
+        (u,v,lift=0)=>[x+v,21.5+u,frameFront+.012+lift],p.rail,x);
     }
     const interiorDepth=interiorFront-back;
     box(left+.025,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23));
@@ -713,7 +738,7 @@ h3 { font-size: 13px; font-weight: 650; }
       box(edges[2]+span,21.5,z,2.5,175.5,postDepth,p.frame);
     }
     box(-7,21.5,back,14,175.5,interiorDepth-3,p.frame);
-    box(-2.1,21.5,interiorFront-3,4.2,175.5,3-interiorFront,p.frame);
+    box(-2.1,21.5,interiorFront-3,4.2,175.5,1.5-interiorFront,p.frame);
 
     const lightZ=(spec.railBack+spec.railFront)/2;
     for(const x of [edges[2],edges[3]+span-.08]){
@@ -750,16 +775,36 @@ h3 { font-size: 13px; font-weight: 650; }
       const y=22, height=174.6;
       const faceStart=i===2?-2.25:local;
       const faceWidth=leaf+(i===1 || i===2?2.25:0);
-      box(faceStart,y,0,faceWidth,height,1.51,blend(p.door,p.fg,.17),id,t);
-      plankedSurface(height,faceWidth,(u,v,lift=0)=>t([faceStart+v,y+u,1.57+lift]),i+4,id);
+      const plankFace=.64, panelBack=-.93;
+      box(faceStart,y,panelBack,faceWidth,height,.58-panelBack,blend(p.door,p.fg,.17),id,t);
+      plankedSurface(height,faceWidth,(u,v,lift=0)=>t([faceStart+v,y+u,plankFace+lift]),i+4,id);
       for(const [railY,railHeight] of [[y,8],[y+height/2-6,12],[y+height-8,8]]){
-        box(faceStart,railY,1.55,faceWidth,railHeight,.53,p.rail,id,t);
-        boardSurface(faceWidth,railHeight,
-          (u,v,lift=0)=>t([faceStart+u,railY+v,2.09+lift]),p.rail,i+railY,id);
+        const railBase=plankFace-.02;
+        box(local,railY,railBase,leaf,railHeight,doorRailFace-railBase-.02,p.rail,id,t);
+        boardSurface(leaf,railHeight,
+          (u,v,lift=0)=>t([local+u,railY+v,doorRailFace-.01+lift]),p.rail,i+railY,id);
+        if(i===1 || i===2){
+          // The two returns taper at the shared hinge jamb so the doors can open together.
+          const extension=2.25;
+          const extensionX=i===1?0:-extension;
+          const tip=i===1?extension:0;
+          const endFace=(u,v,lift=0)=>{
+            const fraction=Math.abs(u-(extension-tip))/extension;
+            const z=doorRailFace-.01+(.73-doorRailFace+.01)*fraction;
+            return t([extensionX+u,railY+v,z+lift]);
+          };
+          const endBase=(u,v)=>t([extensionX+u,railY+v,railBase]);
+          for(const v of [0,railHeight]){
+            face([endBase(0,v),endBase(extension,v),endFace(extension,v),endFace(0,v)],p.rail,id,-.08);
+          }
+          face([endBase(tip,0),endFace(tip,0),endFace(tip,railHeight),endBase(tip,railHeight)],p.rail,id,-.11);
+          boardSurface(extension,railHeight,endFace,p.rail,i+railY,id);
+        }
       }
       const inset=3.7;
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
-      box(local+inset,29,-1.25,leaf-2*inset,159,1.1,p.steel,id,t);
+      const spacerBack=doorPegboardZ+.35;
+      box(local+inset,29,spacerBack,leaf-2*inset,159,panelBack-spacerBack,p.steel,id,t);
       pegboard(local+inset,29,doorPegboardZ,leaf-2*inset,159,-1,id,t);
     }
   }
@@ -783,7 +828,10 @@ h3 { font-size: 13px; font-weight: 650; }
     const spec=dimensions();
     trays.forEach((tray,index) => {
       const ready=doorAngle[tray.bay]>.995;
-      const slide=version===0 && tray.bay>=2?spec.d*.37:spec.d*.61;
+      const supportEnd=version===0?spec.railFront:spec.railBack+spec.d+.35;
+      const product=products[tray.h];
+      const trayDepth=product?(version===0?product.depth:product.length):spec.d;
+      const slide=Math.min(spec.d*.61,supportEnd-spec.trayFront+trayDepth/2-2);
       const target=active===index && ready ? (stage===2?spec.depth:slide) : 0;
       tray.offset=toward(tray.offset,target,.145);
     });
@@ -847,10 +895,10 @@ h3 { font-size: 13px; font-weight: 650; }
       label.setAttribute('y',(a[1]+b[1])/2+offset[1]);
       label.textContent=text;
     };
-    const right=-spec.left;
-    mark('width',[spec.left,4,8],[right,4,8],'Ancho '+spec.width+' cm',[0,14]);
+    const right=-spec.outerLeft;
+    mark('width',[spec.outerLeft,4,8],[right,4,8],'Ancho '+spec.width+' cm',[0,14]);
     mark('height',[right+9,4,1],[right+9,200,1],'Alto 200 cm',[24,-5]);
-    mark('depth',[right+10,6,2.4-spec.depth],[right+10,6,2.4],
+    mark('depth',[right+10,6,spec.rear],[right+10,6,spec.doorFront],
       'Fondo '+spec.depth+' cm',[12,-7],Math.abs(Math.sin(yaw))>.18 && width>=500);
   }
 
@@ -898,7 +946,7 @@ h3 { font-size: 13px; font-weight: 650; }
     angle:['Perspectiva','Arrastra para girar el mueble o toca las piezas para accionarlas.'],
     front:['Vista frontal','Compara el banco de trabajo y las dos columnas de charolas.'],
     detail:['Detalle del apoyo','Acércate al reborde y al apoyo de la charola seleccionada.'],
-    posts:['Montantes abiertos','Vista de inspección del espacio entre los apoyos de las columnas derechas.']
+    posts:['Guías y montantes','Vista de las tiras continuas entre los soportes delanteros y traseros.']
   };
   const stageLabel = ['Deslizar','Retirar','Guardar'];
   function update(message) {
@@ -1122,7 +1170,7 @@ h3 { font-size: 13px; font-weight: 650; }
       }
       doorOpen[bay]=true;
       setView(view);
-      change(version===0?'Detalle · reborde gris y ranura de pino.':'Detalle · charola girada sobre su base removible.');
+      change(version===0?'Detalle · reborde gris sobre la guía de pino.':'Detalle · charola girada sobre su base removible.');
     } else if(view==='posts' && viewMode!=='posts'){
       if(locked[1]){
         update('Libera la chapa 3–4 para ver los montantes.');
@@ -1130,7 +1178,7 @@ h3 { font-size: 13px; font-weight: 650; }
       }
       doorOpen[2]=doorOpen[3]=true;
       setView(view);
-      change('Vista de montantes · charolas derechas ocultas para ver el espacio entre apoyos.');
+      change('Charolas derechas ocultas para inspeccionar las guías continuas.');
     } else {
       setView(view==='posts'?'angle':view);
       update('Vista general del mueble.');
