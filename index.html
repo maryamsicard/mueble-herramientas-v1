@@ -28,7 +28,8 @@ button:hover { background: #f4ebe3; border-color: #d3b5a6; }
 button[aria-pressed="true"], button[aria-selected="true"] { background: var(--selected); color: #69372b; border-color: #b88773; }
 button:disabled { opacity: .55; cursor: default; }
 select { padding: 6px 8px; background: var(--panel); max-width: 100%; }
-button:focus-visible, select:focus-visible, [role="tabpanel"]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+a { color: var(--primary); text-underline-offset: 3px; }
+button:focus-visible, select:focus-visible, [role="tabpanel"]:focus-visible, .tl-canvas:focus-visible, .scene-resize:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 [hidden] { display: none !important; }
 h1, h2, h3, p { margin: 0; }
 h1 { font-size: 18px; font-weight: 650; }
@@ -54,8 +55,8 @@ h3 { font-size: 13px; font-weight: 650; }
 .view-heading .tl-dims { white-space: nowrap; font-size: 10px; }
 .simulator-main {
   display: grid; min-height: 0;
-  grid-template-columns: 350px minmax(0, 1fr);
-  grid-template-areas: "controls scene";
+  grid-template-columns: var(--sidebar-width,320px) 8px minmax(0, 1fr);
+  grid-template-areas: "controls resize scene";
 }
 .sidebar {
   grid-area: controls; display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
@@ -93,9 +94,16 @@ h3 { font-size: 13px; font-weight: 650; }
 .tray-field { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); }
 .tray-field select { display: block; width: 100%; }
 [aria-labelledby="tab-charolas"] .control-group + .control-group { margin-top: 13px; padding-top: 0; border-top: 0; }
-.tl-scene { grid-area: scene; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: linear-gradient(#fffefa, var(--scene-ground)); }
-.tl-canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; }
+.tl-scene { grid-area: scene; display: grid; grid-template-rows: auto minmax(0,1fr) auto; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: linear-gradient(#fffefa, var(--scene-ground)); }
+.scene-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; }
+.scene-toolbar button { min-height: 30px; padding: 4px 9px; font-size: 11px; background: var(--panel); }
+.scene-toolbar [aria-pressed="true"] { background: var(--selected); }
+.scene-toolbar .navigation-mode { display: flex; gap: 4px; margin-right: auto; }
+.scene-viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.tl-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .tl-canvas:active { cursor: grabbing; }
+.scene-resize { grid-area: resize; position: relative; cursor: col-resize; touch-action: none; background: var(--panel); }
+.scene-resize::after { content: ""; position: absolute; width: 3px; height: 40px; left: 50%; top: 50%; transform: translate(-50%,-50%); border-radius: 3px; background: #c5b6aa; }
 .cotas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .cotas line { stroke: #a16a54; stroke-width: 1; }
 .cotas text {
@@ -103,8 +111,8 @@ h3 { font-size: 13px; font-weight: 650; }
   paint-order: stroke; text-anchor: middle; font-size: 11px; font-weight: 650;
 }
 .scene-footer {
-  position: absolute; inset: auto 0 0; display: grid; gap: 4px; padding: 20px 17px 11px;
-  background: linear-gradient(transparent, #faf7f3f2 32%, #faf7f3 94%);
+  display: grid; gap: 4px; padding: 8px 17px 11px;
+  background: #faf7f3;
 }
 .scene-phase { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
 .scene-footer input { width: 100%; margin: 0; accent-color: var(--primary); }
@@ -116,9 +124,11 @@ h3 { font-size: 13px; font-weight: 650; }
   .view-heading .tl-dims { display: none; }
   .simulator-main {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(146px,47%) minmax(0, 1fr);
-    grid-template-areas: "scene" "controls";
+    grid-template-rows: minmax(150px,var(--scene-height,62%)) 10px minmax(0, 1fr);
+    grid-template-areas: "scene" "resize" "controls";
   }
+  .scene-resize { cursor: row-resize; }
+  .scene-resize::after { width: 46px; height: 3px; }
   .sidebar { border-right: 0; border-top: 1px solid var(--border); }
   .control-tabs { padding: 6px; }
   .control-panel { padding: 9px 12px 14px; }
@@ -126,10 +136,13 @@ h3 { font-size: 13px; font-weight: 650; }
   .scene-footer .scene-note { display: none; }
 }
 @media (max-height: 499px) and (min-width: 581px) {
-  .simulator-main { grid-template-columns: 305px minmax(0, 1fr); }
+  .simulator-main { grid-template-columns: var(--sidebar-width,305px) 8px minmax(0, 1fr); }
   .site-header { padding: 6px 12px; }
   .control-tabs { padding: 6px; }
 }
+.viewer-expanded { grid-template-rows: minmax(0,1fr); }
+.viewer-expanded .site-header, .viewer-expanded .sidebar, .viewer-expanded .scene-resize { display: none; }
+.viewer-expanded .simulator-main { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr); grid-template-areas: "scene"; }
 </style>
 </head>
 <body>
@@ -140,7 +153,7 @@ h3 { font-size: 13px; font-weight: 650; }
       <p class="text-small text-muted">Modelo conceptual editable · unidades en cm</p>
     </div>
     <div class="view-heading">
-      <p><strong class="view-title">Perspectiva</strong><span class="view-copy">Arrastra para girar y toca las piezas para accionarlas.</span></p>
+      <p><strong class="view-title">Perspectiva</strong><span class="view-copy">Gira o mueve el mueble con los controles del visor.</span></p>
       <p class="tl-dims tabular-nums" aria-label="Dimensiones del mueble cerrado"></p>
     </div>
   </header>
@@ -248,11 +261,12 @@ h3 { font-size: 13px; font-weight: 650; }
       <section class="control-panel" id="panel-puertas" role="tabpanel" aria-labelledby="tab-puertas" tabindex="0" hidden>
         <div class="panel-intro">
           <h2>Puertas y chapas</h2>
-          <p class="text-small text-muted">Una chapa RETRIN MP10003 de 10.9 × 4.6 cm por par, montada de frente sobre el travesaño central.</p>
+          <p class="text-small text-muted">Prueba el movimiento de las cuatro hojas y consulta la chapa del diseño.</p>
         </div>
         <div class="control-group">
-          <h3>Puertas · de izquierda a derecha</h3>
-          <div class="actions" role="group" aria-label="Puertas">
+          <h3>Simulación de apertura y cierre de las puertas</h3>
+          <p class="text-small text-muted">Hojas numeradas del 1 al 4, de izquierda a derecha. Pulsa una para abrirla o cerrarla.</p>
+          <div class="actions" role="group" aria-label="Simulación de apertura y cierre de las puertas">
             <button type="button" data-door="0">1</button>
             <button type="button" data-door="1">2</button>
             <button type="button" data-door="2">3</button>
@@ -260,29 +274,42 @@ h3 { font-size: 13px; font-weight: 650; }
           </div>
         </div>
         <div class="control-group">
-          <h3>Bloqueo por pares · simulación</h3>
-          <div class="actions" role="group" aria-label="Chapas">
-            <button type="button" data-lock="0">Chapa 1–2</button>
-            <button type="button" data-lock="1">Chapa 3–4</button>
-          </div>
+          <h3>Chapa de combinación</h3>
+          <p><strong>RETRIN MP10003 · negra</strong></p>
+          <p class="text-small text-muted">Chapa horizontal de sobreponer con combinación de tres dígitos. Se atornilla de frente sobre el travesaño central. El diseño lleva dos unidades, una por cada par de puertas.</p>
+          <p class="text-small tabular-nums">Medidas frontales · 10.9 × 4.6 cm</p>
+          <p class="text-small"><a href="https://www.amazon.com.mx/dp/B0D6KTG15Z" target="_blank" rel="noopener noreferrer">Ver RETRIN MP10003 en Amazon México</a></p>
         </div>
       </section>
 
       <p class="tl-status text-small text-muted" role="status" aria-live="polite"></p>
     </aside>
     <section class="tl-scene" aria-label="Visor del mueble">
-      <canvas class="tl-canvas" aria-label="Modelo tridimensional. Arrastra para girar o toca una puerta o charola." role="img"></canvas>
-      <svg class="cotas" aria-hidden="true" hidden>
-        <g data-cota="width"><line></line><line></line><line></line><text></text></g>
-        <g data-cota="height"><line></line><line></line><line></line><text></text></g>
-        <g data-cota="depth"><line></line><line></line><line></line><text></text></g>
-      </svg>
+      <div class="scene-toolbar" role="group" aria-label="Navegación del modelo">
+        <div class="navigation-mode" role="group" aria-label="Acción al arrastrar">
+          <button type="button" data-navigation="rotate" aria-pressed="true">Girar</button>
+          <button type="button" data-navigation="pan" aria-pressed="false">Mover</button>
+        </div>
+        <button type="button" data-zoom="out" aria-label="Alejar" title="Alejar">−</button>
+        <button type="button" data-zoom="in" aria-label="Acercar" title="Acercar">+</button>
+        <button type="button" data-center>Centrar</button>
+        <button type="button" data-expand aria-pressed="false">Ampliar visor</button>
+      </div>
+      <div class="scene-viewport">
+        <canvas class="tl-canvas" aria-label="Modelo tridimensional. Arrastra para girar o mover. Usa la rueda para acercar y las flechas para desplazar." aria-describedby="navigation-help" role="img" tabindex="0"></canvas>
+        <svg class="cotas" aria-hidden="true" hidden>
+          <g data-cota="width"><line></line><line></line><line></line><text></text></g>
+          <g data-cota="height"><line></line><line></line><line></line><text></text></g>
+          <g data-cota="depth"><line></line><line></line><line></line><text></text></g>
+        </svg>
+      </div>
       <div class="scene-footer text-small text-muted">
         <div class="scene-phase"><strong class="tl-phase">Charola guardada</strong><span class="tl-phase-tray"></span></div>
         <input type="range" min="0" max="2" step="1" value="0" data-stage aria-label="Recorrido de la charola">
-        <p class="scene-note">Arrastra para girar · toca las puertas o charolas para accionarlas.</p>
+        <p class="scene-note" id="navigation-help">Girar o Mover y arrastrar · rueda para acercar · dos dedos para mover y ampliar.</p>
       </div>
     </section>
+    <div class="scene-resize" role="separator" aria-label="Ajustar espacio del visor" title="Arrastra para ajustar el espacio del visor" aria-orientation="vertical" aria-valuemin="240" aria-valuemax="520" aria-valuenow="320" tabindex="0"></div>
   </main>
 </div>
 <script>
@@ -290,6 +317,11 @@ h3 { font-size: 13px; font-weight: 650; }
   const root = document.getElementById('trofast-lab');
   const get = selector => root.querySelector(selector);
   const canvas = get('canvas');
+  const simulatorMain = get('.simulator-main');
+  const splitter = get('.scene-resize');
+  const expandButton = get('[data-expand]');
+  const navigationButtons = [...root.querySelectorAll('[data-navigation]')];
+  const compactLayout = matchMedia('(max-width: 860px) and (min-height: 500px), (max-width: 580px)');
   const trayPicker = get('#tl-tray');
   const columnPicker = get('#tl-column');
   const levelPicker = get('#tl-level');
@@ -336,7 +368,6 @@ h3 { font-size: 13px; font-weight: 650; }
   });
   const gapReadout = get('.tl-gap');
   const doorButtons = [...root.querySelectorAll('[data-door]')];
-  const lockButtons = [...root.querySelectorAll('[data-lock]')];
   const versions = [...root.querySelectorAll('[data-version]')];
   const viewButtons = [...root.querySelectorAll('[data-view]')];
   const trayButton = get('[data-tray-action]');
@@ -401,10 +432,14 @@ h3 { font-size: 13px; font-weight: 650; }
   let yaw = .22;
   let pitch = .15;
   let zoom = 1;
+  let panX = 0;
+  let panY = 0;
+  let navigationMode = 'rotate';
+  let scenePercent = 62;
+  let sidebarWidth = 320;
   let viewMode = 'angle';
   const doorOpen = [true,true,true,true];
   const doorAngle = doorOpen.map(() => 1);
-  const locked = [false,false];
   const haspFold = [1,1];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -479,7 +514,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const pine = blend([.89,.77,.59],bg,.10);
     const tray = blend([.88,.88,.875],bg,.08);
     palette = {
-      bg, fg, grid:blend(ground,fg,.12), floor:blend(ground,fg,.028),
+      bg, fg, grid:blend(ground,fg,.12),
       frame:pine, panel:blend(pine,fg,.14), liner:blend(pine,fg,.06),
       edge:blend(fg,bg,.19), door:blend(pine,bg,.08),
       steel:blend(bg,fg,.48), work:blend(pine,bg,.15),
@@ -530,7 +565,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
   }
   function drawCombinationLock(sign,seam,y,pair,transform) {
-    const id=6+pair;
+    const id=pair*2+(sign>0?1:2);
     const graphite=[.13,.13,.14], dial=[.22,.22,.23], markings=[.68,.67,.64];
     if(sign>0){
       const hingeX=seam-4.85, hingeZ=doorRailFace+.5;
@@ -547,8 +582,7 @@ h3 { font-size: 13px; font-weight: 650; }
         box(x+offset-.24,y-.42,doorRailFace+1.58,.48,.84,.018,graphite,id,transform);
         box(x+offset-.10,y-.25,doorRailFace+1.6,.2,.5,.018,markings,id,transform);
       }
-      box(x-.26,y+.67,doorRailFace+1.59,.52,.15,.024,
-        locked[pair]?[.72,.41,.29]:markings,id,transform);
+      box(x-.26,y+.67,doorRailFace+1.59,.52,.15,.024,markings,id,transform);
     }
   }
   function wheel(x,z) {
@@ -753,7 +787,6 @@ h3 { font-size: 13px; font-weight: 650; }
     const back=rear+1.9;
     const body=0-rear;
     geometryOffsetY=0;
-    box(-129,-.4,-69,258,.3,135,p.floor);
     for(let x=-120;x<=120;x+=15) box(x,-.08,-69,.19,.08,135,p.grid);
     for(let z=-65;z<=65;z+=15) box(-129,-.075,z,258,.075,.19,p.grid);
     metalBase(spec);
@@ -901,7 +934,7 @@ h3 { font-size: 13px; font-weight: 650; }
       canvas.height=pixelH;
     }
     const showCotas=dimensionsToggle.checked && (viewMode==='angle' || viewMode==='front');
-    const scale=Math.min(width/(showCotas?268:239),Math.max(40,height-78)/(totalHeight+20))*zoom;
+    const scale=cameraScale();
     const focus=viewMode==='detail' ? trays[selected] : null;
     const centerX=focus?spec.edges[focus.bay]+spec.span/2:0;
     const centerY=focus?(focus.top+trayBottom(focus))/2+bodyOffsetY:totalHeight/2;
@@ -913,7 +946,7 @@ h3 { font-size: 13px; font-weight: 650; }
       const inward=(x-centerX)*sy+(z-centerZ)*cy;
       const vertical=(y-centerY)*cp-inward*sp;
       const depth=(y-centerY)*sp+inward*cp;
-      return [2*horizontal*scale/width,2*(vertical*scale+8)/height,-depth/260];
+      return [2*(horizontal+panX)*scale/width,2*((vertical+panY)*scale+8)/height,-depth/260];
     };
     dimensionOverlay.toggleAttribute('hidden',!showCotas);
     if(showCotas) drawCotas(spec,width,height);
@@ -1008,7 +1041,7 @@ h3 { font-size: 13px; font-weight: 650; }
   refreshLevelOptions();
   refreshTrayOptions();
   const viewCopy = {
-    angle:['Perspectiva','Arrastra para girar el mueble o toca las piezas para accionarlas.'],
+    angle:['Perspectiva','Gira o mueve el mueble con los controles del visor.'],
     front:['Vista frontal','Compara el banco de trabajo y las dos columnas de charolas.'],
     detail:['Detalle del apoyo','Acércate al reborde y al apoyo de la charola seleccionada.'],
     posts:['Guías y montantes','Vista de las ranuras continuas bajo el banco, arriba del nicho y en las columnas altas.']
@@ -1037,10 +1070,6 @@ h3 { font-size: 13px; font-weight: 650; }
     doorButtons.forEach((button,index)=>{
       button.setAttribute('aria-pressed',doorOpen[index]);
       button.setAttribute('aria-label','Puerta '+(index+1)+(doorOpen[index]?' abierta':' cerrada'));
-    });
-    lockButtons.forEach((button,index)=>{
-      button.setAttribute('aria-pressed',locked[index]);
-      button.setAttribute('aria-label',(index===0?'Chapa 1–2':'Chapa 3–4')+(locked[index]?' bloqueada':' liberada'));
     });
     const tray=trays[selected];
     viewButtons.forEach(button=>{
@@ -1079,7 +1108,7 @@ h3 { font-size: 13px; font-weight: 650; }
     try {
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
-        doors:doorOpen,locked,selected,active,stage,tab:currentTab,interfaceRevision:2,trayLayoutRevision:3,cotas:dimensionsToggle.checked
+        doors:doorOpen,selected,active,stage,tab:currentTab,interfaceRevision:2,trayLayoutRevision:3,cotas:dimensionsToggle.checked
       }}));
     } catch {
       // The simulator still works when browser storage is unavailable.
@@ -1087,8 +1116,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function restore(snapshot) {
     if(!snapshot || !variants[snapshot.version] ||
-      !Array.isArray(snapshot.doors) || snapshot.doors.length!==4 ||
-      !Array.isArray(snapshot.locked) || snapshot.locked.length!==2) return;
+      !Array.isArray(snapshot.doors) || snapshot.doors.length!==4) return;
     version=snapshot.version;
     if(Array.isArray(snapshot.layout)) snapshot.layout.forEach((heights,i)=>{
       const column=levelsByBay[i+(snapshot.trayLayoutRevision===3?0:2)];
@@ -1096,7 +1124,6 @@ h3 { font-size: 13px; font-weight: 650; }
     });
     refreshTrayOptions();
     snapshot.doors.forEach((open,i)=>{doorOpen[i]=Boolean(open);doorAngle[i]=Number(Boolean(open));});
-    snapshot.locked.forEach((value,i)=>{locked[i]=Boolean(value) && !doorOpen[2*i] && !doorOpen[2*i+1];});
     haspFold.forEach((_,i)=>{haspFold[i]=Number(doorOpen[2*i] || doorOpen[2*i+1]);});
     if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
     dimensionsToggle.checked=snapshot.cotas!==false;
@@ -1115,10 +1142,6 @@ h3 { font-size: 13px; font-weight: 650; }
     save();
   }
   function toggleDoor(i) {
-    if(locked[Math.floor(i/2)]){
-      update('Libera la chapa de ese par para abrir la puerta.');
-      return;
-    }
     if(doorOpen[i] && ((active>=0 && trays[active].bay===i) ||
         trays.some(tray=>tray.bay===i && tray.offset>.01))){
       update('Guarda la charola antes de cerrar esa puerta.');
@@ -1127,14 +1150,6 @@ h3 { font-size: 13px; font-weight: 650; }
     doorOpen[i]=!doorOpen[i];
     change('Puerta '+(i+1)+(doorOpen[i]?' abierta.':' cerrada.'));
   }
-  function toggleLock(i) {
-    if(!locked[i] && (doorOpen[2*i] || doorOpen[2*i+1])){
-      update('Cierra las dos puertas del par para bloquear la chapa.');
-      return;
-    }
-    locked[i]=!locked[i];
-    change('Chapa '+(i===0?'1–2':'3–4')+(locked[i]?' bloqueada.':' liberada.'));
-  }
   function advanceTray(index) {
     setTrayStage(index,active===index?(stage+1)%3:1);
   }
@@ -1142,10 +1157,6 @@ h3 { font-size: 13px; font-weight: 650; }
     const tray=trays[index];
     if(!tray?.h) return;
     selected=index;
-    if(locked[Math.floor(tray.bay/2)]){
-      update('Libera la chapa de ese par para sacar la charola.');
-      return;
-    }
     doorOpen[tray.bay]=true;
     if(viewMode==='posts') setView('detail');
     stage=nextStage;
@@ -1185,10 +1196,10 @@ h3 { font-size: 13px; font-weight: 650; }
     levelsByBay.forEach((column,i)=>column.forEach((tray,j)=>{tray.h=allSmall?10:mixed[i][j];}));
     if(!allSmall) selected=mixedExample;
     refreshTrayOptions();
-    doorOpen.forEach((_,i)=>{if(!locked[Math.floor(i/2)]) doorOpen[i]=true;});
+    doorOpen.fill(true);
     setView('front');
     const message=allSmall?'42 charolas de 10 cm en las cuatro columnas.':'Charolas de 10, 23 y 36 cm en ambos módulos.';
-    change(message+(locked.some(Boolean)?' Libera las chapas para ver todas las columnas.':''));
+    change(message);
   }));
   columnPicker.addEventListener('change',()=>{refreshLevelOptions();update();});
   levelPicker.addEventListener('change',()=>update());
@@ -1209,12 +1220,11 @@ h3 { font-size: 13px; font-weight: 650; }
     column[level].h=height;
     if(height) selected=trays.indexOf(column[level]);
     refreshTrayOptions();
-    if(!locked[Math.floor(bay/2)]) doorOpen[bay]=true;
+    doorOpen[bay]=true;
     if(viewMode==='posts' || viewMode==='detail') setView('front');
     change('Módulo '+(bay+1)+' · '+levelLabel(column[level])+' · '+(height?height+' cm':'vacío')+'.');
   });
   doorButtons.forEach((button,index)=>button.addEventListener('click',()=>toggleDoor(index)));
-  lockButtons.forEach((button,index)=>button.addEventListener('click',()=>toggleLock(index)));
   trayPicker.addEventListener('change',()=>{
     selected=Number(trayPicker.value);
     change('Seleccionaste '+trayPicker.selectedOptions[0].textContent+'.');
@@ -1224,6 +1234,8 @@ h3 { font-size: 13px; font-weight: 650; }
   dimensionsToggle.addEventListener('change',()=>change(dimensionsToggle.checked?'Cotas visibles.':'Cotas ocultas.'));
   function setView(view) {
     viewMode=view;
+    panX=0;
+    panY=0;
     if(view==='detail'){
       yaw=trays[selected].bay%2===0?.27:-.27;
       pitch=.18;
@@ -1251,18 +1263,10 @@ h3 { font-size: 13px; font-weight: 650; }
     const view=button.dataset.view;
     if(view==='detail'){
       const {bay}=trays[selected];
-      if(locked[Math.floor(bay/2)]){
-        update('Libera la chapa para ver el apoyo de la charola.');
-        return;
-      }
       doorOpen[bay]=true;
       setView(view);
       change('Detalle · reborde de la charola dentro de la ranura lateral.');
     } else if(view==='posts' && viewMode!=='posts'){
-      if(locked.some(Boolean)){
-        update('Libera las chapas para ver las guías de las cuatro columnas.');
-        return;
-      }
       doorOpen.fill(true);
       setView(view);
       change('Charolas ocultas para inspeccionar las ranuras continuas.');
@@ -1271,38 +1275,184 @@ h3 { font-size: 13px; font-weight: 650; }
       update('Vista general del mueble.');
     }
   }));
+  function cameraScale() {
+    const cotas=dimensionsToggle.checked && (viewMode==='angle' || viewMode==='front');
+    return Math.min(canvas.clientWidth/(cotas?268:239),
+      Math.max(40,canvas.clientHeight-24)/(totalHeight+20))*zoom;
+  }
+  function zoomView(factor,clientX,clientY) {
+    const next=clamp(zoom*factor,.45,8);
+    if(clientX!==undefined){
+      const rect=canvas.getBoundingClientRect();
+      const offsetX=clientX-rect.left-rect.width/2;
+      const offsetY=rect.top+rect.height/2-clientY-8;
+      const adjustment=(zoom/next-1)/cameraScale();
+      panX+=offsetX*adjustment;
+      panY+=offsetY*adjustment;
+    }
+    zoom=next;
+    schedule();
+  }
+  navigationButtons.forEach(button=>button.addEventListener('click',()=>{
+    navigationMode=button.dataset.navigation;
+    navigationButtons.forEach(item=>item.setAttribute('aria-pressed',item===button));
+  }));
+  root.querySelectorAll('[data-zoom]').forEach(button=>button.addEventListener('click',()=>{
+    zoomView(button.dataset.zoom==='in'?1.25:1/1.25);
+  }));
+  get('[data-center]').addEventListener('click',()=>{
+    setView('angle');
+    update('Vista del mueble centrada.');
+  });
+  function expandViewer(expanded) {
+    root.classList.toggle('viewer-expanded',expanded);
+    expandButton.setAttribute('aria-pressed',expanded);
+    expandButton.textContent=expanded?'Volver a controles':'Ampliar visor';
+    schedule();
+  }
+  expandButton.addEventListener('click',()=>expandViewer(!root.classList.contains('viewer-expanded')));
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape' && root.classList.contains('viewer-expanded')){
+      expandViewer(false);
+      expandButton.focus();
+    }
+  });
+
+  const pointers = new Map();
   let drag;
+  function startDrag(event,moved=false) {
+    drag={id:event.pointerId,startX:event.clientX,startY:event.clientY,
+      yaw,pitch,panX,panY,scale:cameraScale(),moved,
+      mode:event.button>0 || event.shiftKey?'pan':navigationMode};
+  }
+  function touchMetrics() {
+    const [first,second]=[...pointers.values()];
+    return {x:(first.clientX+second.clientX)/2,y:(first.clientY+second.clientY)/2,
+      distance:Math.max(1,Math.hypot(first.clientX-second.clientX,first.clientY-second.clientY))};
+  }
+  canvas.addEventListener('contextmenu',event=>event.preventDefault());
   canvas.addEventListener('pointerdown',event=>{
-    if(!event.isPrimary || event.button!==0) return;
-    drag={id:event.pointerId,startX:event.clientX,startY:event.clientY,yaw,pitch,moved:false};
+    if(event.button>2 || pointers.size>=2) return;
+    event.preventDefault();
+    canvas.focus({preventScroll:true});
+    pointers.set(event.pointerId,event);
+    if(pointers.size===1) startDrag(event);
+    else drag=null;
     canvas.setPointerCapture(event.pointerId);
   });
   canvas.addEventListener('pointermove',event=>{
-    if(!drag || event.pointerId!==drag.id) return;
+    if(!pointers.has(event.pointerId)) return;
+    if(pointers.size===2){
+      const before=touchMetrics();
+      pointers.set(event.pointerId,event);
+      const after=touchMetrics();
+      zoomView(after.distance/before.distance,before.x,before.y);
+      const scale=cameraScale();
+      panX+=(after.x-before.x)/scale;
+      panY-=(after.y-before.y)/scale;
+      schedule();
+      return;
+    }
+    pointers.set(event.pointerId,event);
+    if(!drag) return;
     const dx=event.clientX-drag.startX, dy=event.clientY-drag.startY;
     if(!drag.moved && Math.hypot(dx,dy)<5) return;
     drag.moved=true;
-    yaw=drag.yaw-dx*.009;
-    pitch=clamp(drag.pitch+dy*.007,-.40,1.18);
+    if(drag.mode==='pan'){
+      panX=drag.panX+dx/drag.scale;
+      panY=drag.panY-dy/drag.scale;
+    } else {
+      yaw=drag.yaw-dx*.009;
+      pitch=clamp(drag.pitch+dy*.007,-.40,1.18);
+    }
     schedule();
   });
-  canvas.addEventListener('pointercancel',()=>{drag=null;});
-  canvas.addEventListener('pointerup',event=>{
-    if(!drag || event.pointerId!==drag.id) return;
-    const click=!drag.moved;
+  function finishPointer(event,allowClick) {
+    if(!pointers.has(event.pointerId)) return;
+    const click=allowClick && pointers.size===1 && drag && !drag.moved && event.button===0;
+    pointers.delete(event.pointerId);
     drag=null;
+    if(pointers.size===1) startDrag([...pointers.values()][0],true);
     if(!click) return;
     const hit=hitAt(event);
     if(hit>=10) advanceTray(hit-10);
-    else if(hit===6 || hit===7) toggleLock(hit-6);
     else if(hit>0) toggleDoor(hit-1);
-  });
+  }
+  canvas.addEventListener('pointerup',event=>finishPointer(event,true));
+  canvas.addEventListener('pointercancel',event=>finishPointer(event,false));
+  canvas.addEventListener('lostpointercapture',event=>finishPointer(event,false));
   canvas.addEventListener('wheel',event=>{
-    if(!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();
-    zoom=clamp(zoom*Math.exp(-event.deltaY*.004),.78,4.5);
-    schedule();
+    const units=event.deltaMode===1?16:event.deltaMode===2?canvas.clientHeight:1;
+    if(event.shiftKey || Math.abs(event.deltaX)>Math.abs(event.deltaY)){
+      panX-=event.deltaX*units/cameraScale();
+      panY+=event.deltaY*units/cameraScale();
+      schedule();
+    } else zoomView(Math.exp(-event.deltaY*units*.002),event.clientX,event.clientY);
   },{passive:false});
+  canvas.addEventListener('keydown',event=>{
+    const distance=(event.shiftKey?70:25)/cameraScale();
+    switch(event.key){
+      case 'ArrowLeft': panX-=distance; break;
+      case 'ArrowRight': panX+=distance; break;
+      case 'ArrowUp': panY+=distance; break;
+      case 'ArrowDown': panY-=distance; break;
+      case '+': case '=': zoomView(1.25); break;
+      case '-': zoomView(1/1.25); break;
+      case 'Home': setView('angle'); update('Vista del mueble centrada.'); break;
+      default: return;
+    }
+    event.preventDefault();
+    schedule();
+  });
+
+  function updateSplitter() {
+    const compact=compactLayout.matches;
+    const maxWidth=Math.min(520,simulatorMain.clientWidth-210);
+    sidebarWidth=clamp(sidebarWidth,240,Math.max(240,maxWidth));
+    root.style.setProperty('--sidebar-width',sidebarWidth+'px');
+    root.style.setProperty('--scene-height',scenePercent+'%');
+    splitter.setAttribute('aria-orientation',compact?'horizontal':'vertical');
+    splitter.setAttribute('aria-valuemin',compact?35:240);
+    splitter.setAttribute('aria-valuemax',compact?80:Math.max(240,maxWidth));
+    splitter.setAttribute('aria-valuenow',compact?Math.round(scenePercent):Math.round(sidebarWidth));
+    splitter.setAttribute('aria-valuetext',compact?Math.round(scenePercent)+'% de altura para el visor':
+      Math.round(sidebarWidth)+' píxeles de ancho para los controles');
+  }
+  let resizePointer;
+  splitter.addEventListener('pointerdown',event=>{
+    if(event.button!==0) return;
+    resizePointer=event.pointerId;
+    splitter.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    splitter.focus({preventScroll:true});
+  });
+  splitter.addEventListener('pointermove',event=>{
+    if(event.pointerId!==resizePointer) return;
+    const rect=simulatorMain.getBoundingClientRect();
+    if(compactLayout.matches) scenePercent=clamp(100*(event.clientY-rect.top)/rect.height,35,80);
+    else sidebarWidth=event.clientX-rect.left;
+    updateSplitter();
+  });
+  splitter.addEventListener('lostpointercapture',()=>{resizePointer=undefined;});
+  splitter.addEventListener('keydown',event=>{
+    const compact=compactLayout.matches;
+    const step=compact?5:20;
+    const current=compact?scenePercent:sidebarWidth;
+    let next;
+    if(event.key===(compact?'ArrowUp':'ArrowLeft')) next=current-step;
+    else if(event.key===(compact?'ArrowDown':'ArrowRight')) next=current+step;
+    else if(event.key==='Home') next=compact?35:240;
+    else if(event.key==='End') next=compact?80:520;
+    else return;
+    event.preventDefault();
+    if(compact) scenePercent=clamp(next,35,80);
+    else sidebarWidth=next;
+    updateSplitter();
+  });
+  compactLayout.addEventListener('change',updateSplitter);
+  new ResizeObserver(updateSplitter).observe(simulatorMain);
+  updateSplitter();
 
   new ResizeObserver(schedule).observe(canvas);
   new MutationObserver(schedule).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
