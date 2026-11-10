@@ -183,7 +183,11 @@ h3 { font-size: 13px; font-weight: 650; }
         <div class="control-group">
           <label><input type="checkbox" data-cotas checked> Mostrar cotas en el modelo</label>
           <dl class="measurements">
-            <div><dt>Cuerpo cerrado · ancho × fondo × alto</dt><dd class="tl-size tabular-nums"></dd></div>
+            <div><dt>Mueble cerrado · ancho × fondo × alto</dt><dd class="tl-size tabular-nums"></dd></div>
+            <div><dt>Cuerpo de madera · altura</dt><dd class="tl-body-height tabular-nums"></dd></div>
+            <div><dt>Bastidor negro · tubo cuadrado</dt><dd class="tl-base-profile tabular-nums"></dd></div>
+            <div><dt>Ruedas con soporte · altura</dt><dd class="tl-caster-height tabular-nums"></dd></div>
+            <div><dt>Base metálica y ruedas · altura conjunta</dt><dd class="tl-base-height tabular-nums"></dd></div>
             <div><dt>Cubierta del banco · ancho y altura de trabajo</dt><dd class="tl-table tabular-nums"></dd></div>
             <div><dt>Columnas del banco</dt><dd>5 niveles abajo y 3 arriba en cada columna</dd></div>
             <div><dt>Columnas altas</dt><dd>13 niveles por columna</dd></div>
@@ -202,7 +206,7 @@ h3 { font-size: 13px; font-weight: 650; }
             <div><dt>Ancho total</dt><dd data-summary="width"></dd></div>
             <div><dt>Fondo total</dt><dd data-summary="depth"></dd></div>
             <div><dt>Altura de la cubierta</dt><dd data-summary="bench"></dd></div>
-            <div><dt>Altura total con ruedas</dt><dd>200 cm</dd></div>
+            <div><dt>Altura total con ruedas</dt><dd data-summary="height"></dd></div>
           </dl>
         </section>
         <div class="panel-intro">
@@ -344,6 +348,13 @@ h3 { font-size: 13px; font-weight: 650; }
   }
 
   const variants = [{w:42, d:30}, {w:30, d:42}];
+  const casterHeight=10.5;
+  const baseTubeSize=4;
+  const baseHeight=casterHeight+baseTubeSize;
+  const bodyHeight=182;
+  const totalHeight=baseHeight+bodyHeight;
+  // Existing cabinet dimensions use an 18 cm base datum.
+  const bodyOffsetY=baseHeight-18;
   const pitchStep = 13;
   const levels = Array.from({length:13},(_,i)=>36+i*pitchStep);
   const benchHeight=92;
@@ -472,6 +483,7 @@ h3 { font-size: 13px; font-weight: 650; }
       frame:pine, panel:blend(pine,fg,.14), liner:blend(pine,fg,.06),
       edge:blend(fg,bg,.19), door:blend(pine,bg,.08),
       steel:blend(bg,fg,.48), work:blend(pine,bg,.15),
+      chassis:[.12,.12,.13], rubber:[.07,.07,.075], hub:[.28,.28,.29],
       peg:blend([.79,.76,.71],bg,.06), hole:blend(bg,fg,.64),
       tray, led:blend(bg,gold,.43),
       exterior:blend([.85,.71,.53],bg,.08),
@@ -482,11 +494,12 @@ h3 { font-size: 13px; font-weight: 650; }
 
   let positions = [];
   let hitTriangles = [];
+  let geometryOffsetY = 0;
   let project;
   const identity = p => p;
   const noHit = 0;
   function face(points, color, id, shade=0) {
-    const projected = points.map(project);
+    const projected = points.map(([x,y,z])=>project([x,y+geometryOffsetY,z]));
     const rgb = shade < 0 ? blend(color,palette.fg,-shade) : blend(color,palette.bg,shade);
     for (let i=1; i<projected.length-1; i++) {
       const a = projected[0], b = projected[i], c = projected[i+1];
@@ -540,21 +553,38 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function wheel(x,z) {
     const p = palette;
-    box(x-4,14,z-4,8,4,8,p.steel);
-    box(x-3,7,z-3,6,7,6,p.edge);
+    box(x-3,casterHeight-.5,z-3,6,.5,6,p.chassis);
+    box(x-1.9,8.1,z-1.9,3.8,casterHeight-.5-8.1,3.8,p.chassis);
+    for(const side of [-1,1]) box(x+side*1.9-.23,3.5,z-2,.46,4.6,4,p.chassis);
     const ring = (offset,radius) => Array.from({length:24},(_,i) => {
       const a = i*Math.PI/12;
-      return [x+offset,7.5+radius*Math.sin(a),z+radius*Math.cos(a)];
+      return [x+offset,3.5+radius*Math.sin(a),z+radius*Math.cos(a)];
     });
-    const a=ring(-2.5,7.5), b=ring(2.5,7.5);
-    face(a,p.frame,0); face(b,p.frame,0);
+    const a=ring(-1.5,3.5), b=ring(1.5,3.5);
+    face(a,p.rubber,0); face(b,p.rubber,0);
     for(let i=0;i<24;i++){
       const next=(i+1)%24;
-      face([a[i],b[i],b[next],a[next]],p.edge,0,Math.sin(i*Math.PI/12)*.15);
+      face([a[i],b[i],b[next],a[next]],p.rubber,0,Math.sin(i*Math.PI/12)*.06);
     }
-    face(ring(-2.53,3.3),p.steel,0);
-    face(ring(2.53,3.3),p.steel,0);
-    if(z>-14) box(x+1,12,z+3,5,1.5,4,p.steel);
+    for(const side of [-1,1]){
+      face(ring(side*1.52,1.4),p.hub,0);
+      face(ring(side*2.15,.42),p.steel,0);
+    }
+  }
+  function metalBase(spec) {
+    const {outerLeft,width,rear}=spec;
+    const front=.28;
+    const depth=front-rear;
+    const color=palette.chassis;
+    for(const z of [rear,front-baseTubeSize]){
+      box(outerLeft,casterHeight,z,width,baseTubeSize,baseTubeSize,color);
+    }
+    for(const x of [outerLeft,-outerLeft-baseTubeSize]){
+      box(x,casterHeight,rear+baseTubeSize,baseTubeSize,baseTubeSize,depth-2*baseTubeSize,color);
+    }
+    for(const x of [outerLeft+baseTubeSize,-outerLeft-baseTubeSize]){
+      for(const z of [rear+baseTubeSize,front-baseTubeSize]) wheel(x,z);
+    }
   }
   function pegboard(x,y,z,w,h,direction,id,transform=identity) {
     const p = palette;
@@ -722,14 +752,13 @@ h3 { font-size: 13px; font-weight: 650; }
     const {width,cabinetWidth,left,outerLeft,edges,span,rear,interiorFront}=spec;
     const back=rear+1.9;
     const body=0-rear;
+    geometryOffsetY=0;
     box(-129,-.4,-69,258,.3,135,p.floor);
     for(let x=-120;x<=120;x+=15) box(x,-.08,-69,.19,.08,135,p.grid);
     for(let z=-65;z<=65;z+=15) box(-129,-.075,z,258,.075,.19,p.grid);
-    for(const x of [left+10,-left-10]) {
-      wheel(x,rear+9);
-      wheel(x,-8);
-    }
+    metalBase(spec);
 
+    geometryOffsetY=bodyOffsetY;
     box(left,18,rear,edges[2]-left,182,1.9,p.panel);
     const litBack=blend(p.panel,p.warmLight,.22);
     box(edges[2],18,rear,-left-edges[2],182,1.9,litBack);
@@ -823,6 +852,7 @@ h3 { font-size: 13px; font-weight: 650; }
       box(boardX,29,spacerBack,boardWidth,159,panelBack-spacerBack,p.steel,id,t);
       pegboard(boardX,29,doorPegboardZ,boardWidth,159,-1,id,t);
     }
+    geometryOffsetY=0;
   }
 
   let frame = 0;
@@ -871,10 +901,10 @@ h3 { font-size: 13px; font-weight: 650; }
       canvas.height=pixelH;
     }
     const showCotas=dimensionsToggle.checked && (viewMode==='angle' || viewMode==='front');
-    const scale=Math.min(width/(showCotas?268:239),Math.max(40,height-78)/220)*zoom;
+    const scale=Math.min(width/(showCotas?268:239),Math.max(40,height-78)/(totalHeight+20))*zoom;
     const focus=viewMode==='detail' ? trays[selected] : null;
     const centerX=focus?spec.edges[focus.bay]+spec.span/2:0;
-    const centerY=focus?(focus.top+trayBottom(focus))/2:100;
+    const centerY=focus?(focus.top+trayBottom(focus))/2+bodyOffsetY:totalHeight/2;
     const centerZ=viewMode==='posts'?(spec.railBack+spec.railFront)/2:focus?spec.trayFront:0;
     const cy=Math.cos(yaw), sy=Math.sin(yaw);
     const cp=Math.cos(pitch), sp=Math.sin(pitch);
@@ -924,7 +954,7 @@ h3 { font-size: 13px; font-weight: 650; }
     };
     const right=-spec.outerLeft;
     mark('width',[spec.outerLeft,4,8],[right,4,8],'Ancho '+spec.width+' cm',[0,14]);
-    mark('height',[right+9,4,1],[right+9,200,1],'Alto 200 cm',[24,-5]);
+    mark('height',[right+9,0,1],[right+9,totalHeight,1],'Alto '+formatCm(totalHeight)+' cm',[24,-5]);
     mark('depth',[right+10,6,spec.rear],[right+10,6,spec.doorFront],
       'Fondo '+spec.depth+' cm',[12,-7],Math.abs(Math.sin(yaw))>.18 && width>=500);
   }
@@ -959,7 +989,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function refreshLevelOptions() {
     const column=levelsByBay[Number(columnPicker.value)];
-    levelPicker.replaceChildren(...column.map(tray=>option(tray.row,levelLabel(tray)+' · '+tray.top+' cm')));
+    levelPicker.replaceChildren(...column.map(tray=>option(tray.row,levelLabel(tray)+' · '+formatCm(tray.top+bodyOffsetY)+' cm')));
   }
   function refreshTrayOptions() {
     trayPicker.replaceChildren();
@@ -986,16 +1016,21 @@ h3 { font-size: 13px; font-weight: 650; }
   const stageLabel = ['Deslizar','Retirar','Guardar'];
   function update(message) {
     const spec=dimensions();
-    const size=spec.width+' × '+spec.depth+' × 200 cm';
+    const size=spec.width+' × '+spec.depth+' × '+formatCm(totalHeight)+' cm';
     get('.tl-dims').textContent=size;
     get('.tl-size').textContent=size;
-    get('.tl-table').textContent=spec.tableWidth+' cm de ancho · '+benchHeight+' cm del piso';
+    get('.tl-table').textContent=spec.tableWidth+' cm de ancho · '+formatCm(benchHeight+bodyOffsetY)+' cm del piso';
+    get('.tl-body-height').textContent=formatCm(bodyHeight)+' cm';
+    get('.tl-base-profile').textContent=formatCm(baseTubeSize)+' × '+formatCm(baseTubeSize)+' cm';
+    get('.tl-caster-height').textContent=formatCm(casterHeight)+' cm';
+    get('.tl-base-height').textContent=formatCm(baseHeight)+' cm del piso al cuerpo de madera';
     get('.tl-clear-opening').textContent=formatCm(spec.opening)+' cm';
     get('.tl-door-space').textContent=spec.doorClearance+' cm útiles · previsión de diseño';
     get('.tl-channel dd').textContent=formatCm(spec.channel)+' × '+formatCm(flange.seat+grooveClearance)+' cm · cotas de diseño';
     get('[data-summary="width"]').textContent=spec.width+' cm';
     get('[data-summary="depth"]').textContent=spec.depth+' cm';
-    get('[data-summary="bench"]').textContent=benchHeight+' cm';
+    get('[data-summary="bench"]').textContent=formatCm(benchHeight+bodyOffsetY)+' cm';
+    get('[data-summary="height"]').textContent=formatCm(totalHeight)+' cm';
     get('.view-title').textContent=viewCopy[viewMode][0];
     get('.view-copy').textContent=viewCopy[viewMode][1];
     versions.forEach((button,index)=>button.setAttribute('aria-pressed',index===version));
