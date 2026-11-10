@@ -186,7 +186,8 @@ h3 { font-size: 13px; font-weight: 650; }
             <div><dt>Cuerpo cerrado · ancho × fondo × alto</dt><dd class="tl-size tabular-nums"></dd></div>
             <div><dt>Cubierta del banco · ancho y altura de trabajo</dt><dd class="tl-table tabular-nums"></dd></div>
             <div><dt>Columnas del banco</dt><dd>5 niveles abajo y 3 arriba en cada columna</dd></div>
-            <div><dt>Columnas altas</dt><dd>13 niveles por columna · paso de 13 cm</dd></div>
+            <div><dt>Columnas altas</dt><dd>13 niveles por columna</dd></div>
+            <div><dt>Guías de las cuatro columnas</dt><dd>Niveles alineados · paso de 13 cm</dd></div>
             <div><dt>Espacio libre entre pegboard y mueble interior</dt><dd class="tl-door-space tabular-nums"></dd></div>
             <div><dt>Abertura libre entre soportes</dt><dd class="tl-clear-opening tabular-nums"></dd></div>
             <div class="tl-channel"><dt>Ancho entre guías y alto del canal</dt><dd class="tabular-nums"></dd></div>
@@ -218,14 +219,17 @@ h3 { font-size: 13px; font-weight: 650; }
           <div class="actions"><button type="button" class="btn-primary" data-tray-action>Deslizar</button></div>
         </div>
         <div class="control-group">
-          <h3>Distribución de las columnas altas</h3>
+          <h3>Distribución de las cuatro columnas</h3>
           <div class="actions" role="group" aria-label="Distribuciones de charolas">
             <button type="button" data-layout="small">Todas de 10 cm</button>
             <button type="button" data-layout="mixed">Combinadas</button>
           </div>
           <div class="field-grid">
             <label for="tl-column">Columna</label>
-            <select id="tl-column"><option value="2">Módulo 3</option><option value="3">Módulo 4</option></select>
+            <select id="tl-column">
+              <option value="0">Módulo 1 · banco</option><option value="1">Módulo 2 · banco</option>
+              <option value="2">Módulo 3 · alto</option><option value="3">Módulo 4 · alto</option>
+            </select>
             <label for="tl-level">Nivel</label>
             <select id="tl-level"></select>
             <label for="tl-height">Altura</label>
@@ -341,20 +345,22 @@ h3 { font-size: 13px; font-weight: 650; }
 
   const variants = [{w:42, d:30}, {w:30, d:42}];
   const pitchStep = 13;
-  const levels = Array.from({length:13},(_,i)=>37+i*pitchStep);
+  const levels = Array.from({length:13},(_,i)=>36+i*pitchStep);
   const benchHeight=92;
   const benchBottom=benchHeight-2.8;
-  const benchLowerLevels=Array.from({length:5},(_,i)=>35+i*pitchStep);
-  const benchUpperLevels=Array.from({length:3},(_,i)=>169+i*pitchStep);
-  const benchLevels=[...benchLowerLevels,...benchUpperLevels];
+  const benchUpperBase=154;
+  const benchLowerCount=5;
+  const benchLevels=[...levels.slice(0,benchLowerCount),...levels.slice(-3)];
   const mixed = [
+    [0,0,36,10,10,10,0,23],
+    [10,0,23,10,10,0,0,36],
     [0,0,36,0,23,10,0,23,0,23,10,0,23],
     [10,0,23,0,0,36,10,0,23,10,0,23,10]
   ];
-  const trays = [0,1].flatMap(bay=>benchLevels.map((top,row)=>({bay,top,h:10,row,offset:0})));
-  const benchTrayCount=trays.length;
-  mixed.forEach((column,i)=>column.forEach((h,row)=>trays.push({bay:i+2,top:levels[row],h,row,offset:0})));
-  const levelsByBay = [2,3].map(bay=>trays.filter(tray=>tray.bay===bay));
+  const levelsByBay=mixed.map((column,bay)=>column.map((h,row)=>({
+    bay,top:(bay<2?benchLevels:levels)[row],h,row,offset:0
+  })));
+  const trays=levelsByBay.flat();
   // Centimeters. Product bounds and sections measured from IKEA's RQP3 models.
   const products = {
     10:{article:'505.820.72',length:41.86,depth:29.92,height:10,heel:[38,26],inside:[37.7,25.8]},
@@ -748,7 +754,7 @@ h3 { font-size: 13px; font-weight: 650; }
     box(left+skin,21.5,back,4.5-skin,175.5,interiorDepth,p.frame);
     box(-left-4.5,21.5,back,4.5-skin,175.5,interiorDepth,p.frame);
     box(edges[0]+span,21.5,back,2.5,benchBottom-21.5,interiorDepth,p.frame);
-    box(edges[0]+span,154,back,2.5,43,interiorDepth,p.frame);
+    box(edges[0]+span,benchUpperBase,back,2.5,197-benchUpperBase,interiorDepth,p.frame);
     for(const [z,postDepth] of spec.postBands){
       box(edges[2]+span,21.5,z,2.5,175.5,postDepth,p.frame);
     }
@@ -765,7 +771,7 @@ h3 { font-size: 13px; font-weight: 650; }
 
     const tableX=edges[0], tableWidth=spec.tableWidth;
     box(tableX,benchBottom,back,tableWidth,2.8,interiorDepth-.35,p.work);
-    box(tableX,151,back,tableWidth,3,interiorDepth,p.frame);
+    box(tableX,benchUpperBase-3,back,tableWidth,3,interiorDepth,p.frame);
     pegboard(tableX+2,benchHeight+4,back+1.1,tableWidth-4,147-benchHeight-4,1,0);
     const lampZ=interiorFront-interiorDepth*.47;
     box(tableX+5,149.9,lampZ,tableWidth-10,1.1,3,p.steel);
@@ -866,7 +872,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     const showCotas=dimensionsToggle.checked && (viewMode==='angle' || viewMode==='front');
     const scale=Math.min(width/(showCotas?268:239),Math.max(40,height-78)/220)*zoom;
-    const focus=viewMode==='detail' && trays[selected].h ? trays[selected] : null;
+    const focus=viewMode==='detail' ? trays[selected] : null;
     const centerX=focus?spec.edges[focus.bay]+spec.span/2:0;
     const centerY=focus?(focus.top+trayBottom(focus))/2:100;
     const centerZ=viewMode==='posts'?(spec.railBack+spec.railFront)/2:focus?spec.trayFront:0;
@@ -947,6 +953,14 @@ h3 { font-size: 13px; font-weight: 650; }
     el.textContent=label;
     return el;
   }
+  function levelLabel(tray) {
+    if(tray.bay>=2) return 'nivel '+(tray.row+1);
+    return tray.row>=benchLowerCount?'arriba '+(tray.row+1-benchLowerCount):'abajo '+(tray.row+1);
+  }
+  function refreshLevelOptions() {
+    const column=levelsByBay[Number(columnPicker.value)];
+    levelPicker.replaceChildren(...column.map(tray=>option(tray.row,levelLabel(tray)+' · '+tray.top+' cm')));
+  }
   function refreshTrayOptions() {
     trayPicker.replaceChildren();
     for(let bay=0;bay<4;bay++){
@@ -954,16 +968,14 @@ h3 { font-size: 13px; font-weight: 650; }
       group.label='Módulo '+(bay+1);
       trays.forEach((tray,index)=>{
         if(tray.bay!==bay || !tray.h) return;
-        const above=tray.top>benchHeight;
-        const benchLevel=above?tray.row+1-benchLowerLevels.length:tray.row+1;
-        const level=bay<2?(above?'arriba ':'abajo ')+benchLevel:'nivel '+(tray.row+1);
-        group.append(option(index,'M'+(bay+1)+' · '+tray.h+' cm · '+level));
+        group.append(option(index,'M'+(bay+1)+' · '+tray.h+' cm · '+levelLabel(tray)));
       });
       if(group.children.length) trayPicker.append(group);
     }
     if(!trays[selected]?.h) selected=trays.findIndex(tray=>tray.h);
+    if(selected<0 && viewMode==='detail') setView('front');
   }
-  levels.forEach((y,i)=>levelPicker.append(option(i,'Nivel '+(i+1)+' · '+y+' cm')));
+  refreshLevelOptions();
   refreshTrayOptions();
   const viewCopy = {
     angle:['Perspectiva','Arrastra para girar el mueble o toca las piezas para accionarlas.'],
@@ -995,22 +1007,26 @@ h3 { font-size: 13px; font-weight: 650; }
       button.setAttribute('aria-pressed',locked[index]);
       button.setAttribute('aria-label',(index===0?'Chapa 1–2':'Chapa 3–4')+(locked[index]?' bloqueada':' liberada'));
     });
-    viewButtons.forEach(button=>button.setAttribute('aria-pressed',button.dataset.view===viewMode));
+    const tray=trays[selected];
+    viewButtons.forEach(button=>{
+      button.setAttribute('aria-pressed',button.dataset.view===viewMode);
+      if(button.dataset.view==='detail') button.disabled=!tray;
+    });
     trayPicker.value=selected;
+    trayPicker.disabled=trayButton.disabled=stageSlider.disabled=!tray;
     const currentStage=selected===active?stage:0;
     trayButton.textContent=stageLabel[currentStage];
     stageSlider.value=currentStage;
-    const phase=['Charola guardada','Charola deslizada','Charola retirada'][currentStage];
+    const phase=tray?['Charola guardada','Charola deslizada','Charola retirada'][currentStage]:'Sin charolas';
     stageSlider.setAttribute('aria-valuetext',phase);
     get('.tl-phase').textContent=phase;
-    const tray=trays[selected];
-    get('.tl-phase-tray').textContent='Módulo '+(tray.bay+1)+' · '+tray.h+' cm';
-    const product=products[tray.h];
-    get('.tl-tray-size').textContent='IKEA '+product.article+' · '+[
+    get('.tl-phase-tray').textContent=tray?'Módulo '+(tray.bay+1)+' · '+tray.h+' cm':'';
+    const product=products[tray?.h];
+    get('.tl-tray-size').textContent=product?'IKEA '+product.article+' · '+[
       ...(version===0?[product.length,product.depth]:[product.depth,product.length]),product.height
-    ].map(formatCm).join(' × ')+' cm en el modelo 3D';
-    const column=trays.filter(neighbor=>neighbor.bay===tray.bay && neighbor.h &&
-      (tray.bay>=2 || (neighbor.top>benchHeight)===(tray.top>benchHeight)));
+    ].map(formatCm).join(' × ')+' cm en el modelo 3D':'Agrega una charola en Distribución para probarla.';
+    const column=tray?levelsByBay[tray.bay].filter(neighbor=>neighbor.h &&
+      (tray.bay>=2 || (neighbor.row>=benchLowerCount)===(tray.row>=benchLowerCount))):[];
     const position=column.indexOf(tray);
     const above=position>=0?column[position+1]:undefined;
     const below=column[position-1];
@@ -1020,7 +1036,7 @@ h3 { font-size: 13px; font-weight: 650; }
     gapReadout.hidden=gaps.length===0;
     const gapText=gaps.length?'Separación instalada · '+gaps.join(' · '):'';
     if(gapReadout.textContent!==gapText) gapReadout.textContent=gapText;
-    heightPicker.value=levelsByBay[Number(columnPicker.value)-2][Number(levelPicker.value)].h;
+    heightPicker.value=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)].h;
     if(message) status.textContent=message;
     schedule();
   }
@@ -1028,7 +1044,7 @@ h3 { font-size: 13px; font-weight: 650; }
     try {
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
-        doors:doorOpen,locked,selected,active,stage,tab:currentTab,interfaceRevision:2,trayLayoutRevision:2,cotas:dimensionsToggle.checked
+        doors:doorOpen,locked,selected,active,stage,tab:currentTab,interfaceRevision:2,trayLayoutRevision:3,cotas:dimensionsToggle.checked
       }}));
     } catch {
       // The simulator still works when browser storage is unavailable.
@@ -1039,8 +1055,9 @@ h3 { font-size: 13px; font-weight: 650; }
       !Array.isArray(snapshot.doors) || snapshot.doors.length!==4 ||
       !Array.isArray(snapshot.locked) || snapshot.locked.length!==2) return;
     version=snapshot.version;
-    snapshot.layout?.forEach((column,i)=>{
-      if(levelsByBay[i] && validColumn(column)) column.forEach((h,j)=>{levelsByBay[i][j].h=h;});
+    if(Array.isArray(snapshot.layout)) snapshot.layout.forEach((heights,i)=>{
+      const column=levelsByBay[i+(snapshot.trayLayoutRevision===3?0:2)];
+      if(column && validColumn(column,heights)) heights.forEach((h,j)=>{column[j].h=h;});
     });
     refreshTrayOptions();
     snapshot.doors.forEach((open,i)=>{doorOpen[i]=Boolean(open);doorAngle[i]=Number(Boolean(open));});
@@ -1050,8 +1067,8 @@ h3 { font-size: 13px; font-weight: 650; }
     dimensionsToggle.checked=snapshot.cotas!==false;
     // Older snapshots stored nine trays in the two bench columns.
     const previousBenchCount=9;
-    const restoreIndex=index=>snapshot.trayLayoutRevision===2?index:
-      index>=previousBenchCount?index+benchTrayCount-previousBenchCount:-1;
+    const restoreIndex=index=>snapshot.trayLayoutRevision>=2?index:
+      index>=previousBenchCount?index+2*benchLevels.length-previousBenchCount:-1;
     const savedSelection=restoreIndex(snapshot.selected), savedActive=restoreIndex(snapshot.active);
     selected=trays[savedSelection]?.h?savedSelection:selected;
     active=trays[savedActive]?.h && doorOpen[trays[savedActive].bay]?savedActive:-1;
@@ -1109,51 +1126,57 @@ h3 { font-size: 13px; font-weight: 650; }
     trays.forEach(tray=>{tray.offset=0;});
     change(index===0?'Versión A · reborde de 42 cm en las ranuras.':'Versión B · reborde de 30 cm en las ranuras.');
   }));
-  function validColumn(column) {
-    if(!Array.isArray(column) || column.length!==levels.length) return false;
-    let occupiedUntil=-1;
+  function validColumn(column,heights) {
+    if(!Array.isArray(heights) || heights.length!==column.length) return false;
+    let occupiedUntil=21.5;
     for(let i=0;i<column.length;i++){
-      const h=column[i];
+      const tray=column[i], h=heights[i];
+      if(tray.bay<2 && i===benchLowerCount) occupiedUntil=benchUpperBase;
       if(h===0) continue;
-      if(![10,23,36].includes(h) || i-Math.ceil(h/pitchStep)+1<=occupiedUntil) return false;
-      occupiedUntil=i;
+      if(![10,23,36].includes(h) || tray.top-products[h].height<occupiedUntil+1.5) return false;
+      occupiedUntil=tray.top;
     }
     return true;
   }
-  function rightTraysStowed() {
-    return !(active>=0 && trays[active].bay>=2) &&
-      levelsByBay.every(column=>column.every(tray=>tray.offset<=.01));
+  function traysStowed() {
+    return active<0 && trays.every(tray=>tray.offset<=.01);
   }
   root.querySelectorAll('[data-layout]').forEach(button=>button.addEventListener('click',()=>{
-    if(!rightTraysStowed()){
+    if(!traysStowed()){
       update('Guarda la charola antes de cambiar la distribución.');
       return;
     }
     const allSmall=button.dataset.layout==='small';
     levelsByBay.forEach((column,i)=>column.forEach((tray,j)=>{tray.h=allSmall?10:mixed[i][j];}));
-    if(!allSmall && active<0) selected=mixedExample;
+    if(!allSmall) selected=mixedExample;
     refreshTrayOptions();
-    change(allSmall?'13 charolas de 10 cm en cada columna derecha.':'Columnas derechas con charolas de 10, 23 y 36 cm.');
+    doorOpen.forEach((_,i)=>{if(!locked[Math.floor(i/2)]) doorOpen[i]=true;});
+    setView('front');
+    const message=allSmall?'42 charolas de 10 cm en las cuatro columnas.':'Charolas de 10, 23 y 36 cm en ambos módulos.';
+    change(message+(locked.some(Boolean)?' Libera las chapas para ver todas las columnas.':''));
   }));
-  [columnPicker,levelPicker].forEach(picker=>picker.addEventListener('change',()=>update()));
+  columnPicker.addEventListener('change',()=>{refreshLevelOptions();update();});
+  levelPicker.addEventListener('change',()=>update());
   heightPicker.addEventListener('change',()=>{
-    if(!rightTraysStowed()){
+    if(!traysStowed()){
       update('Guarda la charola antes de editar ese nivel.');
       return;
     }
     const bay=Number(columnPicker.value);
     const level=Number(levelPicker.value);
     const height=Number(heightPicker.value);
-    const column=levelsByBay[bay-2];
+    const column=levelsByBay[bay];
     const candidate=column.map((tray,i)=>i===level?height:tray.h);
-    if(!validColumn(candidate)){
+    if(!validColumn(column,candidate)){
       update('Ese tamaño necesita niveles libres debajo o coincide con otra charola. Libera espacio primero.');
       return;
     }
     column[level].h=height;
     if(height) selected=trays.indexOf(column[level]);
     refreshTrayOptions();
-    change('Módulo '+(bay+1)+' · nivel '+(level+1)+' · '+(height?height+' cm':'vacío')+'.');
+    if(!locked[Math.floor(bay/2)]) doorOpen[bay]=true;
+    if(viewMode==='posts' || viewMode==='detail') setView('front');
+    change('Módulo '+(bay+1)+' · '+levelLabel(column[level])+' · '+(height?height+' cm':'vacío')+'.');
   });
   doorButtons.forEach((button,index)=>button.addEventListener('click',()=>toggleDoor(index)));
   lockButtons.forEach((button,index)=>button.addEventListener('click',()=>toggleLock(index)));
