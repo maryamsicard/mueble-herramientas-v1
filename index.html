@@ -8,6 +8,7 @@
 :root {
   color-scheme: light;
   --background: #f6f1eb;
+  --scene-ground: #f9f4ee;
   --foreground: #513b32;
   --panel: #fcfaf7;
   --border: #e5dbd2;
@@ -92,7 +93,7 @@ h3 { font-size: 13px; font-weight: 650; }
 .tray-field { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); }
 .tray-field select { display: block; width: 100%; }
 [aria-labelledby="tab-charolas"] .control-group + .control-group { margin-top: 13px; padding-top: 0; border-top: 0; }
-.tl-scene { grid-area: scene; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: linear-gradient(#faf7f3, #f1ece6); }
+.tl-scene { grid-area: scene; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: linear-gradient(#fffdf9, var(--scene-ground)); }
 .tl-canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; }
 .tl-canvas:active { cursor: grabbing; }
 .cotas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -239,7 +240,7 @@ h3 { font-size: 13px; font-weight: 650; }
       <section class="control-panel" id="panel-puertas" role="tabpanel" aria-labelledby="tab-puertas" tabindex="0" hidden>
         <div class="panel-intro">
           <h2>Puertas y chapas</h2>
-          <p class="text-small text-muted">Cada chapa bloquea dos puertas cuando están cerradas.</p>
+          <p class="text-small text-muted">Una chapa RETRIN MP10003 de 10.9 × 4.6 cm por par, montada de frente sobre el travesaño central.</p>
         </div>
         <div class="control-group">
           <h3>Puertas · de izquierda a derecha</h3>
@@ -387,6 +388,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const doorOpen = [true,true,true,true];
   const doorAngle = doorOpen.map(() => 1);
   const locked = [false,false];
+  const haspFold = [1,1];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const dimensions = () => {
@@ -442,7 +444,7 @@ h3 { font-size: 13px; font-weight: 650; }
   let themeKey = '';
   function readPalette() {
     const style = getComputedStyle(root);
-    const key = ['--background','--foreground','--blue','--orange','--yellow','--green','--viz-series-1','--viz-series-2','--viz-series-3']
+    const key = ['--background','--scene-ground','--foreground','--blue','--orange','--yellow','--green','--viz-series-1','--viz-series-2','--viz-series-3']
       .map(name => style.getPropertyValue(name)).join('|') + style.color;
     if (key === themeKey) return;
     themeKey = key;
@@ -454,12 +456,13 @@ h3 { font-size: 13px; font-weight: 650; }
       return [...sample.getImageData(0,0,1,1).data].slice(0,3).map(n => n/255);
     }
     const bg = color('var(--background, Canvas)');
+    const ground = color('var(--scene-ground)');
     const fg = color('var(--foreground, CanvasText)');
     const gold = color('var(--yellow, var(--orange, Highlight))');
     const pine = blend([.89,.77,.59],bg,.10);
     const tray = blend([.88,.88,.875],bg,.08);
     palette = {
-      bg, fg, grid:blend(bg,fg,.12), floor:blend(bg,fg,.028),
+      bg, fg, grid:blend(ground,fg,.12), floor:blend(ground,fg,.028),
       frame:pine, panel:blend(pine,fg,.14), liner:blend(pine,fg,.06),
       edge:blend(fg,bg,.19), door:blend(pine,bg,.08),
       steel:blend(bg,fg,.48), work:blend(pine,bg,.15),
@@ -491,6 +494,43 @@ h3 { font-size: 13px; font-weight: 650; }
     const sides = [[0,1,2,3,-.19],[4,5,6,7,0],[0,4,7,3,-.14],[1,5,6,2,-.20],
       [3,7,6,2,.30],[0,4,5,1,-.26]];
     sides.forEach(([a,b,c,e,shade]) => face([p[a],p[b],p[c],p[e]],color,id,shade));
+  }
+  function roundedHardware(x,y,z,w,h,d,r,color,id,transform) {
+    const corners=[[w-r,h-r],[r,h-r],[r,r],[w-r,r]];
+    const outline=corners.flatMap(([cx,cy],i)=>Array.from({length:5},(_,j)=>{
+      const angle=(i+j/4)*Math.PI/2;
+      return [x+cx+r*Math.cos(angle),y+cy+r*Math.sin(angle)];
+    }));
+    const back=outline.map(([x,y])=>transform([x,y,z]));
+    const front=outline.map(([x,y])=>transform([x,y,z+d]));
+    face(back,color,id,-.13);
+    face(front,color,id);
+    for(let i=0;i<outline.length;i++){
+      const next=(i+1)%outline.length;
+      face([back[i],front[i],front[next],back[next]],color,id,-.18);
+    }
+  }
+  function drawCombinationLock(sign,seam,y,pair,transform) {
+    const id=6+pair;
+    const graphite=[.13,.13,.14], dial=[.22,.22,.23], markings=[.68,.67,.64];
+    if(sign>0){
+      const hingeX=seam-4.85, hingeZ=doorRailFace+.5;
+      const angle=haspFold[pair]*Math.PI;
+      const co=Math.cos(angle), si=Math.sin(angle);
+      const fold=([u,v,z])=>transform([hingeX+u*co-z*si,v,hingeZ+u*si+z*co]);
+      roundedHardware(-.6,y-2.3,-.18,10.9,4.6,.36,.62,graphite,id,fold);
+      roundedHardware(hingeX-.52,y-2.12,doorRailFace,1.04,4.24,.84,.48,dial,id,transform);
+    } else {
+      const x=seam+2.8;
+      roundedHardware(x-1.75,y-1.75,doorRailFace,3.5,3.5,1.32,1.73,graphite,id,transform);
+      roundedHardware(x-1.45,y-1.45,doorRailFace+1.32,2.9,2.9,.26,1.43,dial,id,transform);
+      for(const offset of [-.65,0,.65]){
+        box(x+offset-.24,y-.42,doorRailFace+1.58,.48,.84,.018,graphite,id,transform);
+        box(x+offset-.10,y-.25,doorRailFace+1.6,.2,.5,.018,markings,id,transform);
+      }
+      box(x-.26,y+.67,doorRailFace+1.59,.52,.15,.024,
+        locked[pair]?[.72,.41,.29]:markings,id,transform);
+    }
   }
   function wheel(x,z) {
     const p = palette;
@@ -714,6 +754,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     box(-7,21.5,back,14,175.5,interiorDepth-3,p.frame);
     box(-2.1,21.5,interiorFront-3,4.2,175.5,1.5-interiorFront,p.frame);
+    box(-2.52,21.5,-1.5,5.04,175.5,1.1,p.frame);
 
     const lightZ=(spec.railBack+spec.railFront)/2;
     for(const x of [edges[2],edges[3]+span-.08]){
@@ -739,7 +780,7 @@ h3 { font-size: 13px; font-weight: 650; }
     });
     for(let i=0;i<4;i++){
       const sign=i%2===0?1:-1;
-      const pivot=[left+.3,-2.5,2.5,-left-.3][i];
+      const pivot=[outerLeft+.35,-2.5,2.5,-outerLeft-.35][i];
       const meeting=i<2?edges[0]+span+1.25:edges[2]+span+1.25;
       const leaf=Math.abs(meeting-pivot)-.24;
       const local=sign>0?0:-leaf;
@@ -747,40 +788,34 @@ h3 { font-size: 13px; font-weight: 650; }
       const co=Math.cos(theta), si=Math.sin(theta);
       const t=([x,y,z]) => [pivot+x*co-z*si,y,doorOriginZ+x*si+z*co];
       const id=i+1;
-      const y=22, height=174.6;
-      const faceStart=i===2?-2.25:local;
-      const faceWidth=leaf+(i===1 || i===2?2.25:0);
+      const y=18.35, height=181.3;
+      const middle=y+height/2;
       const plankFace=.64, panelBack=-.93;
-      box(faceStart,y,panelBack,faceWidth,height,.58-panelBack,blend(p.door,p.fg,.17),id,t);
-      plankedSurface(height,faceWidth,(u,v,lift=0)=>t([faceStart+v,y+u,plankFace+lift]),i+4,id);
-      for(const [railY,railHeight] of [[y,8],[y+height/2-6,12],[y+height-8,8]]){
-        const railBase=plankFace-.02;
+      box(local,y,panelBack,leaf,height,.58-panelBack,blend(p.door,p.fg,.17),id,t);
+      plankedSurface(height,leaf,(u,v,lift=0)=>t([local+v,y+u,plankFace+lift]),i+4,id);
+      const railBase=plankFace-.02;
+      for(const [railY,railHeight] of [[y,8],[middle-6,12],[y+height-8,8]]){
         box(local,railY,railBase,leaf,railHeight,doorRailFace-railBase-.02,p.rail,id,t);
         boardSurface(leaf,railHeight,
           (u,v,lift=0)=>t([local+u,railY+v,doorRailFace-.01+lift]),p.rail,i+railY,id);
-        if(i===1 || i===2){
-          // The two returns taper at the shared hinge jamb so the doors can open together.
-          const extension=2.25;
-          const extensionX=i===1?0:-extension;
-          const tip=i===1?extension:0;
-          const endFace=(u,v,lift=0)=>{
-            const fraction=Math.abs(u-(extension-tip))/extension;
-            const z=doorRailFace-.01+(.73-doorRailFace+.01)*fraction;
-            return t([extensionX+u,railY+v,z+lift]);
-          };
-          const endBase=(u,v)=>t([extensionX+u,railY+v,railBase]);
-          for(const v of [0,railHeight]){
-            face([endBase(0,v),endBase(extension,v),endFace(extension,v),endFace(0,v)],p.rail,id,-.08);
-          }
-          face([endBase(tip,0),endFace(tip,0),endFace(tip,railHeight),endBase(tip,railHeight)],p.rail,id,-.11);
-          boardSurface(extension,railHeight,endFace,p.rail,i+railY,id);
-        }
       }
-      const inset=3.7;
+      const stileWidth=6.2;
+      const stileX=sign>0?0:-stileWidth;
+      const stileHeight=height/2-14;
+      for(const stileY of [y+8,middle+6]){
+        box(stileX,stileY,railBase,stileWidth,stileHeight,doorRailFace-railBase-.02,p.rail,id,t);
+        boardSurface(stileHeight,stileWidth,
+          (u,v,lift=0)=>t([stileX+v,stileY+u,doorRailFace-.01+lift]),p.rail,i+stileY,id);
+      }
+      drawCombinationLock(sign,meeting-pivot,middle,Math.floor(i/2),t);
+      const hingeInset=i===0 || i===3?5.3:3.7;
+      const meetingInset=3.7;
+      const boardX=local+(sign>0?hingeInset:meetingInset);
+      const boardWidth=leaf-hingeInset-meetingInset;
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
       const spacerBack=doorPegboardZ+.35;
-      box(local+inset,29,spacerBack,leaf-2*inset,159,panelBack-spacerBack,p.steel,id,t);
-      pegboard(local+inset,29,doorPegboardZ,leaf-2*inset,159,-1,id,t);
+      box(boardX,29,spacerBack,boardWidth,159,panelBack-spacerBack,p.steel,id,t);
+      pegboard(boardX,29,doorPegboardZ,boardWidth,159,-1,id,t);
     }
   }
 
@@ -799,7 +834,19 @@ h3 { font-size: 13px; font-weight: 650; }
       animating=true;
       return value+Math.sign(target-value)*speed*dt;
     };
-    for(let i=0;i<4;i++) doorAngle[i]=toward(doorAngle[i],Number(doorOpen[i]),.0038);
+    for(let pair=0;pair<2;pair++){
+      const doors=[2*pair,2*pair+1];
+      for(const i of doors){
+        if(!doorOpen[i]) doorAngle[i]=toward(doorAngle[i],0,.0038);
+      }
+      const fold=doors.some(i=>doorOpen[i] || doorAngle[i]>0);
+      haspFold[pair]=toward(haspFold[pair],Number(fold),.007);
+      if(haspFold[pair]===1){
+        for(const i of doors){
+          if(doorOpen[i]) doorAngle[i]=toward(doorAngle[i],1,.0038);
+        }
+      }
+    }
     const spec=dimensions();
     trays.forEach((tray,index) => {
       const ready=doorAngle[tray.bay]>.995;
@@ -998,6 +1045,7 @@ h3 { font-size: 13px; font-weight: 650; }
     refreshTrayOptions();
     snapshot.doors.forEach((open,i)=>{doorOpen[i]=Boolean(open);doorAngle[i]=Number(Boolean(open));});
     snapshot.locked.forEach((value,i)=>{locked[i]=Boolean(value) && !doorOpen[2*i] && !doorOpen[2*i+1];});
+    haspFold.forEach((_,i)=>{haspFold[i]=Number(doorOpen[2*i] || doorOpen[2*i+1]);});
     if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
     dimensionsToggle.checked=snapshot.cotas!==false;
     // Older snapshots stored nine trays in the two bench columns.
@@ -1139,7 +1187,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     doorOpen.fill(false);
     setView('angle');
-    change('Fachada cerrada · travesaños centrales de 12 cm.');
+    change('Fachada cerrada · dos marcos sobrepuestos.');
   });
   viewButtons.forEach(button=>button.addEventListener('click',()=>{
     const view=button.dataset.view;
@@ -1188,6 +1236,7 @@ h3 { font-size: 13px; font-weight: 650; }
     if(!click) return;
     const hit=hitAt(event);
     if(hit>=10) advanceTray(hit-10);
+    else if(hit===6 || hit===7) toggleLock(hit-6);
     else if(hit>0) toggleDoor(hit-1);
   });
   canvas.addEventListener('wheel',event=>{
