@@ -192,12 +192,17 @@ h3 { font-size: 13px; font-weight: 650; }
           <div class="actions" role="group" aria-label="Orientación de las charolas">
             <button type="button" data-version="0" aria-pressed="true">A · Frente de 42 cm</button>
             <button type="button" data-version="1" aria-pressed="false">B · Frente de 30 cm</button>
+            <button type="button" data-version="2" aria-pressed="false">C · Doble fondo · frente de 42 cm</button>
           </div>
         </div>
         <div class="control-group">
           <label><input type="checkbox" data-cotas checked> Mostrar cotas en el modelo</label>
           <dl class="measurements">
             <div><dt>Mueble cerrado · ancho × fondo × alto</dt><dd class="tl-size tabular-nums"></dd></div>
+            <div><dt>Charolas por nivel y columna</dt><dd class="tl-tray-count"></dd></div>
+            <div class="tl-tandem-measure" hidden><dt>Separación entre las dos charolas</dt><dd class="tl-tandem-gap tabular-nums"></dd></div>
+            <div><dt>Holgura hasta la madera del fondo</dt><dd class="tl-rear-gap tabular-nums"></dd></div>
+            <div><dt>Frente de las charolas y de los rieles</dt><dd class="tl-rail-alignment tabular-nums"></dd></div>
             <div><dt>Cuerpo de madera · altura</dt><dd class="tl-body-height tabular-nums"></dd></div>
             <div><dt>Bastidor negro · tubo cuadrado</dt><dd class="tl-base-profile tabular-nums"></dd></div>
             <div><dt>Ruedas con soporte · altura</dt><dd class="tl-caster-height tabular-nums"></dd></div>
@@ -233,6 +238,7 @@ h3 { font-size: 13px; font-weight: 650; }
             <select id="tl-tray"></select>
             <p class="tl-tray-size text-small text-muted tabular-nums"></p>
             <p class="tl-gap text-small text-muted tabular-nums" aria-live="polite" hidden></p>
+            <p class="tl-double-depth text-small text-muted" hidden>Modelo C · dos charolas de la misma altura por nivel. Retira por completo la delantera para acceder a la trasera. Guarda la trasera antes de volver a insertar la delantera.</p>
             <label for="tl-extraction">Extracción de la charola</label>
             <input id="tl-extraction" type="range" min="0" max="100" step="any" value="0" data-extraction aria-label="Extracción de la charola">
             <p class="tl-extraction-readout text-small text-muted tabular-nums"></p>
@@ -382,7 +388,12 @@ h3 { font-size: 13px; font-weight: 650; }
     return;
   }
 
-  const variants = [{w:42, d:30, depth:57}, {w:30, d:42, depth:70}];
+  const tandemGap=.4;
+  const variants = [
+    {w:42, d:30, depth:47.7, count:1},
+    {w:30, d:42, depth:59.6, count:1},
+    {w:42, d:30, depth:78.1, count:2}
+  ];
   const casterHeight=10.5;
   const baseTubeSize=4;
   const baseHeight=casterHeight+baseTubeSize;
@@ -404,9 +415,10 @@ h3 { font-size: 13px; font-weight: 650; }
     [10,0,23,0,0,36,10,0,23,10,0,23,10]
   ];
   const levelsByBay=mixed.map((column,bay)=>column.map((h,row)=>({
-    bay,top:(bay<2?benchLevels:levels)[row],h,row,offset:0
+    bay,top:(bay<2?benchLevels:levels)[row],h,row,lane:0,offset:0
   })));
-  const trays=levelsByBay.flat();
+  const frontTrays=levelsByBay.flat();
+  const trays=[...frontTrays,...frontTrays.map(tray=>({...tray,lane:1}))];
   // Centimeters. Product bounds and sections measured from IKEA's RQP3 models.
   const products = {
     10:{article:'505.820.72',length:41.86,depth:29.92,height:10,heel:[38,26],inside:[37.7,25.8]},
@@ -429,6 +441,8 @@ h3 { font-size: 13px; font-weight: 650; }
   const frontRecess=12;
   const closedPegboardFace=doorOriginZ+doorPegboardZ-pegboardThickness/2;
   let version = 0;
+  const removedFronts = new Set();
+  const trayAvailable=tray=>Boolean(tray?.h && tray.lane<variants[version].count);
   const mixedExample = trays.findIndex(tray=>tray.bay===3 && tray.h===36);
   let selected = mixedExample;
   let active = -1;
@@ -448,7 +462,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const dimensions = () => {
-    const {w,d,depth} = variants[version];
+    const {w,d,depth,count} = variants[version];
     const span = w + 2;
     const cabinetWidth=4*span+28;
     const left=-cabinetWidth/2;
@@ -456,16 +470,19 @@ h3 { font-size: 13px; font-weight: 650; }
     const outerLeft=left-frameSideWidth;
     const edges = [left+4.5, left+7+span, 7, 9.5+span];
     const interiorFront=-frontRecess;
-    const trayFront=interiorFront-8;
-    const railBack=trayFront-d, railFront=interiorFront-5.3, postDepth=7.5;
+    const trayFront=interiorFront;
+    const laneSpacing=d+tandemGap;
+    const rackDepth=d+(count-1)*laneSpacing;
+    const railBack=trayFront-rackDepth, railFront=trayFront, postDepth=7.5;
     const postBands=[[railBack,postDepth],[railFront-postDepth,postDepth]];
-    const {opening,channel}=guideProfiles[version];
+    const {opening,channel}=guideProfiles[version===1?1:0];
     const doorFront=doorOriginZ+doorRailFace;
     const rear=doorFront-depth;
     const doorClearance=Math.floor(closedPegboardFace-interiorFront);
-    return {w,d,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
+    return {w,d,count,laneSpacing,rackDepth,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
       doorClearance,interiorFront,trayFront,tableWidth:2*span+2.5,railBack,railFront,postBands};
   };
+  const trayTravel=(tray,spec)=>spec.depth-(spec.count-1-tray.lane)*spec.laneSpacing;
 
   const program = gl.createProgram();
   function shader(type, source) {
@@ -689,19 +706,19 @@ h3 { font-size: 13px; font-weight: 650; }
 
   function drawTray(tray,index,spec) {
     const {edges,span} = spec;
-    const {bay,h,offset} = tray;
+    const {bay,h,offset,lane} = tray;
     const product=products[h];
     const {length,depth,heel,inside}=product;
-    const d=version===0?depth:length;
+    const d=version===1?length:depth;
     const y=trayBottom(tray);
     const top=tray.top;
     const p=palette;
     const id=10+index;
     const x=edges[bay]+span/2;
-    const z=spec.trayFront+offset-d/2;
+    const z=spec.trayFront-lane*spec.laneSpacing+offset-d/2;
     const color=bay>=2?blend(p.tray,p.warmLight,.16):p.tray;
     const cap=blend(color,p.bg,index===selected?.23:.12);
-    const fromOriginal=(u,v,height)=>version===0?[x+u,height,z+v]:[x-v,height,z+u];
+    const fromOriginal=(u,v,height)=>version===1?[x-v,height,z+u]:[x+u,height,z+v];
     const ring=(width,depth,height,radius)=>{
       const a=width/2-radius,b=depth/2-radius;
       const centers=[[-a,-b],[a,-b],[a,b],[-a,b]];
@@ -754,7 +771,7 @@ h3 { font-size: 13px; font-weight: 650; }
       face(tabFoot,color,id,-.22);
     }
     if((bay===2 && tray.row===2) || (bay===1 && tray.row===1)){
-      const [insideW,insideD]=version===0?inside:[inside[1],inside[0]];
+      const [insideW,insideD]=version===1?[inside[1],inside[0]]:inside;
       const ix=x-insideW/2+2, iz=z-insideD/2+2;
       box(ix,y+.79,iz,(insideW-4)*.53,.55,insideD-4,p.work,id);
       box(ix,y+1.31,iz,.65,4,insideD-4,p.work,id);
@@ -773,8 +790,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const length=railFront-railBack;
     const left=edges[bay]+lipInset-guideWidth;
     const right=edges[bay]+span-lipInset;
-    for(const tray of trays){
-      if(tray.bay!==bay) continue;
+    for(const tray of levelsByBay[bay]){
       const seat=tray.top-flange.seat;
       for(const [x,wallX] of [[left,left],[right,right+guideWidth-wallWidth]]){
         box(x,seat-seatThickness,railBack,guideWidth,seatThickness,length,p.rail);
@@ -847,7 +863,7 @@ h3 { font-size: 13px; font-weight: 650; }
       (u,v)=>[tableX+.7+u,benchHeight+.028,back+.65+v],2);
     for(let bay=0;bay<4;bay++) traySupports(bay,spec);
     trays.forEach((tray,index) => {
-      if(tray.h && viewMode!=='posts') drawTray(tray,index,spec);
+      if(trayAvailable(tray) && !removedFronts.has(index) && viewMode!=='posts') drawTray(tray,index,spec);
     });
     for(let i=0;i<4;i++){
       const sign=i%2===0?1:-1;
@@ -921,8 +937,8 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     const spec=dimensions();
     trays.forEach((tray,index) => {
-      const ready=doorAngle[tray.bay]>.995;
-      const target=active===index && ready ? extraction*spec.depth : 0;
+      const ready=trayAvailable(tray) && doorAngle[tray.bay]>.995;
+      const target=active===index && ready ? extraction*trayTravel(tray,spec) : 0;
       tray.offset=toward(tray.offset,target,.145);
     });
     const width=canvas.clientWidth, height=canvas.clientHeight;
@@ -938,7 +954,9 @@ h3 { font-size: 13px; font-weight: 650; }
     const focus=viewMode==='detail' ? trays[selected] : null;
     const centerX=focus?spec.edges[focus.bay]+spec.span/2:0;
     const centerY=focus?(focus.top+trayBottom(focus))/2+bodyOffsetY:totalHeight/2;
-    const centerZ=viewMode==='posts'?(spec.railBack+spec.railFront)/2:focus?spec.trayFront:0;
+    const centerZ=viewMode==='posts'?(spec.railBack+spec.railFront)/2:
+      focus?spec.trayFront-focus.lane*spec.laneSpacing+focus.offset:
+      spec.count===2?spec.rear/2:0;
     const cy=Math.cos(yaw), sy=Math.sin(yaw);
     const cp=Math.cos(pitch), sp=Math.sin(pitch);
     project=([x,y,z]) => {
@@ -1025,17 +1043,19 @@ h3 { font-size: 13px; font-weight: 650; }
     levelPicker.replaceChildren(...column.map(tray=>option(tray.row,levelLabel(tray)+' · '+formatCm(tray.top+bodyOffsetY)+' cm')));
   }
   function refreshTrayOptions() {
+    frontTrays.forEach((tray,index)=>{trays[index+frontTrays.length].h=tray.h;});
     trayPicker.replaceChildren();
     for(let bay=0;bay<4;bay++){
       const group=document.createElement('optgroup');
       group.label='Módulo '+(bay+1);
       trays.forEach((tray,index)=>{
-        if(tray.bay!==bay || !tray.h) return;
-        group.append(option(index,'M'+(bay+1)+' · '+tray.h+' cm · '+levelLabel(tray)));
+        if(tray.bay!==bay || !trayAvailable(tray)) return;
+        const lane=variants[version].count===2?(tray.lane===0?' · delantera':' · trasera'):'';
+        group.append(option(index,'M'+(bay+1)+' · '+tray.h+' cm · '+levelLabel(tray)+lane));
       });
       if(group.children.length) trayPicker.append(group);
     }
-    if(!trays[selected]?.h) selected=trays.findIndex(tray=>tray.h);
+    if(!trayAvailable(trays[selected])) selected=trays.findIndex(trayAvailable);
     if(selected<0 && viewMode==='detail') setView('front');
   }
   refreshLevelOptions();
@@ -1051,6 +1071,9 @@ h3 { font-size: 13px; font-weight: 650; }
     const size=spec.width+' × '+spec.depth+' × '+formatCm(totalHeight)+' cm';
     get('.tl-dims').textContent=size;
     get('.tl-size').textContent=size;
+    get('.tl-tray-count').textContent=spec.count===2?
+      '2 · una detrás de otra · holguras menores de 0.5 cm':'1';
+    get('.tl-double-depth').hidden=spec.count!==2;
     get('.tl-table').textContent=spec.tableWidth+' cm de ancho · '+formatCm(benchHeight+bodyOffsetY)+' cm del piso';
     get('.tl-body-height').textContent=formatCm(bodyHeight)+' cm';
     get('.tl-base-profile').textContent=formatCm(baseTubeSize)+' × '+formatCm(baseTubeSize)+' cm';
@@ -1077,9 +1100,9 @@ h3 { font-size: 13px; font-weight: 650; }
     });
     trayPicker.value=selected;
     trayPicker.disabled=trayButton.disabled=!tray;
-    const currentExtraction=selected===active?extraction:0;
+    const currentExtraction=removedFronts.has(selected)?1:selected===active?extraction:0;
     const percentage=formatCm(currentExtraction*100);
-    const distance=formatCm(currentExtraction*spec.depth);
+    const distance=formatCm(currentExtraction*(tray?trayTravel(tray,spec):0));
     const readout=percentage+'% · '+distance+' cm de recorrido';
     trayButton.textContent=currentExtraction>0?'Guardar':'Retirar por completo';
     extractionSliders.forEach(slider=>{
@@ -1091,14 +1114,21 @@ h3 { font-size: 13px; font-weight: 650; }
     const phase=!tray?'Sin charolas':currentExtraction===0?'Charola guardada':
       currentExtraction===1?'Charola retirada':'Extracción · '+percentage+'%';
     get('.tl-phase').textContent=phase;
-    get('.tl-phase-tray').textContent=tray?'Módulo '+(tray.bay+1)+' · '+tray.h+' cm':'';
+    const lane=tray && spec.count===2?(tray.lane===0?' · delantera':' · trasera'):'';
+    get('.tl-phase-tray').textContent=tray?'Módulo '+(tray.bay+1)+' · '+tray.h+' cm'+lane:'';
     const product=products[tray?.h];
+    root.querySelectorAll('.tl-tandem-measure').forEach(item=>{item.hidden=spec.count!==2;});
+    const actualTrayDepth=product?(version===1?product.length:product.depth):spec.d;
+    const rearGap=spec.trayFront-(spec.count-1)*spec.laneSpacing-actualTrayDepth-(spec.rear+1.9);
+    get('.tl-tandem-gap').textContent=formatCm(spec.laneSpacing-actualTrayDepth)+' cm libres · '+tandemGap+' cm nominales';
+    get('.tl-rear-gap').textContent=formatCm(rearGap)+' cm libres hasta la cara interior';
+    get('.tl-rail-alignment').textContent='Al ras · '+formatCm(closedPegboardFace-spec.railFront)+' cm libres hasta el pegboard cerrado';
     get('.tl-tray-size').textContent=product?'IKEA '+product.article+' · '+[
-      ...(version===0?[product.length,product.depth]:[product.depth,product.length]),product.height
+      ...(version===1?[product.depth,product.length]:[product.length,product.depth]),product.height
     ].map(formatCm).join(' × ')+' cm en el modelo 3D':'Agrega una charola en Distribución para probarla.';
     const column=tray?levelsByBay[tray.bay].filter(neighbor=>neighbor.h &&
       (tray.bay>=2 || (neighbor.row>=benchLowerCount)===(tray.row>=benchLowerCount))):[];
-    const position=column.indexOf(tray);
+    const position=column.findIndex(neighbor=>neighbor.row===tray?.row);
     const above=position>=0?column[position+1]:undefined;
     const below=column[position-1];
     const gaps=[];
@@ -1115,7 +1145,7 @@ h3 { font-size: 13px; font-weight: 650; }
     try {
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
-        doors:doorOpen,selected,active,extraction,tab:currentTab,interfaceRevision:2,trayLayoutRevision:3,cotas:dimensionsToggle.checked
+        doors:doorOpen,selected,active,extraction,removedFronts:[...removedFronts],tab:currentTab,interfaceRevision:2,trayLayoutRevision:3,cotas:dimensionsToggle.checked
       }}));
     } catch {
       // The simulator still works when browser storage is unavailable.
@@ -1139,16 +1169,24 @@ h3 { font-size: 13px; font-weight: 650; }
     const restoreIndex=index=>snapshot.trayLayoutRevision>=2?index:
       index>=previousBenchCount?index+2*benchLevels.length-previousBenchCount:-1;
     const savedSelection=restoreIndex(snapshot.selected), savedActive=restoreIndex(snapshot.active);
-    selected=trays[savedSelection]?.h?savedSelection:selected;
-    active=trays[savedActive]?.h && doorOpen[trays[savedActive].bay]?savedActive:-1;
+    selected=trayAvailable(trays[savedSelection])?savedSelection:selected;
+    if(version===2 && Array.isArray(snapshot.removedFronts)){
+      snapshot.removedFronts.forEach(index=>{
+        if(Number.isInteger(index) && index>=0 && index<frontTrays.length && frontTrays[index].h){
+          removedFronts.add(index);
+        }
+      });
+    }
+    active=trayAvailable(trays[savedActive]) && doorOpen[trays[savedActive].bay]?savedActive:-1;
+    if(active>=frontTrays.length && !removedFronts.has(active-frontTrays.length)) active=-1;
     extraction=0;
     if(active>=0){
       if(Number.isFinite(snapshot.extraction)) extraction=clamp(snapshot.extraction,0,1);
       else if(snapshot.stage===2) extraction=1;
       else if(snapshot.stage===1){
         const spec=dimensions(), product=products[trays[active].h];
-        const trayDepth=version===0?product.depth:product.length;
-        const previousSlide=Math.min(spec.d*.61,spec.railFront-spec.trayFront+trayDepth/2-2);
+        const trayDepth=version===1?product.length:product.depth;
+        const previousSlide=Math.min(spec.d*.61,trayDepth/2+.7);
         extraction=previousSlide/spec.depth;
       }
     }
@@ -1169,13 +1207,32 @@ h3 { font-size: 13px; font-weight: 650; }
     change('Puerta '+(i+1)+(doorOpen[i]?' abierta.':' cerrada.'));
   }
   function toggleTray(index) {
-    setTrayExtraction(index,active===index?0:1);
+    setTrayExtraction(index,active===index || removedFronts.has(index)?0:1);
     save();
   }
   function setTrayExtraction(index,value) {
     const tray=trays[index];
-    if(!tray?.h || !Number.isFinite(value)) return;
+    if(!trayAvailable(tray) || !Number.isFinite(value)) return;
     selected=index;
+    if(version===2 && value>0 && tray.lane===1){
+      const front=index-frontTrays.length;
+      if(!removedFronts.has(front)){
+        if(active!==front || extraction!==1){
+          update('Retira por completo la charola delantera de este nivel para acceder a la trasera.');
+          return;
+        }
+        removedFronts.add(front);
+      }
+    }
+    if(removedFronts.has(index)){
+      const rear=index+frontTrays.length;
+      if((active===rear && extraction>0) || trays[rear].offset>.01){
+        update('Guarda la charola trasera antes de volver a insertar la delantera.');
+        return;
+      }
+      removedFronts.delete(index);
+      tray.offset=trayTravel(tray,dimensions());
+    }
     doorOpen[tray.bay]=true;
     if(viewMode==='posts') setView('detail');
     extraction=clamp(value,0,1);
@@ -1187,8 +1244,18 @@ h3 { font-size: 13px; font-weight: 650; }
     version=index;
     active=-1;
     extraction=0;
+    removedFronts.clear();
     trays.forEach(tray=>{tray.offset=0;});
-    change(index===0?'Versión A · reborde de 42 cm en las ranuras.':'Versión B · reborde de 30 cm en las ranuras.');
+    if(selected>=frontTrays.length) selected-=frontTrays.length;
+    refreshTrayOptions();
+    setView('angle');
+    if(index===2){yaw=.55;pitch=.52;}
+    const messages=[
+      'Versión A · reborde de 42 cm en las ranuras.',
+      'Versión B · reborde de 30 cm en las ranuras.',
+      'Versión C · dos charolas de frente de 42 cm por nivel · fondo total de '+variants[2].depth+' cm.'
+    ];
+    change(messages[index]);
   }));
   function validColumn(column,heights) {
     if(!Array.isArray(heights) || heights.length!==column.length) return false;
@@ -1203,7 +1270,7 @@ h3 { font-size: 13px; font-weight: 650; }
     return true;
   }
   function traysStowed() {
-    return active<0 && trays.every(tray=>tray.offset<=.01);
+    return active<0 && removedFronts.size===0 && trays.every(tray=>tray.offset<=.01);
   }
   root.querySelectorAll('[data-layout]').forEach(button=>button.addEventListener('click',()=>{
     if(!traysStowed()){
@@ -1216,7 +1283,7 @@ h3 { font-size: 13px; font-weight: 650; }
     refreshTrayOptions();
     doorOpen.fill(true);
     setView('front');
-    const message=allSmall?'42 charolas de 10 cm en las cuatro columnas.':'Charolas de 10, 23 y 36 cm en ambos módulos.';
+    const message=allSmall?42*variants[version].count+' charolas de 10 cm en las cuatro columnas.':'Charolas de 10, 23 y 36 cm en ambos módulos.';
     change(message);
   }));
   columnPicker.addEventListener('change',()=>{refreshLevelOptions();update();});
