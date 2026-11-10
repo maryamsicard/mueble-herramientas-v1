@@ -94,6 +94,8 @@ h3 { font-size: 13px; font-weight: 650; }
 .tray-field { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); }
 .tray-field select { display: block; width: 100%; }
 .tray-field input[type="range"] { width: 100%; margin: 0; accent-color: var(--primary); }
+.tl-layout-feedback { color: var(--primary); }
+.tl-layout-feedback:empty { display: none; }
 [aria-labelledby="tab-charolas"] .control-group + .control-group { margin-top: 13px; padding-top: 0; border-top: 0; }
 .tl-scene { grid-area: scene; display: grid; grid-template-rows: auto minmax(0,1fr) auto; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: linear-gradient(#fffefa, var(--scene-ground)); }
 .scene-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; }
@@ -251,6 +253,7 @@ h3 { font-size: 13px; font-weight: 650; }
             <button type="button" data-layout="small">Todas de 10 cm</button>
             <button type="button" data-layout="mixed">Combinadas</button>
           </div>
+          <p class="text-small text-muted">Para cambiar una charola, elige su columna y nivel. Después elige el tamaño para aplicar el cambio.</p>
           <div class="field-grid">
             <label for="tl-column">Columna</label>
             <select id="tl-column">
@@ -259,12 +262,14 @@ h3 { font-size: 13px; font-weight: 650; }
             </select>
             <label for="tl-level">Nivel</label>
             <select id="tl-level"></select>
-            <label for="tl-height">Altura</label>
+            <label for="tl-height">Tamaño de charola</label>
             <select id="tl-height">
               <option value="0">Vacío</option><option value="10">10 cm</option>
               <option value="23">23 cm</option><option value="36">36 cm</option>
             </select>
           </div>
+          <p class="tl-layout-current text-small text-muted"></p>
+          <p class="tl-layout-feedback text-small" aria-live="polite"></p>
         </div>
       </section>
 
@@ -311,6 +316,9 @@ h3 { font-size: 13px; font-weight: 650; }
           <g data-cota="width"><line></line><line></line><line></line><text></text></g>
           <g data-cota="height"><line></line><line></line><line></line><text></text></g>
           <g data-cota="depth"><line></line><line></line><line></line><text></text></g>
+          <g data-cota="casters"><line></line><line></line><line></line><line></line><line></line><text></text></g>
+          <g data-cota="base"><line></line><line></line><line></line><line></line><line></line><text></text></g>
+          <g data-cota="pegboard"><line></line><line></line><line></line><text></text></g>
         </svg>
       </div>
       <div class="scene-footer text-small text-muted">
@@ -336,6 +344,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const columnPicker = get('#tl-column');
   const levelPicker = get('#tl-level');
   const heightPicker = get('#tl-height');
+  const layoutFeedback = get('.tl-layout-feedback');
   const status = get('.tl-status');
   const tabs = [...root.querySelectorAll('[role="tab"]')];
   const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([location.pathname,location.search])}`;
@@ -636,7 +645,7 @@ h3 { font-size: 13px; font-weight: 650; }
     for(const x of [outerLeft,-outerLeft-baseTubeSize]){
       box(x,casterHeight,rear+baseTubeSize,baseTubeSize,baseTubeSize,depth-2*baseTubeSize,color);
     }
-    for(const x of [outerLeft+baseTubeSize,-outerLeft-baseTubeSize]){
+    for(const x of [outerLeft+baseTubeSize,0,-outerLeft-baseTubeSize]){
       for(const z of [rear+baseTubeSize,front-baseTubeSize]) wheel(x,z);
     }
   }
@@ -999,7 +1008,8 @@ h3 { font-size: 13px; font-weight: 650; }
       const dx=(a[1]-b[1])*4/length, dy=(b[0]-a[0])*4/length;
       line(lines[1],[a[0]-dx,a[1]-dy],[a[0]+dx,a[1]+dy]);
       line(lines[2],[b[0]-dx,b[1]-dy],[b[0]+dx,b[1]+dy]);
-      label.setAttribute('x',clamp((a[0]+b[0])/2+offset[0],37,width-37));
+      const margin=Math.min(width/2,Math.max(37,text.length*3.3+5));
+      label.setAttribute('x',clamp((a[0]+b[0])/2+offset[0],margin,width-margin));
       label.setAttribute('y',(a[1]+b[1])/2+offset[1]);
       label.textContent=text;
     };
@@ -1008,6 +1018,19 @@ h3 { font-size: 13px; font-weight: 650; }
     mark('height',[right+9,0,1],[right+9,totalHeight,1],'Alto '+formatCm(totalHeight)+' cm',[24,-5]);
     mark('depth',[right+10,6,spec.rear],[right+10,6,spec.doorFront],
       'Fondo '+spec.depth+' cm',[12,-7],Math.abs(Math.sin(yaw))>.18 && width>=500);
+    const baseFront=.28, baseCotaX=spec.outerLeft-10;
+    mark('casters',[baseCotaX,0,baseFront],[baseCotaX,casterHeight,baseFront],
+      'Ruedas '+formatCm(casterHeight)+' cm',[-48,16]);
+    mark('base',[baseCotaX,casterHeight,baseFront],[baseCotaX,baseHeight,baseFront],
+      'Base '+formatCm(baseTubeSize)+' cm',[-48,-10]);
+    for(const [key,bottom,top] of [['casters',0,casterHeight],['base',casterHeight,baseHeight]]){
+      const {lines}=dimensionMarks[key];
+      line(lines[3],point([spec.outerLeft,bottom,baseFront]),point([baseCotaX,bottom,baseFront]));
+      line(lines[4],point([spec.outerLeft,top,baseFront]),point([baseCotaX,top,baseFront]));
+    }
+    const pegboardY=benchHeight+bodyOffsetY+40;
+    mark('pegboard',[right+8,pegboardY,spec.railFront],[right+8,pegboardY,closedPegboardFace],
+      'Pegboard · '+formatCm(closedPegboardFace-spec.railFront)+' cm',[0,-22],Math.abs(Math.sin(yaw))>.18);
   }
 
   function hitAt(event) {
@@ -1058,8 +1081,16 @@ h3 { font-size: 13px; font-weight: 650; }
     if(!trayAvailable(trays[selected])) selected=trays.findIndex(trayAvailable);
     if(selected<0 && viewMode==='detail') setView('front');
   }
+  function syncEditorToTray() {
+    const tray=trays[selected];
+    if(!trayAvailable(tray)) return;
+    columnPicker.value=tray.bay;
+    refreshLevelOptions();
+    levelPicker.value=tray.row;
+  }
   refreshLevelOptions();
   refreshTrayOptions();
+  syncEditorToTray();
   const viewCopy = {
     angle:['Perspectiva','Gira o mueve el mueble con los controles del visor.'],
     front:['Vista frontal','Compara el banco de trabajo y las dos columnas de charolas.'],
@@ -1137,7 +1168,12 @@ h3 { font-size: 13px; font-weight: 650; }
     gapReadout.hidden=gaps.length===0;
     const gapText=gaps.length?'Separación instalada · '+gaps.join(' · '):'';
     if(gapReadout.textContent!==gapText) gapReadout.textContent=gapText;
-    heightPicker.value=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)].h;
+    const editorTray=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)];
+    heightPicker.value=editorTray.h;
+    const currentSize=editorTray.h?'charola de '+editorTray.h+' cm':'vacío';
+    get('.tl-layout-current').textContent='Módulo '+(editorTray.bay+1)+' · '+levelLabel(editorTray)+' · actualmente '+currentSize+
+      (spec.count===2?'. En C, el tamaño se aplica a la delantera y a la trasera.':'.')+
+      (!traysStowed()?' Guarda las charolas para poder cambiar el tamaño.':'');
     if(message) status.textContent=message;
     schedule();
   }
@@ -1191,6 +1227,7 @@ h3 { font-size: 13px; font-weight: 650; }
       }
     }
     if(extraction===0) active=-1;
+    syncEditorToTray();
     update();
   }
   function change(message) {
@@ -1214,6 +1251,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const tray=trays[index];
     if(!trayAvailable(tray) || !Number.isFinite(value)) return;
     selected=index;
+    layoutFeedback.textContent='';
     if(version===2 && value>0 && tray.lane===1){
       const front=index-frontTrays.length;
       if(!removedFronts.has(front)){
@@ -1248,8 +1286,13 @@ h3 { font-size: 13px; font-weight: 650; }
     trays.forEach(tray=>{tray.offset=0;});
     if(selected>=frontTrays.length) selected-=frontTrays.length;
     refreshTrayOptions();
+    syncEditorToTray();
     setView('angle');
-    if(index===2){yaw=.55;pitch=.52;}
+    if(index===2){
+      yaw=.55;
+      pitch=.52;
+      zoom=.8;
+    }
     const messages=[
       'Versión A · reborde de 42 cm en las ranuras.',
       'Versión B · reborde de 30 cm en las ranuras.',
@@ -1281,16 +1324,29 @@ h3 { font-size: 13px; font-weight: 650; }
     levelsByBay.forEach((column,i)=>column.forEach((tray,j)=>{tray.h=allSmall?10:mixed[i][j];}));
     if(!allSmall) selected=mixedExample;
     refreshTrayOptions();
+    syncEditorToTray();
+    layoutFeedback.textContent='';
     doorOpen.fill(true);
     setView('front');
     const message=allSmall?42*variants[version].count+' charolas de 10 cm en las cuatro columnas.':'Charolas de 10, 23 y 36 cm en ambos módulos.';
     change(message);
   }));
-  columnPicker.addEventListener('change',()=>{refreshLevelOptions();update();});
-  levelPicker.addEventListener('change',()=>update());
+  function previewEditorLevel() {
+    const tray=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)];
+    if(tray.h){
+      selected=trays.indexOf(tray);
+      doorOpen[tray.bay]=true;
+    }
+    layoutFeedback.textContent='';
+    update();
+  }
+  columnPicker.addEventListener('change',()=>{refreshLevelOptions();previewEditorLevel();});
+  levelPicker.addEventListener('change',previewEditorLevel);
   heightPicker.addEventListener('change',()=>{
     if(!traysStowed()){
-      update('Guarda la charola antes de editar ese nivel.');
+      const message='Guarda las charolas antes de cambiar el tamaño de este nivel.';
+      update(message);
+      layoutFeedback.textContent=message;
       return;
     }
     const bay=Number(columnPicker.value);
@@ -1299,7 +1355,15 @@ h3 { font-size: 13px; font-weight: 650; }
     const column=levelsByBay[bay];
     const candidate=column.map((tray,i)=>i===level?height:tray.h);
     if(!validColumn(column,candidate)){
-      update('Ese tamaño necesita niveles libres debajo o coincide con otra charola. Libera espacio primero.');
+      const bottom=column[level].top-products[height].height;
+      const sectionBase=bay<2 && level>=benchLowerCount?benchUpperBase:21.5;
+      const conflicts=column.filter((tray,i)=>i!==level && tray.h &&
+        column[level].top+1.5>trayBottom(tray) && bottom<tray.top+1.5);
+      const message=bottom<sectionBase+1.5?
+        'Este nivel está demasiado bajo para una charola de '+height+' cm. Elige un nivel más alto.':
+        'Para colocar '+height+' cm aquí, primero elige «Vacío» en '+conflicts.map(levelLabel).join(', ')+'.';
+      update(message);
+      layoutFeedback.textContent=message;
       return;
     }
     column[level].h=height;
@@ -1307,11 +1371,15 @@ h3 { font-size: 13px; font-weight: 650; }
     refreshTrayOptions();
     doorOpen[bay]=true;
     if(viewMode==='posts' || viewMode==='detail') setView('front');
-    change('Módulo '+(bay+1)+' · '+levelLabel(column[level])+' · '+(height?height+' cm':'vacío')+'.');
+    const message='Cambio aplicado en el módulo '+(bay+1)+' · '+levelLabel(column[level])+' · '+(height?height+' cm':'vacío')+'.';
+    change(message);
+    layoutFeedback.textContent=message;
   });
   doorButtons.forEach((button,index)=>button.addEventListener('click',()=>toggleDoor(index)));
   trayPicker.addEventListener('change',()=>{
     selected=Number(trayPicker.value);
+    syncEditorToTray();
+    layoutFeedback.textContent='';
     change('Seleccionaste '+trayPicker.selectedOptions[0].textContent+'.');
   });
   trayButton.addEventListener('click',()=>toggleTray(selected));
