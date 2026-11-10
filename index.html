@@ -382,7 +382,7 @@ h3 { font-size: 13px; font-weight: 650; }
     return;
   }
 
-  const variants = [{w:42, d:30}, {w:30, d:42}];
+  const variants = [{w:42, d:30, depth:57}, {w:30, d:42, depth:70}];
   const casterHeight=10.5;
   const baseTubeSize=4;
   const baseHeight=casterHeight+baseTubeSize;
@@ -448,7 +448,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const dimensions = () => {
-    const {w,d} = variants[version];
+    const {w,d,depth} = variants[version];
     const span = w + 2;
     const cabinetWidth=4*span+28;
     const left=-cabinetWidth/2;
@@ -460,9 +460,8 @@ h3 { font-size: 13px; font-weight: 650; }
     const railBack=trayFront-d, railFront=interiorFront-5.3, postDepth=7.5;
     const postBands=[[railBack,postDepth],[railFront-postDepth,postDepth]];
     const {opening,channel}=guideProfiles[version];
-    const rear=2.4-(d+14+frontRecess);
     const doorFront=doorOriginZ+doorRailFace;
-    const depth=doorFront-rear;
+    const rear=doorFront-depth;
     const doorClearance=Math.floor(closedPegboardFace-interiorFront);
     return {w,d,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
       doorClearance,interiorFront,trayFront,tableWidth:2*span+2.5,railBack,railFront,postBands};
