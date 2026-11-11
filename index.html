@@ -118,7 +118,6 @@ h3 { font-size: 13px; font-weight: 650; }
 .scene-toolbar .navigation-mode { display: flex; gap: 4px; margin-right: auto; }
 .scene-viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .tl-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
-.tl-canvas.is-placing { cursor: crosshair; }
 .tl-canvas:active { cursor: grabbing; }
 .scene-resize { grid-area: resize; position: relative; cursor: col-resize; touch-action: none; background: var(--panel); }
 .scene-resize::after { content: ""; position: absolute; width: 3px; height: 40px; left: 50%; top: 50%; transform: translate(-50%,-50%); border-radius: 3px; background: #c5b6aa; }
@@ -326,29 +325,29 @@ h3 { font-size: 13px; font-weight: 650; }
       <section class="control-panel" id="panel-herramientas" role="tabpanel" aria-labelledby="tab-herramientas" tabindex="0" hidden>
         <div class="panel-intro">
           <h2>Accesorios para pegboard</h2>
-          <p class="text-small text-muted">Elige un accesorio y su cantidad. Pulsa «Colocar» y toca el punto del pegboard donde quieras probarlo.</p>
+          <p class="text-small text-muted">Elige el accesorio, la cantidad y el pegboard. Las piezas se acomodan en los huecos libres, de izquierda a derecha y de abajo hacia arriba.</p>
         </div>
-        <div class="control-group">
+        <form class="control-group" id="tl-accessory-form">
           <div class="field-grid">
             <label for="tl-accessory">Accesorio</label>
             <select id="tl-accessory"></select>
             <label for="tl-accessory-count">Cantidad</label>
-            <input id="tl-accessory-count" type="number" min="1" max="100" step="1" value="1">
+            <input id="tl-accessory-count" type="number" min="1" max="100" step="1" value="1" required>
+            <label for="tl-accessory-surface">Pegboard</label>
+            <select id="tl-accessory-surface" required></select>
           </div>
+          <div class="actions">
+            <button type="submit" class="btn-primary" data-accessory-place>Colocar</button>
+            <button type="button" data-accessory-cancel hidden>Cancelar movimiento</button>
+          </div>
+          <p class="accessory-feedback text-small" aria-live="polite"></p>
           <p class="text-small text-muted tabular-nums" data-accessory-size></p>
           <p class="text-small text-muted tabular-nums" data-accessory-loaded></p>
-          <p class="text-small text-muted" data-accessory-panels></p>
           <p class="text-small text-muted" data-accessory-mount></p>
           <p class="text-small text-muted" data-accessory-model-note></p>
           <a class="text-small" data-accessory-link target="_blank" rel="noopener noreferrer" hidden>Ver accesorio en Amazon</a>
           <a class="text-small" data-accessory-source target="_blank" rel="noopener noreferrer" hidden>Cotas del fabricante</a>
-          <div class="actions">
-            <button type="button" data-accessory-place>Colocar</button>
-            <button type="button" data-accessory-cancel hidden>Cancelar colocación</button>
-          </div>
-          <p class="text-small text-muted">Puedes usar los pegboards de las cuatro puertas y el del nicho. Las copias se acomodan hacia la derecha y luego hacia arriba.</p>
-          <p class="accessory-feedback text-small" aria-live="polite"></p>
-        </div>
+        </form>
         <div class="control-group">
           <h3>Accesorios colocados · <span data-accessory-total>0</span></h3>
           <p class="text-small text-muted" data-accessory-none>Aún no hay accesorios colocados en este modelo.</p>
@@ -444,12 +443,7 @@ h3 { font-size: 13px; font-weight: 650; }
       setView('angle');
       update('Charolas visibles en el visor.');
     }
-    if(id!=='tab-herramientas' && accessoryPlacement){
-      accessoryPlacement=null;
-      accessoryFeedback.textContent='';
-      update();
-    }
-    updateAccessoryMode();
+    updateNavigationHelp();
     if(focus) next.focus();
   }
   tabs.forEach((tab,index)=>{
@@ -474,6 +468,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const restoreFrontButton = get('[data-restore-front]');
   const accessoryPicker = get('#tl-accessory');
   const accessoryCount = get('#tl-accessory-count');
+  const accessorySurface = get('#tl-accessory-surface');
   const accessoryPlaceButton = get('[data-accessory-place]');
   const accessoryCancelButton = get('[data-accessory-cancel]');
   const accessoryFeedback = get('.accessory-feedback');
@@ -562,11 +557,12 @@ h3 { font-size: 13px; font-weight: 650; }
       depth:product.depth+(product.extraDepth??0),below};
   }
   const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
-  const accessoryLayouts=variants.map((_,i)=>[{id:i+1,productId:'klkcms-cable-ties',surface:0,x:2.54,y:12.7}]);
-  const accessoryFrames = new Map();
-  let nextAccessoryId=4;
+  const accessorySurfaceOrder=[1,2,3,4,0];
+  const accessorySurfaceLabel=surface=>(surface||5)+' · '+accessorySurfaceNames[surface];
+  const accessoryLayouts=variants.map(()=>[]);
+  let nextAccessoryId=1;
   let selectedAccessory=null;
-  let accessoryPlacement=null;
+  let movingAccessory=null;
   let accessoryUiKey='';
   const casterHeight=10.5;
   const baseTubeSize=4;
@@ -815,13 +811,12 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function pegboard(x,y,z,w,h,direction,id,transform=identity,surfaceIndex=-1) {
     const p = palette;
-    const panelHit=accessoryPlacement && surfaceIndex>=0?200+surfaceIndex:id;
     const half=pegboardThickness/2;
-    box(x,y,z-half,w,h,pegboardThickness,p.peg,panelHit,transform);
+    box(x,y,z-half,w,h,pegboardThickness,p.peg,id,transform);
     const faceZ=z+half*direction;
     const facePoints=[[x,y,faceZ],[x+w,y,faceZ],[x+w,y+h,faceZ],[x,y+h,faceZ]];
     const surface=facePoints.map(([u,v,f])=>transform([u,v,f+.007*direction]));
-    face(surface,p.peg,panelHit,.03);
+    face(surface,p.peg,id,.03);
     const plane=faceZ+.015*direction;
     const columns = Math.floor((w-3)/2.54);
     const rows = Math.floor((h-4)/2.54);
@@ -829,17 +824,9 @@ h3 { font-size: 13px; font-weight: 650; }
       const a=x+(w-columns*2.54)/2+i*2.54;
       const b=y+(h-rows*2.54)/2+j*2.54;
       const r=.26;
-      face([[a-r,b,plane],[a,b+r,plane],[a+r,b,plane],[a,b-r,plane]].map(transform),p.hole,panelHit);
+      face([[a-r,b,plane],[a,b+r,plane],[a+r,b,plane],[a,b-r,plane]].map(transform),p.hole,id);
     }
-    if(surfaceIndex>=0){
-      const panelProject=point=>{
-        const [px,py,pz]=transform(point);
-        return project([px,py+geometryOffsetY,pz]);
-      };
-      accessoryFrames.set(surfaceIndex,{origin:panelProject([x,y,plane]),right:panelProject([x+w,y,plane]),
-        top:panelProject([x,y+h,plane]),width:w,height:h,direction});
-      drawPanelAccessories(surfaceIndex,x,y,z,w,direction,transform);
-    }
+    if(surfaceIndex>=0) drawPanelAccessories(surfaceIndex,x,y,z,w,direction,transform);
   }
   function drawCableTieOrganizer(transform,id,highlight) {
     const color=highlight?[.27,.22,.18]:[.10,.10,.11];
@@ -1277,7 +1264,6 @@ h3 { font-size: 13px; font-weight: 650; }
     const {width,cabinetWidth,left,outerLeft,edges,span,rear,interiorFront}=spec;
     const back=rear+1.9;
     const body=0-rear;
-    accessoryFrames.clear();
     geometryOffsetY=0;
     for(let x=-120;x<=120;x+=15) box(x,-.08,-69,.19,.08,135,p.grid);
     for(let z=-65;z<=65;z+=15) box(-129,-.075,z,258,.075,.19,p.grid);
@@ -1537,32 +1523,35 @@ h3 { font-size: 13px; font-weight: 650; }
       placement.x+footprint.width<=panel.width+.0001 &&
       placement.y+footprint.height<=panel.height+.0001 && footprint.depth<=panel.depth;
   }
-  function updateAccessoryMode() {
-    canvas.classList.toggle('is-placing',Boolean(accessoryPlacement));
-    accessoryCancelButton.hidden=!accessoryPlacement;
-    get('#navigation-help').textContent=accessoryPlacement?
-      'Toca el lugar en el pegboard · arrastra para girar o mover.':
-      currentTab==='tab-herramientas'?
-        'Toca un accesorio para seleccionarlo · arrastra para ver los pegboards de las puertas.':
-        'Toca una charola para sacarla o guardarla · arrastra para girar o mover.';
+  function updateNavigationHelp() {
+    get('#navigation-help').textContent=currentTab==='tab-herramientas'?
+      'Toca un accesorio para seleccionarlo · arrastra para ver los pegboards de las puertas.':
+      'Toca una charola para sacarla o guardarla · arrastra para girar o mover.';
   }
   function updateAccessoryUi() {
-    updateAccessoryMode();
     const layout=accessoryLayouts[version];
-    const key=JSON.stringify([version,accessoryPicker.value,selectedAccessory,layout]);
+    const key=JSON.stringify([version,accessoryPicker.value,selectedAccessory,movingAccessory?.id,layout]);
     if(key===accessoryUiKey) return;
     accessoryUiKey=key;
     const product=accessoryCatalog.find(item=>item.id===accessoryPicker.value);
-    accessoryCount.disabled=accessoryPlaceButton.disabled=!product;
+    const isMoving=Boolean(movingAccessory);
+    accessoryPicker.disabled=isMoving;
+    accessoryCount.disabled=accessoryCount.hidden=isMoving;
+    get('label[for="tl-accessory-count"]').hidden=isMoving;
+    accessoryPlaceButton.textContent=isMoving?'Mover aquí':'Colocar';
+    accessoryCancelButton.hidden=!isMoving;
     const formatSize=size=>[size.width,size.height,size.depth].map(formatCm).join(' × ')+' cm';
     get('[data-accessory-size]').textContent=product?
       'Soporte '+(product.estimated?'aprox. ':'')+formatSize(product)+' · ancho × alto × fondo':'';
     get('[data-accessory-loaded]').textContent=product?'Espacio con herramientas · '+formatSize(accessoryFootprint(product)):'';
     const spec=dimensions();
-    const available=product?accessorySurfaceNames.filter((_,surface)=>accessoryFits({surface,x:0,y:0},product,spec)):[];
-    const availableText=available.length===accessorySurfaceNames.length?'los cinco pegboards':
-      available.length?available.join(', '):'sin espacio disponible';
-    get('[data-accessory-panels]').textContent=product?'Espacio en este modelo · '+availableText:'';
+    for(const item of [...accessorySurface.options].slice(1)){
+      const surface=Number(item.value);
+      const fits=product && accessoryFits({surface,x:0,y:0},product,spec);
+      item.disabled=!fits;
+      item.textContent=accessorySurfaceLabel(surface)+(fits?'':' (no cabe)');
+    }
+    if(accessorySurface.selectedOptions[0]?.disabled) accessorySurface.value='';
     get('[data-accessory-mount]').textContent=product?.mounting??'';
     get('[data-accessory-model-note]').textContent=product?.modelNote??'';
     const link=get('[data-accessory-link]');
@@ -1575,23 +1564,23 @@ h3 { font-size: 13px; font-weight: 650; }
     get('[data-accessory-none]').hidden=layout.length>0;
     get('.accessory-list').replaceChildren(...layout.map((placement,index)=>{
       const item=accessoryCatalog.find(item=>item.id===placement.productId);
-      const label=accessorySurfaceNames[placement.surface];
+      const label='Pegboard '+accessorySurfaceLabel(placement.surface);
       const row=document.createElement('li');
       if(placement.id===selectedAccessory) row.setAttribute('aria-current','true');
       const title=document.createElement('strong');
       title.textContent=item.name;
       const description=document.createElement('span');
       description.className='text-small text-muted';
-      description.textContent=(index+1)+' · '+label;
+      description.textContent=label;
       const actions=document.createElement('div');
       actions.className='actions';
       for(const [caption,action] of [
-        ['Mover',()=>startAccessoryPlacement(item.id,1,placement.id)],
+        ['Mover',()=>startAccessoryMove(placement)],
         ['Quitar',()=>{
           layout.splice(index,1);
           if(selectedAccessory===placement.id) selectedAccessory=null;
-          if(accessoryPlacement?.moveId===placement.id) accessoryPlacement=null;
-          accessoryFeedback.textContent='Accesorio retirado de '+label.toLowerCase()+'.';
+          if(movingAccessory?.id===placement.id) cancelAccessoryMove();
+          accessoryFeedback.textContent='Accesorio retirado del pegboard '+(placement.surface||5)+'.';
           change();
         }]
       ]){
@@ -1606,58 +1595,83 @@ h3 { font-size: 13px; font-weight: 650; }
       return row;
     }));
   }
-  function startAccessoryPlacement(productId,quantity,moveId=null) {
-    if(!accessoryCatalog.some(item=>item.id===productId)) return;
-    accessoryPlacement={productId,quantity,moveId};
-    if(moveId!==null) selectedAccessory=moveId;
-    doorOpen.fill(true);
-    if(viewMode==='posts' || viewMode==='detail') setView('angle');
-    accessoryFeedback.textContent=moveId!==null?
-      'Toca el nuevo lugar en un pegboard.':
-      'Toca un pegboard para colocar '+(quantity===1?'el accesorio':quantity+' accesorios a partir de ese punto')+'.';
+  function startAccessoryMove(placement) {
+    cancelAccessoryMove();
+    movingAccessory={id:placement.id,productId:accessoryPicker.value,surface:accessorySurface.value};
+    selectedAccessory=placement.id;
+    accessoryPicker.value=placement.productId;
+    accessorySurface.value='';
+    accessoryFeedback.textContent='Elige el pegboard de destino y pulsa «Mover aquí».';
     update();
+    accessorySurface.focus();
   }
-  function placeAccessoryAt(event,surface) {
-    const frame=accessoryFrames.get(surface);
-    if(!frame) return;
-    const {productId,quantity,moveId}=accessoryPlacement;
-    const product=accessoryCatalog.find(item=>item.id===productId);
+  function cancelAccessoryMove() {
+    if(!movingAccessory) return;
+    accessoryPicker.value=movingAccessory.productId;
+    accessorySurface.value=movingAccessory.surface;
+    movingAccessory=null;
+    accessoryFeedback.textContent='';
+  }
+  function findAccessorySlots(surface,product,quantity,moveId,spec) {
+    const panel=accessoryPanelSize(surface,spec);
     const footprint=accessoryFootprint(product);
-    const rect=canvas.getBoundingClientRect();
-    const dx=2*(event.clientX-rect.left)/rect.width-1-frame.origin[0];
-    const dy=1-2*(event.clientY-rect.top)/rect.height-frame.origin[1];
-    const rx=frame.right[0]-frame.origin[0], ry=frame.right[1]-frame.origin[1];
-    const tx=frame.top[0]-frame.origin[0], ty=frame.top[1]-frame.origin[1];
-    const det=rx*ty-ry*tx;
-    if(Math.abs(det)<1e-8) return;
-    const u=(dx*ty-dy*tx)/det, v=(rx*dy-ry*dx)/det;
-    const panel=accessoryPanelSize(surface,dimensions());
-    if(!accessoryFits({surface,x:0,y:0},product,dimensions())){
+    const occupied=accessoryLayouts[version]
+      .filter(item=>item.surface===surface && item.id!==moveId)
+      .map(item=>({...accessoryFootprint(accessoryCatalog.find(product=>product.id===item.productId)),x:item.x,y:item.y}));
+    const gap=1, tolerance=.0001;
+    const positions=(axis,size,max)=>[...new Set([0,...occupied.map(item=>item[axis]+item[size]+gap)])]
+      .filter(position=>position+footprint[size]<=max+tolerance).sort((a,b)=>a-b);
+    const slots=[];
+    while(slots.length<quantity){
+      const xs=positions('x','width',panel.width);
+      const ys=positions('y','height',panel.height);
+      let slot;
+      for(const y of ys){
+        const x=xs.find(x=>occupied.every(item=>
+          x+footprint.width+gap<=item.x+tolerance || x>=item.x+item.width+gap-tolerance ||
+          y+footprint.height+gap<=item.y+tolerance || y>=item.y+item.height+gap-tolerance));
+        if(x!==undefined){
+          slot={productId:product.id,surface,x,y};
+          break;
+        }
+      }
+      if(!slot) break;
+      slots.push(slot);
+      occupied.push({...footprint,x:slot.x,y:slot.y});
+    }
+    return slots;
+  }
+  function revealAccessoryPanel(surface) {
+    const viewAngle=surface===0?.22:surface%2===1?.52:-.52;
+    const doors=surface===0?[0,1]:[surface-1];
+    if(viewMode!=='angle' || doors.some(index=>!doorOpen[index]) ||
+       Math.abs(yaw-viewAngle)>.18){
+      setView('angle');
+      yaw=viewAngle;
+    }
+    doors.forEach(index=>{doorOpen[index]=true;});
+  }
+  function placeAccessories() {
+    if(!accessorySurface.value) return;
+    const surface=Number(accessorySurface.value);
+    const moveId=movingAccessory?.id;
+    const quantity=movingAccessory?1:Number(accessoryCount.value);
+    const product=accessoryCatalog.find(item=>item.id===accessoryPicker.value);
+    const spec=dimensions();
+    if(!product || !accessoryFits({surface,x:0,y:0},product,spec)){
       accessoryFeedback.textContent='El soporte con herramientas supera el espacio disponible en ese pegboard.';
       return;
     }
-    const pitch=2.54, gap=.5;
-    const snap=(pos,max)=>clamp(Math.round(pos/pitch)*pitch,0,max);
-    const x0=snap((frame.direction===1?u:1-u)*frame.width-footprint.width/2,panel.width-footprint.width);
-    const y0=snap(v*frame.height-footprint.height/2,panel.height-footprint.height);
-    const stepX=Math.ceil((footprint.width+gap)/pitch)*pitch;
-    const stepY=Math.ceil((footprint.height+gap)/pitch)*pitch;
-    const layout=accessoryLayouts[version], placements=[];
-    const occupied=layout.filter(item=>item.surface===surface && item.id!==moveId);
-    for(let y=y0;y+footprint.height<=panel.height+.0001 && placements.length<quantity;y+=stepY){
-      for(let x=x0;x+footprint.width<=panel.width+.0001 && placements.length<quantity;x+=stepX){
-        if(!occupied.some(item=>{
-          const other=accessoryFootprint(accessoryCatalog.find(other=>other.id===item.productId));
-          return x<item.x+other.width+gap && x+footprint.width+gap>item.x &&
-            y<item.y+other.height+gap && y+footprint.height+gap>item.y;
-        })) placements.push({productId,surface,x,y});
-      }
-    }
+    const layout=accessoryLayouts[version];
+    const placements=findAccessorySlots(surface,product,quantity,moveId,spec);
+    const panelLabel='Pegboard '+accessorySurfaceLabel(surface);
     if(placements.length!==quantity){
-      accessoryFeedback.textContent='No hay espacio suficiente a partir de ese punto. Prueba otro lugar o elige una cantidad menor.';
+      accessoryFeedback.textContent=panelLabel+(placements.length?
+        ' · espacio para '+placements.length+(placements.length===1?' pieza.':' piezas.'):
+        ' · sin espacio libre para este accesorio.');
       return;
     }
-    if(moveId!==null){
+    if(movingAccessory){
       const index=layout.findIndex(item=>item.id===moveId);
       layout[index]={...placements[0],id:moveId};
       selectedAccessory=moveId;
@@ -1665,9 +1679,10 @@ h3 { font-size: 13px; font-weight: 650; }
       placements.forEach(item=>layout.push({...item,id:nextAccessoryId++}));
       selectedAccessory=layout[layout.length-placements.length].id;
     }
-    accessoryPlacement=null;
-    accessoryFeedback.textContent=accessorySurfaceNames[surface]+' · '+(quantity===1?
-      (moveId!==null?'accesorio movido.':'accesorio colocado.'):quantity+' accesorios colocados.');
+    movingAccessory=null;
+    revealAccessoryPanel(surface);
+    accessoryFeedback.textContent=panelLabel+' · '+(quantity===1?
+      (moveId!==undefined?'accesorio movido.':'accesorio colocado.'):quantity+' accesorios colocados.');
     change();
   }
   function restoreAccessories(snapshot) {
@@ -1681,6 +1696,9 @@ h3 { font-size: 13px; font-weight: 650; }
           if(!item || !Number.isSafeInteger(item.id) || item.id<1 || ids.has(item.id) ||
             !Number.isInteger(item.surface) || !accessorySurfaceNames[item.surface] ||
             !Number.isFinite(item.x) || !Number.isFinite(item.y)) return false;
+          // Remove the old example only when it is still in its original position.
+          if(!snapshot.accessoryLayoutRevision && item.id===index+1 && item.productId==='klkcms-cable-ties' &&
+            item.surface===0 && item.x===2.54 && item.y===12.7) return false;
           const product=accessoryCatalog.find(product=>product.id===item.productId);
           if(!product || !accessoryFits(item,product,spec)) return false;
           ids.add(item.id);
@@ -1695,21 +1713,25 @@ h3 { font-size: 13px; font-weight: 650; }
     if(Number.isInteger(snapshot.accessoryQuantity)){
       accessoryCount.value=clamp(snapshot.accessoryQuantity,1,100);
     }
+    if(Number.isInteger(snapshot.accessorySurface) && accessorySurfaceNames[snapshot.accessorySurface]){
+      accessorySurface.value=snapshot.accessorySurface;
+    }
   }
   accessoryPicker.replaceChildren(...accessoryCatalog.map(item=>option(item.id,item.label??item.name)));
-  [accessoryPicker,accessoryCount].forEach(control=>control.addEventListener('change',()=>{
-    accessoryPlacement=null;
+  accessorySurface.replaceChildren(option('','Elige un pegboard'),...accessorySurfaceOrder.map(surface=>
+    option(surface,accessorySurfaceLabel(surface))));
+  [accessoryPicker,accessoryCount,accessorySurface].forEach(control=>control.addEventListener('change',()=>{
     accessoryFeedback.textContent='';
     change();
   }));
-  accessoryPlaceButton.addEventListener('click',()=>{
-    if(!accessoryCount.reportValidity() || !accessoryCount.value) return;
-    startAccessoryPlacement(accessoryPicker.value,Number(accessoryCount.value));
+  get('#tl-accessory-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    placeAccessories();
   });
   accessoryCancelButton.addEventListener('click',()=>{
-    accessoryPlacement=null;
-    accessoryFeedback.textContent='';
+    cancelAccessoryMove();
     update();
+    accessorySurface.focus();
   });
   function levelLabel(tray) {
     if(tray.bay>=2) return 'nivel '+(tray.row+1);
@@ -1826,7 +1848,11 @@ h3 { font-size: 13px; font-weight: 650; }
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
         doors:doorOpen,selected,active,extraction,removedFronts:[...removedFronts],
-        accessoryLayouts,accessoryProductId:accessoryPicker.value,accessoryQuantity:Number(accessoryCount.value),
+        accessoryLayouts,accessoryLayoutRevision:1,
+        accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
+        accessoryQuantity:Number(accessoryCount.value),
+        accessorySurface:(movingAccessory?.surface??accessorySurface.value)===''?null:
+          Number(movingAccessory?.surface??accessorySurface.value),
         tab:currentTab,interfaceRevision:2,trayLayoutRevision:3,cotas:dimensionsToggle.checked
       }}));
     } catch {
@@ -1932,8 +1958,8 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   versions.forEach((button,index)=>button.addEventListener('click',()=>{
     if(version===index) return;
+    cancelAccessoryMove();
     version=index;
-    accessoryPlacement=null;
     selectedAccessory=null;
     accessoryFeedback.textContent='';
     active=-1;
@@ -2185,10 +2211,7 @@ h3 { font-size: 13px; font-weight: 650; }
     if(pointers.size===1) startDrag([...pointers.values()][0],true);
     if(!click) return;
     const hit=hitAt(event);
-    if(accessoryPlacement){
-      if(hit>=200 && hit<205) placeAccessoryAt(event,hit-200);
-      else accessoryFeedback.textContent='Toca una zona libre de un pegboard para colocar el accesorio.';
-    } else if(hit>=1000){
+    if(hit>=1000){
       selectedAccessory=hit-1000;
       selectTab('tab-herramientas');
       update();
