@@ -757,6 +757,8 @@ h3 { font-size: 13px; font-weight: 650; }
   const doorOriginZ=1.3;
   const doorPegboardZ=-2.62;
   const doorRailFace=2.1;
+  const doorStileWidth=6.2;
+  const doorMeetingGap=.48;
   const frameSideWidth=3;
   const pegboardThickness=.5;
   const closedPegboardFace=doorOriginZ+doorPegboardZ-pegboardThickness/2;
@@ -1610,7 +1612,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const sign=i%2===0?1:-1;
     const pivot=[spec.outerLeft+.35,-2.5,2.5,-spec.outerLeft-.35][i];
     const meeting=i<2?spec.edges[0]+spec.span+1.25:spec.edges[2]+spec.span+1.25;
-    const leaf=Math.abs(meeting-pivot)-.24;
+    const leaf=Math.abs(meeting-pivot)-doorMeetingGap/2;
     const local=sign>0?0:-leaf;
     const hingeInset=i===0 || i===3?5.3:3.7, meetingInset=3.7;
     const boardX=local+(sign>0?hingeInset:meetingInset);
@@ -1695,19 +1697,27 @@ h3 { font-size: 13px; font-weight: 650; }
       box(local,y,panelBack,leaf,height,plankFace-grooveDepth-panelBack,blend(p.door,p.fg,.17),id,t);
       plankedSurface(height,leaf,(u,v,lift=0)=>t([local+v,y+u,plankFace+lift]),41+i*13,id,grooveDepth);
       const railBase=plankFace-.02;
+      // The two meeting stiles and the closing gap read as one full-width stile.
+      const meetingStileWidth=(doorStileWidth-doorMeetingGap)/2;
+      const railLength=leaf-meetingStileWidth;
+      const railX=local+(sign<0?meetingStileWidth:0);
+      const meetingStileX=sign>0?local+railLength:local;
       for(const [railY,railHeight] of [[y,8],[middle-6,12],[y+height-8,8]]){
         const finish=railY===middle-6?p.facadeCrossbar:p.facadeTrim;
-        box(local,railY,railBase,leaf,railHeight,doorRailFace-railBase-.02,finish,id,t);
-        boardSurface(leaf,railHeight,
-          (u,v)=>t([local+u,railY+v,doorRailFace-.01]),finish,i*7+railY,id);
+        box(railX,railY,railBase,railLength,railHeight,doorRailFace-railBase-.02,finish,id,t);
+        boardSurface(railLength,railHeight,
+          (u,v)=>t([railX+u,railY+v,doorRailFace-.01]),finish,i*7+railY,id);
       }
-      const stileWidth=6.2;
-      const stileX=sign>0?0:-stileWidth;
+      const drawStile=(x,bottom,width,length,seed)=>{
+        box(x,bottom,railBase,width,length,doorRailFace-railBase-.02,p.facadeTrim,id,t);
+        boardSurface(length,width,
+          (u,v)=>t([x+v,bottom+u,doorRailFace-.01]),p.facadeTrim,seed,id);
+      };
+      drawStile(meetingStileX,y,meetingStileWidth,height,73+i*19);
+      const stileX=sign>0?0:-doorStileWidth;
       const stileHeight=height/2-14;
       for(const stileY of [y+8,middle+6]){
-        box(stileX,stileY,railBase,stileWidth,stileHeight,doorRailFace-railBase-.02,p.facadeTrim,id,t);
-        boardSurface(stileHeight,stileWidth,
-          (u,v)=>t([stileX+v,stileY+u,doorRailFace-.01]),p.facadeTrim,i*11+stileY,id);
+        drawStile(stileX,stileY,doorStileWidth,stileHeight,i*11+stileY);
       }
       drawCombinationLock(sign,meeting-pivot,middle,Math.floor(i/2),t);
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
