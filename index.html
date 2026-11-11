@@ -489,7 +489,6 @@ h3 { font-size: 13px; font-weight: 650; }
   const magneticMount='El respaldo magnético requiere una superficie de acero. En pegboard de madera, el montaje se simula con una placa de acero.';
   const wallMount='Soporte para atornillar a la pared. Para el pegboard, la simulación supone una placa o fijación pasante.';
   const pegboardPitch=2.54;
-  const wallPegSetSize=4;
   const accessoryCatalog = [{
     id:'klkcms-cable-ties',
     label:'Organizador de cinchos',
@@ -534,14 +533,16 @@ h3 { font-size: 13px; font-weight: 650; }
       modelNote:'Cotas de WallPeg por contenedor. Se muestra con tornillos, tuercas y taquetes de ejemplo.',
       draw:drawPartsBin
     };
-    return [bin,{
-      ...bin,id:bin.id+'-set-4',label:'WallPeg · 4 de '+item.size+' pulg',
-      name:'WallPeg · Set de 4 contenedores de '+item.size+' pulg',
-      width:wallPegSetSize*bin.width+(wallPegSetSize-1)*pegboardPitch,
-      bin,
-      modelNote:'Cuatro contenedores en una fila, con 2.54 cm libres entre piezas. La cantidad indica cuántas filas colocar.',
+    const sets=[3,4].map(binCount=>({
+      ...bin,id:bin.id+'-set-'+binCount,label:'WallPeg · '+binCount+' de '+item.size+' pulg',
+      name:'WallPeg · Set de '+binCount+' contenedores de '+item.size+' pulg',
+      width:binCount*bin.width+(binCount-1)*pegboardPitch,
+      bin,binCount,
+      modelNote:binCount+' contenedores en una fila, con '+pegboardPitch+' cm libres entre piezas. La cantidad indica cuántas filas colocar.',
       draw:drawWallPegSet
-    }];
+    }));
+    // Keep single-bin models available for layouts saved before the sets-only catalog.
+    return [{...bin,legacy:true},...sets];
   }),{
     id:'casoman-magnetic-10',label:'CASOMAN · 10 pinzas',name:'CASOMAN · Soporte magnético de 10 ranuras',
     url:'https://www.amazon.com.mx/dp/B091PVB652',
@@ -1055,9 +1056,9 @@ h3 { font-size: 13px; font-weight: 650; }
       box(x-.16,h-.5,.05,.32,product.above+.5,.35,mountColor,id,transform);
     }
   }
-  function drawWallPegSet(transform,id,highlight,{bin}) {
+  function drawWallPegSet(transform,id,highlight,{bin,binCount}) {
     const step=bin.width+pegboardPitch;
-    for(let i=0;i<wallPegSetSize;i++){
+    for(let i=0;i<binCount;i++){
       drawPartsBin(([x,y,z])=>transform([x+i*step,y,z]),id,highlight,bin);
     }
   }
@@ -1792,7 +1793,7 @@ h3 { font-size: 13px; font-weight: 650; }
     cancelAccessoryMove();
     movingAccessory={id:placement.id,productId:accessoryPicker.value,surface:accessorySurface.value};
     selectedAccessory=placement.id;
-    accessoryPicker.value=placement.productId;
+    populateAccessoryPicker(placement.productId,true);
     accessorySurface.value='';
     accessoryFeedback.textContent='Elige el pegboard de destino y pulsa «Mover aquí».';
     update();
@@ -1800,10 +1801,15 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function cancelAccessoryMove() {
     if(!movingAccessory) return;
-    accessoryPicker.value=movingAccessory.productId;
+    populateAccessoryPicker(movingAccessory.productId);
     accessorySurface.value=movingAccessory.surface;
     movingAccessory=null;
     accessoryFeedback.textContent='';
+  }
+  function populateAccessoryPicker(productId,includeLegacy=false) {
+    const products=accessoryCatalog.filter(item=>!item.legacy || (includeLegacy && item.id===productId));
+    accessoryPicker.replaceChildren(...products.map(item=>option(item.id,item.label??item.name)));
+    if(products.some(item=>item.id===productId)) accessoryPicker.value=productId;
   }
   function accessoryOccupants(surface,excludedId) {
     return accessoryLayouts[version]
@@ -1904,6 +1910,7 @@ h3 { font-size: 13px; font-weight: 650; }
       placements.forEach(item=>layout.push({...item,id:nextAccessoryId++}));
       selectedAccessory=layout[layout.length-placements.length].id;
     }
+    if(movingAccessory && product.legacy) populateAccessoryPicker(movingAccessory.productId);
     movingAccessory=null;
     revealAccessoryPanel(surface);
     const unit=product.bin?'set':'accesorio';
@@ -1934,9 +1941,7 @@ h3 { font-size: 13px; font-weight: 650; }
         });
       });
     }
-    if(accessoryCatalog.some(item=>item.id===snapshot.accessoryProductId)){
-      accessoryPicker.value=snapshot.accessoryProductId;
-    }
+    populateAccessoryPicker(snapshot.accessoryProductId);
     if(Number.isInteger(snapshot.accessoryQuantity)){
       accessoryCount.value=clamp(snapshot.accessoryQuantity,1,100);
     }
@@ -1944,7 +1949,7 @@ h3 { font-size: 13px; font-weight: 650; }
       accessorySurface.value=snapshot.accessorySurface;
     }
   }
-  accessoryPicker.replaceChildren(...accessoryCatalog.map(item=>option(item.id,item.label??item.name)));
+  populateAccessoryPicker();
   accessorySurface.replaceChildren(option('','Elige un pegboard'),...accessorySurfaceOrder.map(surface=>
     option(surface,accessorySurfaceLabel(surface))));
   [accessoryPicker,accessoryCount,accessorySurface].forEach(control=>control.addEventListener('change',()=>{
