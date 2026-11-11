@@ -103,6 +103,7 @@ h3 { font-size: 13px; font-weight: 650; }
 .layout-editor { margin-top: 18px; }
 .layout-editor summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
 .layout-editor .control-group { margin-top: 8px; }
+#garden-tools { margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .tl-layout-feedback { color: var(--primary); }
 .tl-layout-feedback:empty { display: none; }
 .accessory-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
@@ -324,6 +325,27 @@ h3 { font-size: 13px; font-weight: 650; }
       </section>
 
       <section class="control-panel" id="panel-herramientas" role="tabpanel" aria-labelledby="tab-herramientas" tabindex="0" hidden>
+        <details class="layout-editor" id="garden-tools">
+          <summary>Herramientas de jardín</summary>
+          <form class="control-group" id="garden-form">
+            <div class="field-grid">
+              <label for="garden-product">Herramienta</label>
+              <select id="garden-product"></select>
+              <label for="garden-bay">Módulo</label>
+              <select id="garden-bay" required></select>
+            </div>
+            <div class="actions"><button type="submit" class="btn-primary">Colocar con soporte</button></div>
+            <p class="accessory-feedback text-small" data-garden-feedback aria-live="polite"></p>
+            <p class="text-small text-muted" data-garden-fit></p>
+            <p class="text-small text-muted" data-garden-size></p>
+            <p class="text-small text-muted">Horquilla acolchada con retención, montada en el lateral fijo. Las charolas del módulo vuelven al quitar su última herramienta.</p>
+            <div class="actions">
+              <a class="text-small" data-garden-link target="_blank" rel="noopener noreferrer">Herramienta en Amazon</a>
+              <a class="text-small" href="https://www.ryobitools.com/products/33287197767" target="_blank" rel="noopener noreferrer">Gancho RYOBI LINK de referencia</a>
+            </div>
+            <ul class="accessory-list" data-garden-list></ul>
+          </form>
+        </details>
         <div class="panel-intro">
           <h2>Accesorios para pegboard</h2>
           <p class="text-small text-muted">Elige el accesorio, la cantidad y el pegboard. Las piezas se acomodan en los huecos libres, de izquierda a derecha y de abajo hacia arriba.</p>
@@ -486,6 +508,22 @@ h3 { font-size: 13px; font-weight: 650; }
     {w:30, d:42, depth:60, count:1, frontRecess:12.4},
     {w:42, d:30, depth:80, count:2, frontRecess:13.9}
   ];
+  const gardenCatalog=[
+    {id:'ryobi-hedge',name:'Cortasetos RYOBI P2609BTL',cut:22,height:97,width:23,depth:18.6,
+      url:'https://www.amazon.com.mx/dp/B0C3Z4SNZB',draw:drawHedgeTrimmer},
+    {id:'ryobi-string',name:'Desbrozadora RYOBI P2030',cut:10,height:114.3,width:26,depth:21,
+      url:'https://www.amazon.com.mx/dp/B00GJTXB0C',draw:drawStringTrimmer}
+  ];
+  const gardenLayouts=variants.map(()=>[]);
+  const gardenBays=[2,3];
+  const gardenGap=4;
+  const gardenEdge=2;
+  const gardenBase=21.5;
+  const gardenCeiling=197;
+  const gardenProductPicker=get('#garden-product');
+  const gardenBayPicker=get('#garden-bay');
+  const gardenFeedback=get('[data-garden-feedback]');
+  let gardenUiKey='';
   const magneticMount='El respaldo magnético requiere una superficie de acero. En pegboard de madera, el montaje se simula con una placa de acero.';
   const wallMount='Soporte para atornillar a la pared. Para el pegboard, la simulación supone una placa o fijación pasante.';
   const pegboardPitch=2.54;
@@ -724,7 +762,8 @@ h3 { font-size: 13px; font-weight: 650; }
   const closedPegboardFace=doorOriginZ+doorPegboardZ-pegboardThickness/2;
   let version = 0;
   const removedFronts = new Set();
-  const trayAvailable=tray=>Boolean(tray?.h && tray.lane<variants[version].count);
+  const gardenOccupies=bay=>gardenLayouts[version].some(item=>item.bay===bay);
+  const trayAvailable=tray=>Boolean(tray?.h && tray.lane<variants[version].count && !gardenOccupies(tray.bay));
   const mixedExample = trays.findIndex(tray=>tray.bay===3 && tray.h===36);
   let selected = mixedExample;
   let active = -1;
@@ -1059,6 +1098,87 @@ h3 { font-size: 13px; font-weight: 650; }
     box(-width/2,0,-thickness/2,width,length,thickness,color,id,([x,y,z])=>transform([
       a[0]+(x*dy+y*dx)/length,a[1]+(y*dy-x*dx)/length,a[2]+z+dz*y/length
     ]));
+  }
+  function gardenRod(a,b,radius,color,id,transform=identity) {
+    const delta=b.map((value,i)=>value-a[i]);
+    const length=Math.hypot(...delta);
+    const axis=delta.map(value=>value/length);
+    const normal=Math.abs(axis[1])>.9?[1,0,0]:[-axis[2],0,axis[0]];
+    const cross=(u,v)=>[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
+    const normalize=v=>{const size=Math.hypot(...v);return v.map(value=>value/size);};
+    const u=normalize(cross(axis,normal)), v=cross(axis,u);
+    const ring=center=>Array.from({length:10},(_,i)=>{
+      const angle=i*Math.PI/5;
+      return transform(center.map((value,j)=>value+radius*(Math.cos(angle)*u[j]+Math.sin(angle)*v[j])));
+    });
+    const start=ring(a), end=ring(b);
+    face(start,color,id,-.13);
+    face(end,color,id,.10);
+    start.forEach((point,i)=>{
+      const next=(i+1)%start.length;
+      face([point,start[next],end[next],end[i]],color,id,.12*Math.cos(i*Math.PI/5));
+    });
+  }
+  const ryobiGreen=[.66,.75,.14];
+  function drawHedgeTrimmer(transform,id) {
+    const cover=[.24,.25,.26];
+    roundedHardware(-3.35,0,-1.45,6.7,55.88,2.9,1.5,cover,id,transform);
+    box(-2.45,2,1.46,4.9,49,.16,[.32,.33,.34],id,transform);
+    roundedHardware(-9.7,53.5,-5.8,19.4,6.4,11.6,2.25,toolBlack,id,transform);
+    roundedHardware(-6.65,57.5,-5.7,13.3,18.7,11.4,4.1,ryobiGreen,id,transform);
+    const hoop=Array.from({length:13},(_,i)=>{
+      const angle=i*Math.PI/6;
+      return [10*Math.cos(angle),66+4*Math.sin(angle),7.7*Math.sin(angle)];
+    });
+    hoop.slice(1).forEach((point,i)=>gardenRod(hoop[i],point,1.25,toolBlack,id,transform));
+    roundedHardware(-4.3,74,-4,8.6,18,8,2,ryobiGreen,id,transform);
+    roundedHardware(-3.85,77,2,7.7,13.7,2.65,2.2,toolBlack,id,transform);
+    roundedHardware(-6.8,91.2,-5.2,13.6,5.8,10.4,2.25,ryobiGreen,id,transform);
+    for(let y=62;y<=71;y+=2.2) box(-2.8,y,5.69,5.6,.55,.11,toolBlack,id,transform);
+  }
+  function drawStringTrimmer(transform,id) {
+    const guard=([x,y,z])=>transform([x*1.2,y,z*.90]);
+    gardenRod([0,1,0],[0,3.3,0],10.5,toolBlack,id,guard);
+    gardenRod([0,0,0],[0,4.5,0],5.5,[.22,.23,.24],id,transform);
+    roundedHardware(-4.9,2.9,-4.3,9.8,10,8.6,3.45,toolBlack,id,transform);
+    gardenRod([0,8,0],[-4.4,23.5,0],2.8,toolBlack,id,transform);
+    gardenRod([-4.4,23.5,0],[-2.6,62,0],2.45,toolBlack,id,transform);
+    gardenRod([-2.6,62,0],[.8,94,0],2.75,ryobiGreen,id,transform);
+    roundedHardware(-3.7,58,-3.3,7.4,7.4,6.6,1.65,toolBlack,id,transform);
+    roundedHardware(-.75,60,3.3,2.6,2.8,.5,.55,ryobiGreen,id,transform);
+    const handle=[[-.4,82.5,0],[-5.9,90.5,0],[-10,92.5,0],[-10.1,96,0]];
+    handle.slice(1).forEach((point,i)=>gardenRod(handle[i],point,1.55,ryobiGreen,id,transform));
+    const grip=[[.8,94,0],[-.2,109.5,0],[7.4,112.4,0],[10.5,104.4,0],[.8,99,0]];
+    grip.slice(1).forEach((point,i)=>gardenRod(grip[i],point,1.85,i===1||i===2?toolBlack:ryobiGreen,id,transform));
+    roundedHardware(-1.4,95,-4.1,10.5,6.7,8.2,1.85,ryobiGreen,id,transform);
+    for(let y=6;y<11;y+=1.65) box(-2.3,y,4.29,4.6,.55,.12,[.36,.37,.38],id,transform);
+  }
+  function drawGardenRack(bay,spec,slot,id) {
+    const {x,y,z,product}=slot;
+    const fixedSide=bay===2?spec.edges[bay]:spec.edges[bay]+spec.span;
+    const inward=bay===2?1:-1;
+    const backPlate=[.30,.32,.34];
+    const levels=product.id==='ryobi-hedge'?[[64,5.8],[48,2.5]]:[[81.8,3.6],[57,3.2]];
+    for(const [offset,spread] of levels){
+      const height=y+offset;
+      box(fixedSide+(inward>0?0:-.4),height-3,z-5.1,.4,6,10.2,backPlate,id);
+      for(const armZ of [z-spread,z+spread]){
+        gardenRod([fixedSide+inward*.4,height,armZ],[x+inward*4.8,height,armZ],.84,toolBlack,id);
+        gardenRod([x+inward*4.8,height,armZ],[x+inward*4.8,height+2.2,armZ],.84,toolBlack,id);
+      }
+      gardenRod([x+inward*4.75,height+1.35,z-spread],[x+inward*4.75,height+1.35,z+spread],.43,backPlate,id);
+      for(const screwY of [height-2,height+2]){
+        box(fixedSide+(inward>0?.4:-.55),screwY-.35,z-.35,.15,.7,.7,toolSteel,id);
+      }
+    }
+  }
+  function drawGardenTools(bay,spec) {
+    const slots=gardenPlan(gardenLayouts[version].filter(item=>item.bay===bay),bay,spec)??[];
+    for(const slot of slots){
+      const id=300+bay;
+      drawGardenRack(bay,spec,slot,id);
+      slot.product.draw(([x,y,z])=>[slot.x+x,slot.y+y,slot.z+z],id);
+    }
   }
   function drawDriver(x,y,z,shaft,handle,r,color,id,transform) {
     box(x-.17,y-shaft,z-.17,.34,shaft+.15,.34,toolSteel,id,transform);
@@ -1559,6 +1679,7 @@ h3 { font-size: 13px; font-weight: 650; }
     woodGrain(tableWidth-1.4,interiorDepth-1.5,p.work,
       (u,v)=>[tableX+.7+u,benchHeight+.028,back+.65+v],2);
     for(let bay=0;bay<4;bay++) traySupports(bay,spec);
+    for(const bay of gardenBays) if(gardenOccupies(bay)) drawGardenTools(bay,spec);
     trays.forEach((tray,index) => {
       if(trayAvailable(tray) && !removedFronts.has(index) && viewMode!=='posts') drawTray(tray,index,spec);
     });
@@ -1751,6 +1872,136 @@ h3 { font-size: 13px; font-weight: 650; }
     el.textContent=label;
     return el;
   }
+  function gardenPlan(items,bay,spec) {
+    const products=items.map(item=>gardenCatalog.find(product=>product.id===item.id));
+    if(!gardenBays.includes(bay) || products.length>2 || products.some(product=>!product) ||
+       new Set(products).size!==products.length) return null;
+    const depth=spec.railFront-(spec.rear+1.9)-2*gardenEdge;
+    const usedDepth=products.reduce((total,product)=>total+product.depth,0)+
+      gardenGap*Math.max(0,products.length-1);
+    if(usedDepth>depth || products.some(product=>
+      product.width+2>spec.opening || product.height+8>gardenCeiling-gardenBase)) return null;
+    const center=spec.edges[bay]+spec.span/2;
+    let front=spec.railFront-gardenEdge;
+    return products.sort((a,b)=>Number(b.id==='ryobi-string')-Number(a.id==='ryobi-string')).map(product=>{
+      const isString=product.id==='ryobi-string';
+      const offset=products.length===2?Math.min(6,(spec.opening-product.width)/2-1):0;
+      const slot={product,x:center+(isString?offset:-offset),y:gardenBase+(isString?15:37),
+        z:front-product.depth/2};
+      front-=product.depth+gardenGap;
+      return slot;
+    });
+  }
+  function restoreGarden(saved) {
+    if(!Array.isArray(saved)) return;
+    gardenLayouts.forEach((_,index)=>{
+      if(!Array.isArray(saved[index])) return;
+      const spec=dimensions(index);
+      for(const item of saved[index]){
+        if(!item || gardenLayouts[index].some(existing=>existing.id===item.id)) continue;
+        const bayItems=gardenLayouts[index].filter(existing=>existing.bay===item.bay);
+        if(gardenPlan([...bayItems,item],item.bay,spec)){
+          gardenLayouts[index].push({id:item.id,bay:item.bay});
+        }
+      }
+    });
+  }
+  function revealGardenBay(bay) {
+    doorOpen[bay]=true;
+    setView('angle');
+    yaw=bay===2?.20:-.20;
+    pitch=.15;
+  }
+  function updateGardenUi() {
+    const layout=gardenLayouts[version];
+    const key=JSON.stringify([version,gardenProductPicker.value,layout]);
+    if(key===gardenUiKey) return;
+    gardenUiKey=key;
+    const spec=dimensions(), product=gardenCatalog.find(item=>item.id===gardenProductPicker.value);
+    const placed=layout.find(item=>item.id===product.id);
+    const previousBay=gardenBayPicker.value;
+    const options=gardenBays.map(bay=>{
+      const occupied=layout.filter(item=>item.bay===bay);
+      const fits=gardenPlan([...occupied,{id:product.id}],bay,spec);
+      const item=option(bay,'Módulo '+(bay+1)+(occupied.length?(fits?' · con otra herramienta':' · ocupado'):' · libre'));
+      item.disabled=Boolean(placed || !fits);
+      return item;
+    });
+    gardenBayPicker.replaceChildren(option('','Elige un módulo'),...options);
+    if(options.some(item=>item.value===previousBay && !item.disabled)) gardenBayPicker.value=previousBay;
+    gardenBayPicker.disabled=Boolean(placed);
+    get('#garden-form button[type="submit"]').disabled=Boolean(placed || options.every(item=>item.disabled));
+    const together=gardenPlan(gardenCatalog,2,spec);
+    get('[data-garden-fit]').textContent=(together?
+      'Las dos caben en un mismo módulo, una detrás de la otra.':
+      'Se guardan en módulos separados con los soportes y holguras del modelo.')+
+      ' Los módulos 1 y 2 tienen la mesa de trabajo.';
+    get('[data-garden-size]').textContent='Corte de '+product.cut+'″ · espacio reservado aprox. '+
+      [product.width,product.height,product.depth].map(formatCm).join(' × ')+' cm (ancho × alto × fondo).';
+    get('[data-garden-link]').href=product.url;
+    get('[data-garden-list]').replaceChildren(...layout.map(item=>{
+      const row=document.createElement('li');
+      const title=document.createElement('strong');
+      title.textContent=gardenCatalog.find(product=>product.id===item.id).name;
+      const description=document.createElement('span');
+      const slots=gardenPlan(layout.filter(other=>other.bay===item.bay),item.bay,spec);
+      description.textContent='Módulo '+(item.bay+1)+(slots.length===2?
+        (slots[0].product.id===item.id?' · delante':' · detrás'):'')+' · soporte colocado';
+      description.className='text-small text-muted';
+      const actions=document.createElement('div');
+      actions.className='actions';
+      for(const [caption,action] of [
+        ['Ver módulo',()=>{revealGardenBay(item.bay);change();}],
+        ['Quitar',()=>{
+          layout.splice(layout.indexOf(item),1);
+          const stillOccupied=gardenOccupies(item.bay);
+          gardenFeedback.textContent=stillOccupied?
+            'La otra herramienta sigue en el módulo '+(item.bay+1)+'.':
+            'Charolas repuestas en el módulo '+(item.bay+1)+'.';
+          refreshTrays();
+          syncEditorToTray();
+          revealGardenBay(item.bay);
+          change();
+        }]
+      ]){
+        const button=document.createElement('button');
+        button.type='button';
+        button.textContent=caption;
+        button.setAttribute('aria-label',caption+' · '+title.textContent);
+        button.addEventListener('click',action);
+        actions.append(button);
+      }
+      row.append(title,description,actions);
+      return row;
+    }));
+  }
+  gardenProductPicker.replaceChildren(...gardenCatalog.map(product=>option(product.id,product.name)));
+  gardenProductPicker.addEventListener('change',()=>{
+    gardenFeedback.textContent='';
+    updateGardenUi();
+  });
+  get('#garden-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    if(gardenBayPicker.value==='') return;
+    const bay=Number(gardenBayPicker.value), id=gardenProductPicker.value;
+    const layout=gardenLayouts[version];
+    if(layout.some(item=>item.id===id)) return;
+    const occupied=layout.filter(item=>item.bay===bay);
+    if(!gardenPlan([...occupied,{id,bay}],bay,dimensions())) return;
+    if((active>=0 && trays[active].bay===bay) ||
+       [...removedFronts].some(index=>trays[index].bay===bay) ||
+       trays.some(tray=>tray.bay===bay && tray.offset>.01)){
+      gardenFeedback.textContent='Guarda las charolas del módulo '+(bay+1)+' antes de colocar la herramienta.';
+      return;
+    }
+    layout.push({id,bay});
+    refreshTrays();
+    syncEditorToTray();
+    revealGardenBay(bay);
+    gardenFeedback.textContent='Módulo '+(bay+1)+' · '+(occupied.length?
+      'las dos herramientas y sus soportes.':'herramienta y soporte colocados.');
+    change();
+  });
   function accessoryPanelSize(surface,spec) {
     if(surface===0) return {
       width:spec.tableWidth-4,height:147-benchHeight-4,
@@ -2155,11 +2406,16 @@ h3 { font-size: 13px; font-weight: 650; }
     const editorTray=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)];
     heightPicker.value=editorTray.h;
     const currentSize=editorTray.h?'charola de '+editorTray.h+' cm':'vacío';
-    get('.tl-layout-current').textContent='Módulo '+(editorTray.bay+1)+' · '+levelLabel(editorTray)+' · actualmente '+currentSize+
+    const gardenBay=gardenOccupies(editorTray.bay);
+    heightPicker.disabled=gardenBay;
+    get('.tl-layout-current').textContent=gardenBay?
+      'Módulo '+(editorTray.bay+1)+' · las charolas se reponen al quitar las herramientas de jardín.':
+      'Módulo '+(editorTray.bay+1)+' · '+levelLabel(editorTray)+' · actualmente '+currentSize+
       (spec.count===2?'. En C, el tamaño se aplica a la delantera y a la trasera.':'.')+
       (!traysStowed()?' Guarda las charolas para poder cambiar el tamaño.':'');
     if(message) status.textContent=message;
     updateAccessoryUi();
+    updateGardenUi();
     schedule();
   }
   function save() {
@@ -2167,7 +2423,7 @@ h3 { font-size: 13px; font-weight: 650; }
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
         doors:doorOpen,selected,active,extraction,removedFronts:[...removedFronts],
-        accessoryLayouts,accessoryLayoutRevision:2,
+        accessoryLayouts,accessoryLayoutRevision:2,gardenLayouts,
         accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
         accessoryQuantity:Number(accessoryCount.value),
         accessorySurface:(movingAccessory?.surface??accessorySurface.value)===''?null:
@@ -2182,6 +2438,7 @@ h3 { font-size: 13px; font-weight: 650; }
     if(!snapshot || !variants[snapshot.version] ||
       !Array.isArray(snapshot.doors) || snapshot.doors.length!==4) return;
     version=snapshot.version;
+    restoreGarden(snapshot.gardenLayouts);
     if(Array.isArray(snapshot.layout)) snapshot.layout.forEach((heights,i)=>{
       const column=levelsByBay[i+(snapshot.trayLayoutRevision===3?0:2)];
       if(column && validColumn(column,heights)) heights.forEach((h,j)=>{column[j].h=h;});
@@ -2199,7 +2456,7 @@ h3 { font-size: 13px; font-weight: 650; }
     selected=trayAvailable(trays[savedSelection])?savedSelection:selected;
     if(version===2 && Array.isArray(snapshot.removedFronts)){
       snapshot.removedFronts.forEach(index=>{
-        if(Number.isInteger(index) && index>=0 && index<frontTrays.length && frontTrays[index].h){
+        if(Number.isInteger(index) && index>=0 && index<frontTrays.length && trayAvailable(frontTrays[index])){
           removedFronts.add(index);
         }
       });
@@ -2281,6 +2538,7 @@ h3 { font-size: 13px; font-weight: 650; }
     version=index;
     selectedAccessory=null;
     accessoryFeedback.textContent='';
+    gardenFeedback.textContent='';
     active=-1;
     extraction=0;
     removedFronts.clear();
@@ -2322,19 +2580,23 @@ h3 { font-size: 13px; font-weight: 650; }
       return;
     }
     const allSmall=button.dataset.layout==='small';
-    levelsByBay.forEach((column,i)=>column.forEach((tray,j)=>{tray.h=allSmall?10:mixed[i][j];}));
+    levelsByBay.forEach((column,i)=>{
+      if(!gardenOccupies(i)) column.forEach((tray,j)=>{tray.h=allSmall?10:mixed[i][j];});
+    });
     if(!allSmall) selected=mixedExample;
     refreshTrays();
     syncEditorToTray();
     layoutFeedback.textContent='';
     doorOpen.fill(true);
     setView('front');
-    const message=allSmall?42*variants[version].count+' charolas de 10 cm en las cuatro columnas.':'Charolas de 10, 23 y 36 cm en ambos módulos.';
+    const message=gardenLayouts[version].length?
+      'Distribución aplicada a los módulos disponibles para charolas.':
+      allSmall?42*variants[version].count+' charolas de 10 cm en las cuatro columnas.':'Charolas de 10, 23 y 36 cm en ambos módulos.';
     change(message);
   }));
   function previewEditorLevel() {
     const tray=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)];
-    if(tray.h){
+    if(trayAvailable(tray)){
       selected=trays.indexOf(tray);
       doorOpen[tray.bay]=true;
     }
@@ -2351,6 +2613,7 @@ h3 { font-size: 13px; font-weight: 650; }
       return;
     }
     const bay=Number(columnPicker.value);
+    if(gardenOccupies(bay)) return;
     const level=Number(levelPicker.value);
     const height=Number(heightPicker.value);
     const column=levelsByBay[bay];
@@ -2582,6 +2845,10 @@ h3 { font-size: 13px; font-weight: 650; }
     if(hit>=1000){
       selectedAccessory=hit-1000;
       selectTab('tab-herramientas');
+      update();
+    } else if(gardenBays.some(bay=>hit===300+bay)){
+      selectTab('tab-herramientas');
+      get('#garden-tools').open=true;
       update();
     } else if(hit>=10) toggleTray(hit-10);
     else if(hit>0) toggleDoor(hit-1);
