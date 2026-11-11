@@ -21,13 +21,14 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--background); color: var(--foreground); }
-button, select { font: inherit; color: inherit; }
-button, select { min-height: 36px; border: 1px solid var(--border); border-radius: 7px; }
+button, select, input[type="number"] { font: inherit; color: inherit; }
+button, select, input[type="number"] { min-height: 36px; border: 1px solid var(--border); border-radius: 7px; }
 button { padding: 7px 10px; background: var(--background); cursor: pointer; }
 button:hover { background: #f4ebe3; border-color: #d3b5a6; }
 button[aria-pressed="true"], button[aria-selected="true"] { background: var(--selected); color: #69372b; border-color: #b88773; }
 button:disabled { opacity: .55; cursor: default; }
 select { padding: 6px 8px; background: var(--panel); max-width: 100%; }
+input[type="number"] { width: 100%; padding: 6px 8px; background: var(--panel); }
 a { color: var(--primary); text-underline-offset: 3px; }
 button:focus-visible, select:focus-visible, [role="tabpanel"]:focus-visible, .tl-canvas:focus-visible, .scene-resize:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 [hidden] { display: none !important; }
@@ -63,7 +64,7 @@ h3 { font-size: 13px; font-weight: 650; }
   min-height: 0; min-width: 0; background: var(--panel); border-right: 1px solid var(--border);
 }
 .control-tabs { display: flex; gap: 4px; padding: 10px; border-bottom: 1px solid var(--border); }
-.control-tabs button { flex: 1 1 0; min-height: 29px; font-size: 11px; padding: 5px 3px; min-width: 0; white-space: nowrap; }
+.control-tabs button { flex: 1 1 auto; min-height: 29px; font-size: 11px; padding: 5px 3px; min-width: 0; white-space: nowrap; }
 .control-tabs button[aria-selected="true"] { font-weight: 650; }
 .control-panel { padding: 12px 16px 18px; overflow: auto; overscroll-behavior: contain; min-height: 0; }
 .panel-intro { display: grid; gap: 4px; margin-bottom: 12px; }
@@ -104,6 +105,11 @@ h3 { font-size: 13px; font-weight: 650; }
 .layout-editor .control-group { margin-top: 8px; }
 .tl-layout-feedback { color: var(--primary); }
 .tl-layout-feedback:empty { display: none; }
+.accessory-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.accessory-list li { padding: 9px; border: 1px solid var(--border); border-radius: 7px; display: grid; gap: 7px; }
+.accessory-list li[aria-current="true"] { border-color: var(--primary); background: var(--selected); }
+.accessory-feedback { color: var(--primary); }
+.accessory-feedback:empty { display: none; }
 [aria-labelledby="tab-charolas"] .control-group + .control-group { margin-top: 13px; padding-top: 0; border-top: 0; }
 .tl-scene { grid-area: scene; display: grid; grid-template-rows: auto minmax(0,1fr) auto; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: linear-gradient(#fffefa, var(--scene-ground)); }
 .scene-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; }
@@ -112,6 +118,7 @@ h3 { font-size: 13px; font-weight: 650; }
 .scene-toolbar .navigation-mode { display: flex; gap: 4px; margin-right: auto; }
 .scene-viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .tl-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.tl-canvas.is-placing { cursor: crosshair; }
 .tl-canvas:active { cursor: grabbing; }
 .scene-resize { grid-area: resize; position: relative; cursor: col-resize; touch-action: none; background: var(--panel); }
 .scene-resize::after { content: ""; position: absolute; width: 3px; height: 40px; left: 50%; top: 50%; transform: translate(-50%,-50%); border-radius: 3px; background: #c5b6aa; }
@@ -182,6 +189,7 @@ h3 { font-size: 13px; font-weight: 650; }
         <button type="button" role="tab" id="tab-medidas" aria-controls="panel-medidas" aria-selected="false" tabindex="-1">Medidas</button>
         <button type="button" role="tab" id="tab-charolas" aria-controls="panel-charolas" aria-selected="true" tabindex="0">Charolas</button>
         <button type="button" role="tab" id="tab-puertas" aria-controls="panel-puertas" aria-selected="false" tabindex="-1">Puertas</button>
+        <button type="button" role="tab" id="tab-herramientas" aria-controls="panel-herramientas" aria-selected="false" tabindex="-1">Herramientas</button>
       </div>
 
       <section class="control-panel" id="panel-vista" role="tabpanel" aria-labelledby="tab-vista" tabindex="0" hidden>
@@ -315,6 +323,39 @@ h3 { font-size: 13px; font-weight: 650; }
         </div>
       </section>
 
+      <section class="control-panel" id="panel-herramientas" role="tabpanel" aria-labelledby="tab-herramientas" tabindex="0" hidden>
+        <div class="panel-intro">
+          <h2>Accesorios para pegboard</h2>
+          <p class="text-small text-muted">Elige un accesorio y su cantidad. Pulsa «Colocar» y toca el punto del pegboard donde quieras probarlo.</p>
+        </div>
+        <div class="control-group">
+          <div class="field-grid">
+            <label for="tl-accessory">Accesorio</label>
+            <select id="tl-accessory"></select>
+            <label for="tl-accessory-count">Cantidad</label>
+            <input id="tl-accessory-count" type="number" min="1" max="100" step="1" value="1">
+          </div>
+          <p class="text-small text-muted tabular-nums" data-accessory-size></p>
+          <p class="text-small text-muted tabular-nums" data-accessory-loaded></p>
+          <p class="text-small text-muted" data-accessory-panels></p>
+          <p class="text-small text-muted" data-accessory-mount></p>
+          <p class="text-small text-muted" data-accessory-model-note></p>
+          <a class="text-small" data-accessory-link target="_blank" rel="noopener noreferrer" hidden>Ver accesorio en Amazon</a>
+          <a class="text-small" data-accessory-source target="_blank" rel="noopener noreferrer" hidden>Cotas del fabricante</a>
+          <div class="actions">
+            <button type="button" data-accessory-place>Colocar</button>
+            <button type="button" data-accessory-cancel hidden>Cancelar colocación</button>
+          </div>
+          <p class="text-small text-muted">Puedes usar los pegboards de las cuatro puertas y el del nicho. Las copias se acomodan hacia la derecha y luego hacia arriba.</p>
+          <p class="accessory-feedback text-small" aria-live="polite"></p>
+        </div>
+        <div class="control-group">
+          <h3>Accesorios colocados · <span data-accessory-total>0</span></h3>
+          <p class="text-small text-muted" data-accessory-none>Aún no hay accesorios colocados en este modelo.</p>
+          <ul class="accessory-list"></ul>
+        </div>
+      </section>
+
       <p class="tl-status text-small text-muted" role="status" aria-live="polite"></p>
     </aside>
     <section class="tl-scene" aria-label="Visor del mueble">
@@ -403,6 +444,12 @@ h3 { font-size: 13px; font-weight: 650; }
       setView('angle');
       update('Charolas visibles en el visor.');
     }
+    if(id!=='tab-herramientas' && accessoryPlacement){
+      accessoryPlacement=null;
+      accessoryFeedback.textContent='';
+      update();
+    }
+    updateAccessoryMode();
     if(focus) next.focus();
   }
   tabs.forEach((tab,index)=>{
@@ -425,6 +472,11 @@ h3 { font-size: 13px; font-weight: 650; }
   const viewButtons = [...root.querySelectorAll('[data-view]')];
   const trayButton = get('[data-tray-action]');
   const restoreFrontButton = get('[data-restore-front]');
+  const accessoryPicker = get('#tl-accessory');
+  const accessoryCount = get('#tl-accessory-count');
+  const accessoryPlaceButton = get('[data-accessory-place]');
+  const accessoryCancelButton = get('[data-accessory-cancel]');
+  const accessoryFeedback = get('.accessory-feedback');
   const gl = canvas.getContext('webgl', {alpha: true, antialias: true});
   if (!gl) {
     status.textContent = 'La vista 3D requiere WebGL. Abre el simulador en un navegador compatible.';
@@ -438,6 +490,84 @@ h3 { font-size: 13px; font-weight: 650; }
     {w:30, d:42, depth:60, count:1, frontRecess:12.4},
     {w:42, d:30, depth:80, count:2, frontRecess:13.9}
   ];
+  const magneticMount='El respaldo magnético requiere una superficie de acero. En pegboard de madera, el montaje se simula con una placa de acero.';
+  const wallMount='Soporte para atornillar a la pared. Para el pegboard, la simulación supone una placa o fijación pasante.';
+  const accessoryCatalog = [{
+    id:'klkcms-cable-ties',
+    label:'Organizador de cinchos',
+    name:'Organizador de cinchos KLKCMS · JMKJ22907-1',
+    url:'https://www.amazon.com.mx/dp/B0HBNN1VYW',
+    width:15,height:20,depth:4,above:3.2,
+    mounting:'El vendedor indica dos ranuras traseras tipo ojo de llave. La adaptación al pegboard queda pendiente de comprobar la separación de esas ranuras.',
+    modelNote:'Medidas exteriores de la ficha. Los cinchos y las divisiones se representan a partir de las fotos.',
+    draw:drawCableTieOrganizer
+  },{
+    id:'ares-62008', label:'ARES · 10 llaves', name:'ARES 62008 · Organizador magnético para llaves',
+    url:'https://www.amazon.com.mx/dp/B0849JMSZW',
+    width:24,height:4.8,depth:3.2,below:18,above:1.6,extraDepth:.9,estimated:true,
+    mounting:magneticMount,
+    modelNote:'La ficha no publica cotas del soporte. El tamaño y las llaves del ejemplo se aproximaron con las fotos.',
+    draw:drawAresRack
+  },{
+    id:'foraineam-bin', label:'Foraineam · Contenedor', name:'Foraineam · Contenedor negro para herrajes',
+    url:'https://www.amazon.com.mx/dp/B0B76MG81S',
+    width:10.2,height:4.6,depth:10.2,above:1.1,
+    mounting:'Gancho de metal para pegboard de 1/8 o 1/4 pulg con centros a 1 pulg.',
+    modelNote:'Cotas de la ficha por contenedor. Se muestra con tornillos, tuercas y taquetes de ejemplo.',
+    draw:drawPartsBin
+  },...[
+    {type:'drivers',tool:'destornilladores',width:35,height:10,depth:8.5,below:9,above:7},
+    {type:'hammers',tool:'martillos',width:45,height:9,depth:14,below:20,above:4,extraDepth:2},
+    {type:'pliers',tool:'pinzas',width:35,height:9.5,depth:8,below:6,above:5,extraDepth:1.5},
+    {type:'wrenches',tool:'llaves',width:35,height:9,depth:8,below:15,above:2}
+  ].map(item=>({
+    ...item,id:'nihome-'+item.type,label:'NiHome · '+item.tool,name:'NiHome · Soporte para '+item.tool,
+    url:'https://www.amazon.com.mx/dp/B0FKZJNM4Z',mounting:wallMount,
+    modelNote:'Cotas del diagrama de esta pieza. Las herramientas son de ejemplo.',
+    draw:drawNiHomeRack
+  })),...[
+    {size:'5',depth:12.7},{size:'7',depth:17.78}
+  ].map(item=>({
+    ...item,id:'wallpeg-'+item.size,label:'WallPeg · '+item.size+' pulg',name:'WallPeg · Contenedor de '+item.size+' pulg',
+    url:'https://www.amazon.com.mx/dp/B07WF2PH5H',source:'https://wallpegstore.com/product/12-piece-pegboard-bin-kit/',
+    width:10.16,height:7.62,above:.75,
+    mounting:'Ganchos integrados para pegboard de 1/4 pulg con centros a 1 pulg.',
+    modelNote:'Cotas de WallPeg por contenedor. Se muestra con tornillos, tuercas y taquetes de ejemplo.',
+    draw:drawPartsBin
+  })),{
+    id:'casoman-magnetic-10',label:'CASOMAN · 10 pinzas',name:'CASOMAN · Soporte magnético de 10 ranuras',
+    url:'https://www.amazon.com.mx/dp/B091PVB652',
+    width:31.75,height:6.096,depth:4.318,above:7,below:13,extraDepth:2,
+    mounting:magneticMount,
+    modelNote:'Cotas del diagrama en orientación vertical. Se muestra con pinzas y destornilladores de ejemplo.',
+    draw:drawMagneticPliersRack
+  },{
+    id:'casoman-pliers-14',label:'CASOMAN · 14 pinzas',name:'CASOMAN · Organizador de pinzas de 14 ranuras',
+    url:'https://www.amazon.com.mx/dp/B0B2DNP6G4',
+    width:30.5,height:17.8,depth:6.6,above:2,
+    mounting:'La ficha muestra dos ganchos para colgarlo en pegboard.',
+    modelNote:'Cotas del diagrama del vendedor. Las pinzas son de ejemplo.',
+    draw:drawPliersCaddy
+  },{
+    id:'workpro-rail',label:'WORKPRO · Riel magnético',name:'WORKPRO W004745A · Riel magnético de 12 clips',
+    url:'https://www.amazon.com.mx/dp/B0DHWMD745',
+    width:33.5,height:3.2,depth:3.3,above:9,below:17,extraDepth:1.2,estimated:true,
+    mounting:magneticMount,
+    modelNote:'La ficha da medidas del conjunto. El riel individual se aproximó con las fotos y se muestra con llaves y destornilladores.',
+    draw:drawWorkproRail
+  }];
+  function accessoryFootprint(product) {
+    const below=product.below??0;
+    return {width:product.width,height:product.height+below+(product.above??0),
+      depth:product.depth+(product.extraDepth??0),below};
+  }
+  const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
+  const accessoryLayouts=variants.map((_,i)=>[{id:i+1,productId:'klkcms-cable-ties',surface:0,x:2.54,y:12.7}]);
+  const accessoryFrames = new Map();
+  let nextAccessoryId=4;
+  let selectedAccessory=null;
+  let accessoryPlacement=null;
+  let accessoryUiKey='';
   const casterHeight=10.5;
   const baseTubeSize=4;
   const baseHeight=casterHeight+baseTubeSize;
@@ -504,8 +634,8 @@ h3 { font-size: 13px; font-weight: 650; }
   const haspFold = [1,1];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
-  const dimensions = () => {
-    const {w,d,depth,count,frontRecess} = variants[version];
+  const dimensions = (variantIndex=version) => {
+    const {w,d,depth,count,frontRecess} = variants[variantIndex];
     const span = w + 2;
     const cabinetWidth=4*span+28;
     const left=-cabinetWidth/2;
@@ -518,7 +648,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const rackDepth=d+(count-1)*laneSpacing;
     const railBack=trayFront-rackDepth, railFront=trayFront, postDepth=7.5;
     const postBands=[[railBack,postDepth],[railFront-postDepth,postDepth]];
-    const {opening,channel}=guideProfiles[version===1?1:0];
+    const {opening,channel}=guideProfiles[variantIndex===1?1:0];
     const doorFront=doorOriginZ+doorRailFace;
     const rear=doorFront-depth;
     const doorClearance=Math.floor(closedPegboardFace-interiorFront);
@@ -683,14 +813,15 @@ h3 { font-size: 13px; font-weight: 650; }
       for(const z of [rear+baseTubeSize,front-baseTubeSize]) wheel(x,z);
     }
   }
-  function pegboard(x,y,z,w,h,direction,id,transform=identity) {
+  function pegboard(x,y,z,w,h,direction,id,transform=identity,surfaceIndex=-1) {
     const p = palette;
+    const panelHit=accessoryPlacement && surfaceIndex>=0?200+surfaceIndex:id;
     const half=pegboardThickness/2;
-    box(x,y,z-half,w,h,pegboardThickness,p.peg,id,transform);
+    box(x,y,z-half,w,h,pegboardThickness,p.peg,panelHit,transform);
     const faceZ=z+half*direction;
     const facePoints=[[x,y,faceZ],[x+w,y,faceZ],[x+w,y+h,faceZ],[x,y+h,faceZ]];
     const surface=facePoints.map(([u,v,f])=>transform([u,v,f+.007*direction]));
-    face(surface,p.peg,id,.03);
+    face(surface,p.peg,panelHit,.03);
     const plane=faceZ+.015*direction;
     const columns = Math.floor((w-3)/2.54);
     const rows = Math.floor((h-4)/2.54);
@@ -698,8 +829,217 @@ h3 { font-size: 13px; font-weight: 650; }
       const a=x+(w-columns*2.54)/2+i*2.54;
       const b=y+(h-rows*2.54)/2+j*2.54;
       const r=.26;
-      face([[a-r,b,plane],[a,b+r,plane],[a+r,b,plane],[a,b-r,plane]].map(transform),p.hole,id);
+      face([[a-r,b,plane],[a,b+r,plane],[a+r,b,plane],[a,b-r,plane]].map(transform),p.hole,panelHit);
     }
+    if(surfaceIndex>=0){
+      const panelProject=point=>{
+        const [px,py,pz]=transform(point);
+        return project([px,py+geometryOffsetY,pz]);
+      };
+      accessoryFrames.set(surfaceIndex,{origin:panelProject([x,y,plane]),right:panelProject([x+w,y,plane]),
+        top:panelProject([x,y+h,plane]),width:w,height:h,direction});
+      drawPanelAccessories(surfaceIndex,x,y,z,w,direction,transform);
+    }
+  }
+  function drawCableTieOrganizer(transform,id,highlight) {
+    const color=highlight?[.27,.22,.18]:[.10,.10,.11];
+    for(let i=0;i<6;i++){
+      const x=i*2.5, height=20-i*2.5;
+      box(x,0,0,2.5,.22,4,color,id,transform);
+      box(x,0,0,2.5,height,.22,color,id,transform);
+      box(x,0,3.78,2.5,height,.22,color,id,transform);
+      box(x,0,.22,.22,height,3.56,color,id,transform);
+      const ties=[[.10,.10,.10],[.17,.17,.18],[.13,.13,.14],[.62,.45,.23],[.83,.74,.53],[.94,.93,.89]];
+      for(let j=0;j<6;j++){
+        const start=[x+.43+(j%3)*.56,height-1.7,.67+Math.floor(j/3)*1.12];
+        const end=[start[0]+(j%2?.16:-.13),height+.95+(j%3)*.7,start[2]+.25];
+        toolSegment(start,end,.15,.13,ties[i],id,transform);
+        box(end[0]-.14,end[1]-.1,end[2]-.13,.28,.3,.28,ties[i],id,transform);
+      }
+    }
+    box(14.78,0,.22,.22,7.5,3.56,color,id,transform);
+  }
+  const toolSteel=[.63,.65,.68];
+  const toolRed=[.72,.12,.10];
+  const toolBlue=[.15,.34,.65];
+  const toolOrange=[.88,.39,.13];
+  const toolBlack=[.14,.14,.15];
+  function toolSegment(a,b,width,thickness,color,id,transform) {
+    const dx=b[0]-a[0],dy=b[1]-a[1],dz=b[2]-a[2];
+    const length=Math.hypot(dx,dy);
+    box(-width/2,0,-thickness/2,width,length,thickness,color,id,([x,y,z])=>transform([
+      a[0]+(x*dy+y*dx)/length,a[1]+(y*dy-x*dx)/length,a[2]+z+dz*y/length
+    ]));
+  }
+  function drawDriver(x,y,z,shaft,handle,r,color,id,transform) {
+    box(x-.17,y-shaft,z-.17,.34,shaft+.15,.34,toolSteel,id,transform);
+    box(x-.24,y-shaft,z-.1,.48,.9,.2,toolSteel,id,transform);
+    roundedHardware(x-r,y+.05,z-r,2*r,handle,2*r,r*.74,color,id,transform);
+    box(x-r*.45,y+handle*.2,z+r-.06,r*.9,handle*.63,.12,toolBlack,id,transform);
+  }
+  function drawWrench(x,y,z,length,r,id,transform) {
+    box(x-r*.36,y-length+r,z-.21,r*.72,length-r,.42,toolSteel,id,transform);
+    for(const [center,opening,start] of [[y,true,Math.PI/4],[y-length+r,false,0]]){
+      const sweep=opening?1.5*Math.PI:2*Math.PI;
+      for(let i=0;i<10;i++){
+        const a=start+sweep*i/10,b=start+sweep*(i+1)/10;
+        const aPoint=[x+Math.cos(a)*r*.79,center+Math.sin(a)*r*.79,z];
+        const bPoint=[x+Math.cos(b)*r*.79,center+Math.sin(b)*r*.79,z];
+        toolSegment(aPoint,bPoint,r*.42,.55,toolSteel,id,transform);
+      }
+    }
+  }
+  function drawPliers(x,y,z,handle,jaw,spread,color,id,transform) {
+    for(const side of [-1,1]){
+      toolSegment([x+side*.35,y,z],[x+side*spread,y-handle,z+.35],.8,.83,color,id,transform);
+      toolSegment([x+side*spread*.55,y-handle*.35,z+.13],[x+side*spread,y-handle,z+.35],.73,.93,toolBlack,id,transform);
+      toolSegment([x+side*.45,y,z],[x+side*.3,y+jaw,z-.35],.62,.60,toolSteel,id,transform);
+    }
+    roundedHardware(x-.72,y-.63,z-.35,1.44,1.26,.83,.51,toolSteel,id,transform);
+  }
+  function drawHammer(x,y,z,handle,id,transform) {
+    box(x-.55,y-handle,z-.47,1.1,handle, .94,toolSteel,id,transform);
+    roundedHardware(x-1.25,y-handle,z-1.05,2.5,handle*.53,2.1,.85,toolBlack,id,transform);
+    roundedHardware(x-1.4,y-.15,z-4,2.8,3.3,6.3,.68,toolSteel,id,transform);
+    for(const offset of [-.65,.65]){
+      toolSegment([x+offset,y+2.15,z+2],[x+offset,y+.7,z+5.5],.9,.65,toolSteel,id,transform);
+    }
+  }
+  function drawAresRack(transform,id,highlight,product) {
+    const {width:w,height:h,depth:d}=product;
+    const color=highlight?blend(toolRed,[1,.65,.3],.3):toolRed;
+    box(0,0,0,w,h,.5,color,id,transform);
+    box(0,0,.5,w,.35,d-.5,color,id,transform);
+    for(let i=0;i<10;i++){
+      const x=(i+.5)*w/10, step=h-.16*i;
+      box(x-1.14,step-.65,.5,.46,.65,d-.5,color,id,transform);
+      box(x+.68,step-.65,.5,.46,.65,d-.5,color,id,transform);
+      drawWrench(x,step+.25,d+.34,21-i*.94,1.1-i*.043,id,transform);
+    }
+  }
+  function drawPartsBin(transform,id,highlight,product) {
+    const {width:w,height:h,depth:d}=product;
+    const color=highlight?[.28,.23,.19]:[.14,.14,.15];
+    const lip=h*(product.size?.45:.73);
+    const wall=.24;
+    box(0,0,0,w,wall,d,color,id,transform);
+    box(0,0,0,w,h,wall,color,id,transform);
+    box(0,0,d-wall,w,lip,wall,color,id,transform);
+    for(const x of [0,w-wall]){
+      const profile=[[0,0],[d,0],[d,lip],[d*.65,h*.84],[0,h]];
+      for(const plane of [x,x+wall]){
+        face(profile.map(([z,y])=>transform([plane,y,z])),color,id,plane===x?.04:-.12);
+      }
+      for(let i=0;i<profile.length;i++){
+        const [z1,y1]=profile[i], [z2,y2]=profile[(i+1)%profile.length];
+        face([[x,y1,z1],[x+wall,y1,z1],[x+wall,y2,z2],[x,y2,z2]].map(transform),color,id,.15);
+      }
+    }
+    for(let i=0;i<14;i++){
+      const x=1.15+(i%5)*1.8,z=d*.43+Math.floor(i/5)*1.31;
+      const color=i%4===0?[.76,.25,.18]:toolSteel;
+      toolSegment([x,1.05,z],[x+.53,.42,z+1.6],.27,.3,color,id,transform);
+      box(x-.28,.81,z-.23,.55,.4,.46,color,id,transform);
+    }
+    const mountColor=product.size?color:toolSteel;
+    for(const x of [w*.25,w*.75]){
+      box(x-.16,h-.5,.05,.32,product.above+.5,.35,mountColor,id,transform);
+    }
+  }
+  function drawNiHomeRack(transform,id,highlight,product) {
+    const {width:w,height:h,depth:d,type}=product;
+    const color=highlight?[.28,.23,.19]:[.15,.15,.16];
+    const y=h*.64;
+    box(0,0,0,w,h,.23,color,id,transform);
+    if(type==='hammers'){
+      for(const z of [0,d-2]){
+        box(0,y,z,w,.32,z===0?5:2,color,id,transform);
+      }
+      box(0,y-3.5,d-.26,w,3.5,.26,color,id,transform);
+      for(const x of [0,w-.25]) box(x,0,0,.25,y,d,color,id,transform);
+      for(const x of [w*.22,w*.50,w*.79]) drawHammer(x,y,d*.70,25,id,transform);
+      return;
+    }
+    for(const plane of [.45,y]){
+      box(0,plane,0,w,.26,type==='wrenches'?d*.26:d,color,id,transform);
+      if(type==='wrenches'){
+        for(let i=0;i<=10;i++){
+          const x=(w-1.45)*i/10;
+          box(x,plane,d*.26,1.45,.26,d*.74,color,id,transform);
+          if(plane===y) box(x,.45,d-.22,1.45,y-.45,.22,color,id,transform);
+        }
+      }
+    }
+    if(type==='drivers'){
+      for(let i=0;i<10;i++){
+        drawDriver((i+.6)*w/10,y+.27,2.65,10+i%4*1.3,8+i%3*.75,.97,[toolBlue,toolRed,toolOrange][i%3],id,transform);
+      }
+      for(let i=0;i<6;i++){
+        drawDriver((i+.75)*w/7,y+.27,6.1,8,5,.78,[toolRed,toolBlue][i%2],id,transform);
+      }
+    } else if(type==='pliers'){
+      for(let i=0;i<7;i++) drawPliers((i+.6)*w/7,y+.34,d-1.2,10+i%3*.55,5+i%2*1.6,1.25,[toolOrange,toolRed,toolBlue][i%3],id,transform);
+    } else {
+      for(let i=0;i<9;i++) drawWrench((i+1)*w/10,y+2.4,d*.69,21-i*.82,1.35-i*.04,id,transform);
+    }
+  }
+  function drawMagneticPliersRack(transform,id,highlight,product) {
+    const {width:w,height:h,depth:d}=product;
+    const color=highlight?blend(toolRed,[1,.65,.3],.3):toolRed;
+    box(0,0,0,w,h,.53,color,id,transform);
+    for(let i=0;i<=10;i++){
+      const x=(w-1)*i/10;
+      box(x,0,.53,1,h,d-.53,color,id,transform);
+    }
+    for(let i=0;i<10;i++){
+      const x=1+(i+.5)*(w-2)/10;
+      if(i%3===0) drawPliers(x,h*.62,d-1.25,10+i%2,5.5,1.18,toolRed,id,transform);
+      if(i%3===1) drawDriver(x,-.45,d-1.1,12,9,.95,toolRed,id,([u,v,z])=>transform([u,-v,z]));
+    }
+  }
+  function drawPliersCaddy(transform,id,highlight,product) {
+    const {width:w,height:h,depth:d}=product;
+    const color=highlight?blend(toolRed,[1,.65,.3],.3):toolRed;
+    box(0,0,0,w,h,.24,color,id,transform);
+    box(0,0,0,w,.24,d,color,id,transform);
+    box(0,0,d-.23,w,4.1,.23,color,id,transform);
+    for(const x of [0,w-.25]){
+      box(x,0,0,.25,4.1,d,color,id,transform);
+      face([[x,4.1,0],[x,h,0],[x,4.1,d]].map(transform),color,id,.04);
+    }
+    for(let i=0;i<=14;i++){
+      const x=.4+i*(w-.8)/14;
+      toolSegment([x,h-.75,.55],[x,10.3,3.5],.24,.24,toolBlack,id,transform);
+    }
+    for(let i=0;i<9;i++){
+      drawPliers((i+.5)*w/9,11.35,3.25,9.6,5.2+i%3*.84,.92,[toolRed,toolOrange,toolBlue][i%3],id,transform);
+    }
+    for(const x of [w*.2,w*.8]) box(x-.65,h-.35,0,1.3,1.4,.54,color,id,transform);
+  }
+  function drawWorkproRail(transform,id,highlight,product) {
+    const {width:w,height:h,depth:d}=product;
+    const color=highlight?blend(toolRed,[1,.65,.3],.3):toolRed;
+    box(0,0,0,w,h,.57,color,id,transform);
+    for(const x of [0,w-1.5]) box(x,0,.57,1.5,h,.48,toolBlack,id,transform);
+    for(let i=0;i<12;i++){
+      const x=2+(i+.5)*(w-4)/12;
+      for(const offset of [-.63,.23]) box(x+offset,.2,.57,.4,h-.4,d-.57,toolBlack,id,transform);
+      if(i<6) drawWrench(x,h*.7,d-.2,19-i*.77,1.03-i*.05,id,transform);
+      else drawDriver(x,h*.7,d-.35,12+(i%3),7+i%3,.86,i%2?toolBlue:toolRed,id,transform);
+    }
+  }
+  function drawPanelAccessories(surface,x,y,z,width,direction,transform) {
+    accessoryLayouts[version].forEach(placement=>{
+      if(placement.surface!==surface) return;
+      const product=accessoryCatalog.find(item=>item.id===placement.productId);
+      if(!product) return;
+      const {below}=accessoryFootprint(product);
+      const toPanel=([u,v,depth])=>transform([
+        direction===1?x+placement.x+u:x+width-placement.x-u,
+        y+placement.y+below+v,z+direction*(pegboardThickness/2+.02+depth)
+      ]);
+      product.draw(toPanel,1000+placement.id,selectedAccessory===placement.id,product);
+    });
   }
   function woodGrain(length, breadth, color, point, seed, id=noHit, visible=false) {
     const count=Math.ceil(breadth/(visible?1.45:2.6));
@@ -921,12 +1261,23 @@ h3 { font-size: 13px; font-weight: 650; }
       }
     }
   }
+  function doorLayout(i,spec) {
+    const sign=i%2===0?1:-1;
+    const pivot=[spec.outerLeft+.35,-2.5,2.5,-spec.outerLeft-.35][i];
+    const meeting=i<2?spec.edges[0]+spec.span+1.25:spec.edges[2]+spec.span+1.25;
+    const leaf=Math.abs(meeting-pivot)-.24;
+    const local=sign>0?0:-leaf;
+    const hingeInset=i===0 || i===3?5.3:3.7, meetingInset=3.7;
+    const boardX=local+(sign>0?hingeInset:meetingInset);
+    return {sign,pivot,meeting,leaf,local,boardX,boardWidth:leaf-hingeInset-meetingInset};
+  }
 
   function build(spec) {
     const p=palette;
     const {width,cabinetWidth,left,outerLeft,edges,span,rear,interiorFront}=spec;
     const back=rear+1.9;
     const body=0-rear;
+    accessoryFrames.clear();
     geometryOffsetY=0;
     for(let x=-120;x<=120;x+=15) box(x,-.08,-69,.19,.08,135,p.grid);
     for(let z=-65;z<=65;z+=15) box(-129,-.075,z,258,.075,.19,p.grid);
@@ -975,7 +1326,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const tableX=edges[0], tableWidth=spec.tableWidth;
     box(tableX,benchBottom,back,tableWidth,2.8,interiorDepth-.35,p.work);
     box(tableX,benchUpperBase-3,back,tableWidth,3,interiorDepth,p.frame);
-    pegboard(tableX+2,benchHeight+4,back+1.1,tableWidth-4,147-benchHeight-4,1,0);
+    pegboard(tableX+2,benchHeight+4,back+1.1,tableWidth-4,147-benchHeight-4,1,0,identity,0);
     const lampZ=interiorFront-interiorDepth*.47;
     box(tableX+5,149.9,lampZ,tableWidth-10,1.1,3,p.steel);
     box(tableX+6,149.5,lampZ+.35,tableWidth-12,.45,2.3,p.led);
@@ -988,11 +1339,7 @@ h3 { font-size: 13px; font-weight: 650; }
       if(trayAvailable(tray) && !removedFronts.has(index) && viewMode!=='posts') drawTray(tray,index,spec);
     });
     for(let i=0;i<4;i++){
-      const sign=i%2===0?1:-1;
-      const pivot=[outerLeft+.35,-2.5,2.5,-outerLeft-.35][i];
-      const meeting=i<2?edges[0]+span+1.25:edges[2]+span+1.25;
-      const leaf=Math.abs(meeting-pivot)-.24;
-      const local=sign>0?0:-leaf;
+      const {sign,pivot,meeting,leaf,local,boardX,boardWidth}=doorLayout(i,spec);
       const theta=sign*doorAngle[i]*Math.PI/2;
       const co=Math.cos(theta), si=Math.sin(theta);
       const t=([x,y,z]) => [pivot+x*co-z*si,y,doorOriginZ+x*si+z*co];
@@ -1017,14 +1364,10 @@ h3 { font-size: 13px; font-weight: 650; }
           (u,v,lift=0)=>t([stileX+v,stileY+u,doorRailFace-.01+lift]),p.rail,i+stileY,id);
       }
       drawCombinationLock(sign,meeting-pivot,middle,Math.floor(i/2),t);
-      const hingeInset=i===0 || i===3?5.3:3.7;
-      const meetingInset=3.7;
-      const boardX=local+(sign>0?hingeInset:meetingInset);
-      const boardWidth=leaf-hingeInset-meetingInset;
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
       const spacerBack=doorPegboardZ+.35;
       box(boardX,29,spacerBack,boardWidth,159,panelBack-spacerBack,p.steel,id,t);
-      pegboard(boardX,29,doorPegboardZ,boardWidth,159,-1,id,t);
+      pegboard(boardX,29,doorPegboardZ,boardWidth,159,-1,id,t,i+1);
     }
     geometryOffsetY=0;
   }
@@ -1177,6 +1520,197 @@ h3 { font-size: 13px; font-weight: 650; }
     el.textContent=label;
     return el;
   }
+  function accessoryPanelSize(surface,spec) {
+    if(surface===0) return {
+      width:spec.tableWidth-4,height:147-benchHeight-4,
+      depth:spec.interiorFront-(spec.rear+1.9+1.1+pegboardThickness/2)-.02
+    };
+    return {
+      width:doorLayout(surface-1,spec).boardWidth,height:159,
+      depth:closedPegboardFace-spec.interiorFront-.02
+    };
+  }
+  function accessoryFits(placement,product,spec) {
+    const panel=accessoryPanelSize(placement.surface,spec);
+    const footprint=accessoryFootprint(product);
+    return placement.x>=0 && placement.y>=0 &&
+      placement.x+footprint.width<=panel.width+.0001 &&
+      placement.y+footprint.height<=panel.height+.0001 && footprint.depth<=panel.depth;
+  }
+  function updateAccessoryMode() {
+    canvas.classList.toggle('is-placing',Boolean(accessoryPlacement));
+    accessoryCancelButton.hidden=!accessoryPlacement;
+    get('#navigation-help').textContent=accessoryPlacement?
+      'Toca el lugar en el pegboard · arrastra para girar o mover.':
+      currentTab==='tab-herramientas'?
+        'Toca un accesorio para seleccionarlo · arrastra para ver los pegboards de las puertas.':
+        'Toca una charola para sacarla o guardarla · arrastra para girar o mover.';
+  }
+  function updateAccessoryUi() {
+    updateAccessoryMode();
+    const layout=accessoryLayouts[version];
+    const key=JSON.stringify([version,accessoryPicker.value,selectedAccessory,layout]);
+    if(key===accessoryUiKey) return;
+    accessoryUiKey=key;
+    const product=accessoryCatalog.find(item=>item.id===accessoryPicker.value);
+    accessoryCount.disabled=accessoryPlaceButton.disabled=!product;
+    const formatSize=size=>[size.width,size.height,size.depth].map(formatCm).join(' × ')+' cm';
+    get('[data-accessory-size]').textContent=product?
+      'Soporte '+(product.estimated?'aprox. ':'')+formatSize(product)+' · ancho × alto × fondo':'';
+    get('[data-accessory-loaded]').textContent=product?'Espacio con herramientas · '+formatSize(accessoryFootprint(product)):'';
+    const spec=dimensions();
+    const available=product?accessorySurfaceNames.filter((_,surface)=>accessoryFits({surface,x:0,y:0},product,spec)):[];
+    const availableText=available.length===accessorySurfaceNames.length?'los cinco pegboards':
+      available.length?available.join(', '):'sin espacio disponible';
+    get('[data-accessory-panels]').textContent=product?'Espacio en este modelo · '+availableText:'';
+    get('[data-accessory-mount]').textContent=product?.mounting??'';
+    get('[data-accessory-model-note]').textContent=product?.modelNote??'';
+    const link=get('[data-accessory-link]');
+    link.hidden=!product?.url;
+    if(product?.url) link.href=product.url;
+    const source=get('[data-accessory-source]');
+    source.hidden=!product?.source;
+    if(product?.source) source.href=product.source;
+    get('[data-accessory-total]').textContent=layout.length;
+    get('[data-accessory-none]').hidden=layout.length>0;
+    get('.accessory-list').replaceChildren(...layout.map((placement,index)=>{
+      const item=accessoryCatalog.find(item=>item.id===placement.productId);
+      const label=accessorySurfaceNames[placement.surface];
+      const row=document.createElement('li');
+      if(placement.id===selectedAccessory) row.setAttribute('aria-current','true');
+      const title=document.createElement('strong');
+      title.textContent=item.name;
+      const description=document.createElement('span');
+      description.className='text-small text-muted';
+      description.textContent=(index+1)+' · '+label;
+      const actions=document.createElement('div');
+      actions.className='actions';
+      for(const [caption,action] of [
+        ['Mover',()=>startAccessoryPlacement(item.id,1,placement.id)],
+        ['Quitar',()=>{
+          layout.splice(index,1);
+          if(selectedAccessory===placement.id) selectedAccessory=null;
+          if(accessoryPlacement?.moveId===placement.id) accessoryPlacement=null;
+          accessoryFeedback.textContent='Accesorio retirado de '+label.toLowerCase()+'.';
+          change();
+        }]
+      ]){
+        const button=document.createElement('button');
+        button.type='button';
+        button.textContent=caption;
+        button.setAttribute('aria-label',caption+' accesorio '+(index+1)+' · '+label);
+        button.addEventListener('click',action);
+        actions.append(button);
+      }
+      row.append(title,description,actions);
+      return row;
+    }));
+  }
+  function startAccessoryPlacement(productId,quantity,moveId=null) {
+    if(!accessoryCatalog.some(item=>item.id===productId)) return;
+    accessoryPlacement={productId,quantity,moveId};
+    if(moveId!==null) selectedAccessory=moveId;
+    doorOpen.fill(true);
+    if(viewMode==='posts' || viewMode==='detail') setView('angle');
+    accessoryFeedback.textContent=moveId!==null?
+      'Toca el nuevo lugar en un pegboard.':
+      'Toca un pegboard para colocar '+(quantity===1?'el accesorio':quantity+' accesorios a partir de ese punto')+'.';
+    update();
+  }
+  function placeAccessoryAt(event,surface) {
+    const frame=accessoryFrames.get(surface);
+    if(!frame) return;
+    const {productId,quantity,moveId}=accessoryPlacement;
+    const product=accessoryCatalog.find(item=>item.id===productId);
+    const footprint=accessoryFootprint(product);
+    const rect=canvas.getBoundingClientRect();
+    const dx=2*(event.clientX-rect.left)/rect.width-1-frame.origin[0];
+    const dy=1-2*(event.clientY-rect.top)/rect.height-frame.origin[1];
+    const rx=frame.right[0]-frame.origin[0], ry=frame.right[1]-frame.origin[1];
+    const tx=frame.top[0]-frame.origin[0], ty=frame.top[1]-frame.origin[1];
+    const det=rx*ty-ry*tx;
+    if(Math.abs(det)<1e-8) return;
+    const u=(dx*ty-dy*tx)/det, v=(rx*dy-ry*dx)/det;
+    const panel=accessoryPanelSize(surface,dimensions());
+    if(!accessoryFits({surface,x:0,y:0},product,dimensions())){
+      accessoryFeedback.textContent='El soporte con herramientas supera el espacio disponible en ese pegboard.';
+      return;
+    }
+    const pitch=2.54, gap=.5;
+    const snap=(pos,max)=>clamp(Math.round(pos/pitch)*pitch,0,max);
+    const x0=snap((frame.direction===1?u:1-u)*frame.width-footprint.width/2,panel.width-footprint.width);
+    const y0=snap(v*frame.height-footprint.height/2,panel.height-footprint.height);
+    const stepX=Math.ceil((footprint.width+gap)/pitch)*pitch;
+    const stepY=Math.ceil((footprint.height+gap)/pitch)*pitch;
+    const layout=accessoryLayouts[version], placements=[];
+    const occupied=layout.filter(item=>item.surface===surface && item.id!==moveId);
+    for(let y=y0;y+footprint.height<=panel.height+.0001 && placements.length<quantity;y+=stepY){
+      for(let x=x0;x+footprint.width<=panel.width+.0001 && placements.length<quantity;x+=stepX){
+        if(!occupied.some(item=>{
+          const other=accessoryFootprint(accessoryCatalog.find(other=>other.id===item.productId));
+          return x<item.x+other.width+gap && x+footprint.width+gap>item.x &&
+            y<item.y+other.height+gap && y+footprint.height+gap>item.y;
+        })) placements.push({productId,surface,x,y});
+      }
+    }
+    if(placements.length!==quantity){
+      accessoryFeedback.textContent='No hay espacio suficiente a partir de ese punto. Prueba otro lugar o elige una cantidad menor.';
+      return;
+    }
+    if(moveId!==null){
+      const index=layout.findIndex(item=>item.id===moveId);
+      layout[index]={...placements[0],id:moveId};
+      selectedAccessory=moveId;
+    } else {
+      placements.forEach(item=>layout.push({...item,id:nextAccessoryId++}));
+      selectedAccessory=layout[layout.length-placements.length].id;
+    }
+    accessoryPlacement=null;
+    accessoryFeedback.textContent=accessorySurfaceNames[surface]+' · '+(quantity===1?
+      (moveId!==null?'accesorio movido.':'accesorio colocado.'):quantity+' accesorios colocados.');
+    change();
+  }
+  function restoreAccessories(snapshot) {
+    if(Array.isArray(snapshot.accessoryLayouts)){
+      const ids=new Set();
+      accessoryLayouts.forEach((_,index)=>{
+        const saved=snapshot.accessoryLayouts[index];
+        if(!Array.isArray(saved)) return;
+        const spec=dimensions(index);
+        accessoryLayouts[index]=saved.filter(item=>{
+          if(!item || !Number.isSafeInteger(item.id) || item.id<1 || ids.has(item.id) ||
+            !Number.isInteger(item.surface) || !accessorySurfaceNames[item.surface] ||
+            !Number.isFinite(item.x) || !Number.isFinite(item.y)) return false;
+          const product=accessoryCatalog.find(product=>product.id===item.productId);
+          if(!product || !accessoryFits(item,product,spec)) return false;
+          ids.add(item.id);
+          nextAccessoryId=Math.max(nextAccessoryId,item.id+1);
+          return true;
+        });
+      });
+    }
+    if(accessoryCatalog.some(item=>item.id===snapshot.accessoryProductId)){
+      accessoryPicker.value=snapshot.accessoryProductId;
+    }
+    if(Number.isInteger(snapshot.accessoryQuantity)){
+      accessoryCount.value=clamp(snapshot.accessoryQuantity,1,100);
+    }
+  }
+  accessoryPicker.replaceChildren(...accessoryCatalog.map(item=>option(item.id,item.label??item.name)));
+  [accessoryPicker,accessoryCount].forEach(control=>control.addEventListener('change',()=>{
+    accessoryPlacement=null;
+    accessoryFeedback.textContent='';
+    change();
+  }));
+  accessoryPlaceButton.addEventListener('click',()=>{
+    if(!accessoryCount.reportValidity() || !accessoryCount.value) return;
+    startAccessoryPlacement(accessoryPicker.value,Number(accessoryCount.value));
+  });
+  accessoryCancelButton.addEventListener('click',()=>{
+    accessoryPlacement=null;
+    accessoryFeedback.textContent='';
+    update();
+  });
   function levelLabel(tray) {
     if(tray.bay>=2) return 'nivel '+(tray.row+1);
     return tray.row>=benchLowerCount?'arriba '+(tray.row+1-benchLowerCount):'abajo '+(tray.row+1);
@@ -1284,13 +1818,16 @@ h3 { font-size: 13px; font-weight: 650; }
       (spec.count===2?'. En C, el tamaño se aplica a la delantera y a la trasera.':'.')+
       (!traysStowed()?' Guarda las charolas para poder cambiar el tamaño.':'');
     if(message) status.textContent=message;
+    updateAccessoryUi();
     schedule();
   }
   function save() {
     try {
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
-        doors:doorOpen,selected,active,extraction,removedFronts:[...removedFronts],tab:currentTab,interfaceRevision:2,trayLayoutRevision:3,cotas:dimensionsToggle.checked
+        doors:doorOpen,selected,active,extraction,removedFronts:[...removedFronts],
+        accessoryLayouts,accessoryProductId:accessoryPicker.value,accessoryQuantity:Number(accessoryCount.value),
+        tab:currentTab,interfaceRevision:2,trayLayoutRevision:3,cotas:dimensionsToggle.checked
       }}));
     } catch {
       // The simulator still works when browser storage is unavailable.
@@ -1336,6 +1873,7 @@ h3 { font-size: 13px; font-weight: 650; }
       }
     }
     if(extraction===0) active=-1;
+    restoreAccessories(snapshot);
     syncEditorToTray();
     update();
   }
@@ -1395,6 +1933,9 @@ h3 { font-size: 13px; font-weight: 650; }
   versions.forEach((button,index)=>button.addEventListener('click',()=>{
     if(version===index) return;
     version=index;
+    accessoryPlacement=null;
+    selectedAccessory=null;
+    accessoryFeedback.textContent='';
     active=-1;
     extraction=0;
     removedFronts.clear();
@@ -1644,7 +2185,14 @@ h3 { font-size: 13px; font-weight: 650; }
     if(pointers.size===1) startDrag([...pointers.values()][0],true);
     if(!click) return;
     const hit=hitAt(event);
-    if(hit>=10) toggleTray(hit-10);
+    if(accessoryPlacement){
+      if(hit>=200 && hit<205) placeAccessoryAt(event,hit-200);
+      else accessoryFeedback.textContent='Toca una zona libre de un pegboard para colocar el accesorio.';
+    } else if(hit>=1000){
+      selectedAccessory=hit-1000;
+      selectTab('tab-herramientas');
+      update();
+    } else if(hit>=10) toggleTray(hit-10);
     else if(hit>0) toggleDoor(hit-1);
   }
   canvas.addEventListener('pointerup',event=>finishPointer(event,true));
