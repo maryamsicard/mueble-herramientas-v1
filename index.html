@@ -443,6 +443,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const columnPicker = get('#tl-column');
   const levelPicker = get('#tl-level');
   const heightPicker = get('#tl-height');
+  const layoutButtons = [...root.querySelectorAll('[data-layout]')];
   const layoutFeedback = get('.tl-layout-feedback');
   const status = get('.tl-status');
   const tabs = [...root.querySelectorAll('[role="tab"]')];
@@ -800,6 +801,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const height=gardenUpperTrays[version][tray.bay]?.[tray.row]??tray.h;
     return fitsAboveGarden(tray,height)?height:0;
   }
+  const presetTrayHeight=(tray,preset)=>preset==='small'?10:mixed[tray.bay][tray.row];
   const trayAvailable=tray=>Boolean(traySize(tray) && tray.lane<variants[version].count);
   const mixedExample = trays.findIndex(tray=>tray.bay===3 && tray.h===36);
   let selected = mixedExample;
@@ -2500,6 +2502,13 @@ h3 { font-size: 13px; font-weight: 650; }
     get('.view-title').textContent=viewCopy[viewMode][0];
     get('.view-copy').textContent=viewCopy[viewMode][1];
     versions.forEach((button,index)=>button.setAttribute('aria-pressed',index===version));
+    layoutButtons.forEach(button=>{
+      const applied=frontTrays.every(tray=>{
+        const height=presetTrayHeight(tray,button.dataset.layout);
+        return traySize(tray)===(fitsAboveGarden(tray,height)?height:0);
+      });
+      button.setAttribute('aria-pressed',applied);
+    });
     get('[data-door-description]').textContent=spec.doorCount===2?
       'Puerta 1 a la izquierda y puerta 2 a la derecha. Ambas abren hasta '+exteriorDoorOpening+'°.':
       'De izquierda a derecha, las puertas 1 y 4 abren hasta '+exteriorDoorOpening+'°. Las puertas 2 y 3 abren a '+interiorDoorOpening+'°.';
@@ -2690,6 +2699,13 @@ h3 { font-size: 13px; font-weight: 650; }
     active=extraction>0?index:-1;
     update('Charola de '+traySize(tray)+' cm del módulo '+(tray.bay+1)+' · extracción '+formatCm(extraction*100)+'%.');
   }
+  function resetTrayExtraction() {
+    active=-1;
+    extraction=0;
+    removedFronts.clear();
+    trays.forEach(tray=>{tray.offset=0;});
+    if(selected>=frontTrays.length) selected-=frontTrays.length;
+  }
   versions.forEach((button,index)=>button.addEventListener('click',()=>{
     if(version===index) return;
     cancelAccessoryMove();
@@ -2700,11 +2716,7 @@ h3 { font-size: 13px; font-weight: 650; }
     selectedAccessory=null;
     accessoryFeedback.textContent='';
     gardenFeedback.textContent='';
-    active=-1;
-    extraction=0;
-    removedFronts.clear();
-    trays.forEach(tray=>{tray.offset=0;});
-    if(selected>=frontTrays.length) selected-=frontTrays.length;
+    resetTrayExtraction();
     refreshTrays();
     syncEditorToTray();
     setView('angle');
@@ -2735,30 +2747,21 @@ h3 { font-size: 13px; font-weight: 650; }
   function traysStowed() {
     return active<0 && removedFronts.size===0 && trays.every(tray=>tray.offset<=.01);
   }
-  root.querySelectorAll('[data-layout]').forEach(button=>button.addEventListener('click',()=>{
-    if(!traysStowed()){
-      update('Guarda la charola antes de cambiar la distribución.');
-      return;
-    }
-    const allSmall=button.dataset.layout==='small';
-    levelsByBay.forEach((column,i)=>{
-      const desired=column.map((tray,j)=>{
-        const height=allSmall?10:mixed[i][j];
-        return fitsAboveGarden(tray,height)?height:0;
-      });
-      if(gardenOccupies(i)) gardenUpperTrays[version][i]=desired;
-      else column.forEach((tray,j)=>{tray.h=desired[j];});
-    });
-    if(!allSmall) selected=mixedExample;
+  layoutButtons.forEach(button=>button.addEventListener('click',()=>{
+    resetTrayExtraction();
+    const preset=button.dataset.layout;
+    frontTrays.forEach(tray=>{tray.h=presetTrayHeight(tray,preset);});
+    // The preset also defines the trays that return when garden tools are removed.
+    gardenUpperTrays[version].fill(null);
+    if(preset==='mixed') selected=mixedExample;
     refreshTrays();
     syncEditorToTray();
     layoutFeedback.textContent='';
     setAllDoors(true);
     setView('front');
-    const message=gardenLayouts[version].length?
-      'Distribución aplicada, incluidas las charolas que caben arriba de las herramientas de jardín.':
-      allSmall?42*variants[version].count+' charolas de 10 cm en las cuatro columnas.':'Charolas de 10, 23 y 36 cm en ambos módulos.';
-    change(message);
+    const message=preset==='small'?
+      trays.filter(trayAvailable).length+' charolas de 10 cm.':'Distribución combinada de 10, 23 y 36 cm.';
+    change(message+(gardenLayouts[version].length?' Se conserva el espacio de las herramientas de jardín.':''));
   }));
   function previewEditorLevel() {
     const tray=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)];
