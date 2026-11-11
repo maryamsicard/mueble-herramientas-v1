@@ -663,25 +663,96 @@ h3 { font-size: 13px; font-weight: 650; }
   };
   const trayTravel=(tray,spec)=>spec.depth-(spec.count-1-tray.lane)*spec.laneSpacing;
 
-  const program = gl.createProgram();
-  function shader(type, source) {
-    const result = gl.createShader(type);
-    gl.shaderSource(result, source);
-    gl.compileShader(result);
-    if (!gl.getShaderParameter(result, gl.COMPILE_STATUS)) throw Error(gl.getShaderInfoLog(result));
-    gl.attachShader(program, result);
+  function makeProgram(vertex,fragment,attributes) {
+    const program=gl.createProgram();
+    for(const [type,source] of [[gl.VERTEX_SHADER,vertex],[gl.FRAGMENT_SHADER,fragment]]){
+      const shader=gl.createShader(type);
+      gl.shaderSource(shader,source);
+      gl.compileShader(shader);
+      if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)) throw Error(gl.getShaderInfoLog(shader));
+      gl.attachShader(program,shader);
+      gl.deleteShader(shader);
+    }
+    attributes.forEach((name,index)=>gl.bindAttribLocation(program,index,name));
+    gl.linkProgram(program);
+    if(!gl.getProgramParameter(program,gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));
+    return program;
   }
-  shader(gl.VERTEX_SHADER, 'attribute vec3 p; attribute vec3 c; varying vec3 color; void main(){gl_Position=vec4(p,1.0);color=c;}');
-  shader(gl.FRAGMENT_SHADER, 'precision mediump float; varying vec3 color; void main(){gl_FragColor=vec4(color,1.0);}');
-  gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));
-  gl.useProgram(program);
+  const program=makeProgram(
+    'attribute vec3 p; attribute vec3 c; varying vec3 color; void main(){gl_Position=vec4(p,1.0);color=c;}',
+    'precision mediump float; varying vec3 color; void main(){gl_FragColor=vec4(color,1.0);}',
+    ['p','c']
+  );
+  const woodProgram=makeProgram(`
+    attribute vec3 p;
+    attribute vec3 c;
+    attribute vec3 grain;
+    varying vec3 color;
+    varying vec3 wood;
+    void main(){
+      gl_Position=vec4(p,1.0);
+      color=c;
+      wood=grain;
+    }
+  `,`
+    #ifdef GL_FRAGMENT_PRECISION_HIGH
+      precision highp float;
+    #else
+      precision mediump float;
+    #endif
+    varying vec3 color;
+    varying vec3 wood;
+    uniform float detail;
+
+    float hash(vec2 point){
+      vec3 p=fract(vec3(point.xyx)*0.1031);
+      p+=dot(p,p.yzx+33.33);
+      return fract((p.x+p.y)*p.z);
+    }
+    float noise(vec2 point){
+      vec2 cell=floor(point);
+      vec2 f=fract(point);
+      vec2 t=f*f*(3.0-2.0*f);
+      return mix(mix(hash(cell),hash(cell+vec2(1,0)),t.x),
+                 mix(hash(cell+vec2(0,1)),hash(cell+vec2(1,1)),t.x),t.y);
+    }
+    void main(){
+      // Grain coordinates are in centimeters, along and across each board.
+      vec2 uv=wood.xy+wood.z*vec2(8.71,4.37);
+      vec2 cellSize=vec2(58.0,10.0);
+      vec2 cell=floor(uv/cellSize);
+      vec2 center=(cell+vec2(.26+.48*hash(cell+2.2),.28+.44*hash(cell+17.5)))*cellSize;
+      vec2 toKnot=(uv-center)/vec2(5.7,1.38);
+      float radius=length(toKnot);
+      float knot=smoothstep(.55,.72,hash(cell+42.3));
+      float influence=(1.0-smoothstep(.18,1.68,radius))*knot;
+      float drift=(noise(uv*vec2(.042,.32))-.5)*1.22;
+      drift+=(noise(uv*vec2(.112,.20))-.5)*.42;
+      float cross=uv.y+drift+.76*influence*smoothstep(-.42,.42,toKnot.y)-.38*influence;
+      float growth=noise(vec2(uv.x*.051,cross*1.72));
+      float band=.5+.5*sin(cross*6.6+1.6*growth);
+      float streak=smoothstep(.53,.85,growth)*(.41+.59*band);
+      float fibers=smoothstep(.46,.90,noise(vec2(uv.x*.37,cross*6.5)));
+      float figure=noise(vec2(uv.x*.025,uv.y*.36))-.5;
+      float knotHeart=(1.0-smoothstep(.12,.60,radius))*knot;
+      float rings=(.5+.5*sin(radius*17.0+2.4*growth))*influence;
+      float tint=.045*figure-.073*streak-.042*fibers*detail-.17*knotHeart-.036*rings;
+      gl_FragColor=vec4(clamp(color+tint*vec3(1.0,1.18,1.38),0.0,1.0),1.0);
+    }
+  `,['p','c','grain']);
+  const woodDetail=gl.getUniformLocation(woodProgram,'detail');
   const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  for (const [attribute, offset] of [['p',0], ['c',12]]) {
-    const location = gl.getAttribLocation(program, attribute);
-    gl.enableVertexAttribArray(location);
-    gl.vertexAttribPointer(location, 3, gl.FLOAT, false, 24, offset);
+  const woodBuffer=gl.createBuffer();
+  gl.enableVertexAttribArray(0);
+  gl.enableVertexAttribArray(1);
+  function drawMesh(mesh,meshBuffer,components) {
+    gl.bindBuffer(gl.ARRAY_BUFFER,meshBuffer);
+    const stride=components*4;
+    for(let index=0;index<components/3;index++){
+      gl.vertexAttribPointer(index,3,gl.FLOAT,false,stride,index*12);
+    }
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh),gl.DYNAMIC_DRAW);
+    gl.drawArrays(gl.TRIANGLES,0,mesh.length/components);
   }
   gl.enable(gl.DEPTH_TEST);
   gl.clearColor(0,0,0,0);
@@ -722,11 +793,16 @@ h3 { font-size: 13px; font-weight: 650; }
       tray, led:blend(bg,gold,.43),
       exterior:blend([.85,.71,.53],bg,.08),
       rail:blend([.90,.75,.55],bg,.09),
+      facadePlank:blend([.91,.79,.615],bg,.045),
+      facadeTrim:blend([.805,.641,.463],bg,.045),
+      facadeCrossbar:blend([.793,.619,.438],bg,.045),
+      facadeGroove:[.622,.475,.329],
       warmLight:blend([1,.88,.62],bg,.12), diffuser:blend([1,.95,.78],bg,.10)
     };
   }
 
   let positions = [];
+  let woodPositions=[];
   let hitTriangles = [];
   let geometryOffsetY = 0;
   let project;
@@ -1053,35 +1129,63 @@ h3 { font-size: 13px; font-weight: 650; }
       product.draw(toPanel,1000+placement.id,selectedAccessory===placement.id,product);
     });
   }
-  function woodGrain(length, breadth, color, point, seed, id=noHit, visible=false) {
-    const count=Math.ceil(breadth/(visible?1.45:2.6));
-    const lineWidth=visible?.14:.065;
+  function woodGrain(length, breadth, color, point, seed) {
+    const count=Math.ceil(breadth/2.6);
+    const lineWidth=.065;
     for(let i=1;i<count;i++){
       const phase=i*2.39+seed;
       const center=breadth*i/count+Math.sin(phase)*.34;
       const wave=u=>clamp(center+Math.sin(u*.11+phase)*.19+Math.sin(u*.035+phase)*.34,0,breadth-lineWidth);
-      const tint=blend(color,i%4===0?palette.bg:palette.fg,(visible?.085:.025)+(i%4)*.024);
+      const tint=blend(color,i%4===0?palette.bg:palette.fg,.025+(i%4)*.024);
       for(let u=0;u<length;u+=13){
         const v=Math.min(u+13,length);
-        face([point(u,wave(u)),point(v,wave(v)),point(v,wave(v)+lineWidth),point(u,wave(u)+lineWidth)],tint,id);
+        face([point(u,wave(u)),point(v,wave(v)),point(v,wave(v)+lineWidth),point(u,wave(u)+lineWidth)],tint,noHit);
       }
     }
   }
 
   function boardSurface(length,breadth,point,color,seed,id=noHit){
-    face([point(0,0),point(length,0),point(length,breadth),point(0,breadth)],color,id);
-    woodGrain(length-.4,breadth-.34,color,(u,v)=>point(u+.2,v+.17,.009),seed,id,true);
+    const corners=[[0,0],[length,0],[length,breadth],[0,breadth]];
+    const projected=corners.map(([u,v])=>{
+      const [x,y,z]=point(u,v);
+      return project([x,y+geometryOffsetY,z]);
+    });
+    for(const indices of [[0,1,2],[0,2,3]]){
+      for(const index of indices){
+        woodPositions.push(...projected[index],...color,...corners[index],seed);
+      }
+      hitTriangles.push([...indices.map(index=>projected[index]),id]);
+    }
   }
 
-  function plankedSurface(length,breadth,point,seed,id=noHit) {
+  function plankedSurface(length,breadth,point,seed,id=noHit,grooveDepth=0) {
     const count=Math.max(2,Math.round(breadth/7.2));
     const pitch=breadth/count;
-    const gap=.16;
+    const gap=grooveDepth?.32:.16;
+    const bevelWidth=grooveDepth?.13:0;
+    const bevelDepth=.105;
     for(let i=0;i<count;i++){
       const t=Math.sin(seed*6.71+i*3.48);
-      const color=blend(palette.exterior,t<0?palette.fg:palette.bg,Math.abs(t)*.11);
-      const origin=i*pitch+gap/2;
-      boardSurface(length,pitch-gap,(u,v,lift=0)=>point(u,v+origin,lift),color,seed+i,id);
+      const base=grooveDepth?palette.facadePlank:palette.exterior;
+      const color=blend(base,t<0?palette.fg:palette.bg,Math.abs(t)*.055);
+      const left=i*pitch+(i===0?0:gap/2);
+      const right=(i+1)*pitch-(i===count-1?0:gap/2);
+      const insideLeft=left+(i===0?0:bevelWidth);
+      const insideRight=right-(i===count-1?0:bevelWidth);
+      boardSurface(length,insideRight-insideLeft,(u,v)=>point(u,v+insideLeft),color,seed+i*1.37,id);
+      if(!grooveDepth) continue;
+      for(const [edge,inside] of [[left,insideLeft],[right,insideRight]]){
+        if(edge===inside) continue;
+        const rim=blend(color,palette.facadeGroove,edge===left?.20:.36);
+        face([point(0,inside),point(length,inside),point(length,edge,-bevelDepth),point(0,edge,-bevelDepth)],rim,id);
+        face([point(0,edge,-bevelDepth),point(length,edge,-bevelDepth),
+          point(length,edge,-grooveDepth),point(0,edge,-grooveDepth)],palette.facadeGroove,id);
+      }
+      if(i<count-1){
+        const floor=-grooveDepth+.003;
+        face([point(0,right,floor),point(length,right,floor),point(length,right+gap,floor),
+          point(0,right+gap,floor)],palette.facadeGroove,id);
+      }
     }
   }
 
@@ -1091,10 +1195,10 @@ h3 { font-size: 13px; font-weight: 650; }
       const point=(y,z,lift=0)=>[x+side*lift,y,z];
       plankedSurface(175.5,-rear-7,(u,v,lift)=>point(21.5+u,rear+3.5+v,lift),side+23);
       for(const z of [rear,-3.5]){
-        boardSurface(175.5,3.5,(u,v,lift)=>point(21.5+u,z+v,lift),palette.rail,side+52);
+        boardSurface(175.5,3.5,(u,v,lift)=>point(21.5+u,z+v,lift),palette.facadeTrim,side+52);
       }
       for(const [y,h] of [[18,3.5],[197,3]]){
-        boardSurface(-rear,h,(u,v,lift)=>point(y+v,rear+u,lift),palette.rail,side+y);
+        boardSurface(-rear,h,(u,v,lift)=>point(y+v,rear+u,lift),palette.facadeTrim,side+y);
       }
     }
   }
@@ -1304,13 +1408,13 @@ h3 { font-size: 13px; font-weight: 650; }
     plankedSurface(cabinetWidth,-rear,(u,v,lift=0)=>[left+u,199.985+lift,rear+v],65);
     const frameBack=-3.05, frameFront=.28;
     for(const [y,h] of [[18,3.5],[197,3]]){
-      box(outerLeft,y,frameBack,width,h,frameFront-frameBack,p.rail);
-      boardSurface(width,h,(u,v,lift=0)=>[outerLeft+u,y+v,frameFront+.012+lift],p.rail,y);
+      box(outerLeft,y,frameBack,width,h,frameFront-frameBack,p.facadeTrim);
+      boardSurface(width,h,(u,v)=>[outerLeft+u,y+v,frameFront+.012],p.facadeTrim,y);
     }
     for(const x of [outerLeft,-left]){
-      box(x,21.5,frameBack,frameSideWidth,175.5,frameFront-frameBack,p.rail);
+      box(x,21.5,frameBack,frameSideWidth,175.5,frameFront-frameBack,p.facadeTrim);
       boardSurface(175.5,frameSideWidth,
-        (u,v,lift=0)=>[x+v,21.5+u,frameFront+.012+lift],p.rail,x);
+        (u,v)=>[x+v,21.5+u,frameFront+.012],p.facadeTrim,x);
     }
     const interiorDepth=interiorFront-back;
     box(left+.025,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23));
@@ -1357,22 +1461,23 @@ h3 { font-size: 13px; font-weight: 650; }
       const id=i+1;
       const y=18.35, height=181.3;
       const middle=y+height/2;
-      const plankFace=.64, panelBack=-.93;
-      box(local,y,panelBack,leaf,height,.58-panelBack,blend(p.door,p.fg,.17),id,t);
-      plankedSurface(height,leaf,(u,v,lift=0)=>t([local+v,y+u,plankFace+lift]),i+4,id);
+      const plankFace=.64, panelBack=-.93, grooveDepth=.35;
+      box(local,y,panelBack,leaf,height,plankFace-grooveDepth-panelBack,blend(p.door,p.fg,.17),id,t);
+      plankedSurface(height,leaf,(u,v,lift=0)=>t([local+v,y+u,plankFace+lift]),41+i*13,id,grooveDepth);
       const railBase=plankFace-.02;
       for(const [railY,railHeight] of [[y,8],[middle-6,12],[y+height-8,8]]){
-        box(local,railY,railBase,leaf,railHeight,doorRailFace-railBase-.02,p.rail,id,t);
+        const finish=railY===middle-6?p.facadeCrossbar:p.facadeTrim;
+        box(local,railY,railBase,leaf,railHeight,doorRailFace-railBase-.02,finish,id,t);
         boardSurface(leaf,railHeight,
-          (u,v,lift=0)=>t([local+u,railY+v,doorRailFace-.01+lift]),p.rail,i+railY,id);
+          (u,v)=>t([local+u,railY+v,doorRailFace-.01]),finish,i*7+railY,id);
       }
       const stileWidth=6.2;
       const stileX=sign>0?0:-stileWidth;
       const stileHeight=height/2-14;
       for(const stileY of [y+8,middle+6]){
-        box(stileX,stileY,railBase,stileWidth,stileHeight,doorRailFace-railBase-.02,p.rail,id,t);
+        box(stileX,stileY,railBase,stileWidth,stileHeight,doorRailFace-railBase-.02,p.facadeTrim,id,t);
         boardSurface(stileHeight,stileWidth,
-          (u,v,lift=0)=>t([stileX+v,stileY+u,doorRailFace-.01+lift]),p.rail,i+stileY,id);
+          (u,v)=>t([stileX+v,stileY+u,doorRailFace-.01]),p.facadeTrim,i*11+stileY,id);
       }
       drawCombinationLock(sign,meeting-pivot,middle,Math.floor(i/2),t);
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
@@ -1446,12 +1551,18 @@ h3 { font-size: 13px; font-weight: 650; }
     if(showCotas) drawCotas(spec,width,height);
     readPalette();
     positions=[];
+    woodPositions=[];
     hitTriangles=[];
     build(spec);
     gl.viewport(0,0,pixelW,pixelH);
     gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(positions),gl.DYNAMIC_DRAW);
-    gl.drawArrays(gl.TRIANGLES,0,positions.length/6);
+    gl.useProgram(program);
+    drawMesh(positions,buffer,6);
+    gl.useProgram(woodProgram);
+    gl.uniform1f(woodDetail,clamp((scale*ratio-1.4)/3,0,1));
+    gl.enableVertexAttribArray(2);
+    drawMesh(woodPositions,woodBuffer,9);
+    gl.disableVertexAttribArray(2);
     if(!animating) updateRestoreButton();
     if(animating) schedule();
     else previous=0;
