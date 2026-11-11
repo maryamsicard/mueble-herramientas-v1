@@ -338,7 +338,8 @@ h3 { font-size: 13px; font-weight: 650; }
             <p class="accessory-feedback text-small" data-garden-feedback aria-live="polite"></p>
             <p class="text-small text-muted" data-garden-fit></p>
             <p class="text-small text-muted" data-garden-size></p>
-            <p class="text-small text-muted">Horquilla acolchada con retención, montada en el lateral fijo. Las charolas del módulo vuelven al quitar su última herramienta.</p>
+            <p class="text-small text-muted">Una horquilla ajustable por herramienta, con la misma altura de montaje. Las charolas que libran las herramientas se pueden usar arriba.</p>
+            <p class="text-small text-muted tabular-nums" data-garden-support-height></p>
             <div class="actions">
               <a class="text-small" data-garden-link target="_blank" rel="noopener noreferrer">Herramienta en Amazon</a>
               <a class="text-small" href="https://www.ryobitools.com/products/33287197767" target="_blank" rel="noopener noreferrer">Gancho RYOBI LINK de referencia</a>
@@ -510,17 +511,23 @@ h3 { font-size: 13px; font-weight: 650; }
   ];
   const doorCountFor=index=>variants[index].doorCount??4;
   const gardenCatalog=[
-    {id:'ryobi-hedge',name:'Cortasetos RYOBI P2609BTL',cut:22,height:97,width:23,depth:18.6,
+    {id:'ryobi-hedge',name:'Cortasetos RYOBI P2609BTL',cut:22,height:97,width:23,depth:18.6,hold:64,
       url:'https://www.amazon.com.mx/dp/B0C3Z4SNZB',draw:drawHedgeTrimmer},
-    {id:'ryobi-string',name:'Desbrozadora RYOBI P2030',cut:10,height:114.3,width:26,depth:21,
+    {id:'ryobi-string',name:'Desbrozadora RYOBI P2030',cut:10,height:114.3,width:26,depth:21,hold:81.8,
       url:'https://www.amazon.com.mx/dp/B00GJTXB0C',draw:drawStringTrimmer}
   ];
   const gardenLayouts=variants.map(()=>[]);
+  const gardenUpperTrays=variants.map(()=>[null,null,null,null]);
   const gardenBays=[2,3];
   const gardenGap=4;
   const gardenEdge=2;
   const gardenBase=21.5;
   const gardenCeiling=197;
+  const gardenFloorGap=2;
+  const gardenTrayGap=2;
+  const gardenReach=16;
+  const gardenSupportY=gardenBase+gardenFloorGap+Math.max(...gardenCatalog.map(product=>product.hold));
+  const gardenBottom=product=>gardenSupportY-product.hold;
   const gardenProductPicker=get('#garden-product');
   const gardenBayPicker=get('#garden-bay');
   const gardenFeedback=get('[data-garden-feedback]');
@@ -750,7 +757,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const flange = {skirt:1.11,seat:1.2,tabDrop:2.7};
   const grooveClearance=.32;
   const guideProfiles=[{opening:40.3,channel:42.16},{opening:28.36,channel:30.22}];
-  const trayBottom=tray=>tray.top-products[tray.h].height;
+  const trayBottom=tray=>tray.top-products[traySize(tray)].height;
   const tabOutline = [[16.02,12.37],[16.65,12.62],[17.48,12.81],[18.14,12.76],
     [18.54,12.48],[18.8,11.81],[18.77,11.34],[18.38,9.99],[18.10,10.47],
     [17.39,11.25],[16.4,12.14]];
@@ -767,7 +774,25 @@ h3 { font-size: 13px; font-weight: 650; }
   const doorForBay=(bay,index=version)=>doorCountFor(index)===2?bay%2:bay;
   const removedFronts = new Set();
   const gardenOccupies=bay=>gardenLayouts[version].some(item=>item.bay===bay);
-  const trayAvailable=tray=>Boolean(tray?.h && tray.lane<variants[version].count && !gardenOccupies(tray.bay));
+  function gardenTrayFloor(bay,index=version) {
+    let floor=null;
+    for(const item of gardenLayouts[index]){
+      if(item.bay!==bay) continue;
+      const product=gardenCatalog.find(product=>product.id===item.id);
+      floor=Math.max(floor??0,gardenBottom(product)+product.height+gardenTrayGap);
+    }
+    return floor;
+  }
+  function fitsAboveGarden(tray,height) {
+    const floor=gardenTrayFloor(tray.bay);
+    return !height || floor===null || tray.top-products[height].height>=floor;
+  }
+  function traySize(tray) {
+    if(!tray) return 0;
+    const height=gardenUpperTrays[version][tray.bay]?.[tray.row]??tray.h;
+    return fitsAboveGarden(tray,height)?height:0;
+  }
+  const trayAvailable=tray=>Boolean(traySize(tray) && tray.lane<variants[version].count);
   const mixedExample = trays.findIndex(tray=>tray.bay===3 && tray.h===36);
   let selected = mixedExample;
   let active = -1;
@@ -1175,20 +1200,19 @@ h3 { font-size: 13px; font-weight: 650; }
     for(let y=6;y<11;y+=1.65) box(-2.3,y,4.29,4.6,.55,.12,[.36,.37,.38],id,transform);
   }
   function drawGardenRack(bay,spec,slot,id) {
-    const {x,y,z,product}=slot;
+    const {x,z}=slot;
     const fixedSide=bay===2?spec.edges[bay]:spec.edges[bay]+spec.span;
     const inward=bay===2?1:-1;
     const backPlate=[.30,.32,.34];
-    const levels=product.id==='ryobi-hedge'?[[64,5.8],[48,2.5]]:[[81.8,3.6],[57,3.2]];
-    for(const [offset,spread] of levels){
-      const height=y+offset;
-      box(fixedSide+(inward>0?0:-.4),height-3,z-5.1,.4,6,10.2,backPlate,id);
+    const levels=[[gardenSupportY,6.65],[gardenSupportY-14,3.6]];
+    for(const [height,spread] of levels){
+      box(fixedSide+(inward>0?0:-.4),height-2,z-5.1,.4,4,10.2,backPlate,id);
       for(const armZ of [z-spread,z+spread]){
         gardenRod([fixedSide+inward*.4,height,armZ],[x+inward*4.8,height,armZ],.84,toolBlack,id);
         gardenRod([x+inward*4.8,height,armZ],[x+inward*4.8,height+2.2,armZ],.84,toolBlack,id);
       }
       gardenRod([x+inward*4.75,height+1.35,z-spread],[x+inward*4.75,height+1.35,z+spread],.43,backPlate,id);
-      for(const screwY of [height-2,height+2]){
+      for(const screwY of [height-1.25,height+1.25]){
         box(fixedSide+(inward>0?.4:-.55),screwY-.35,z-.35,.15,.7,.7,toolSteel,id);
       }
     }
@@ -1456,7 +1480,8 @@ h3 { font-size: 13px; font-weight: 650; }
   function drawTray(tray,index,spec) {
     const rotated=version===1;
     const {edges,span} = spec;
-    const {bay,h,offset,lane} = tray;
+    const {bay,offset,lane} = tray;
+    const h=traySize(tray);
     const product=products[h];
     const {length,depth,heel,inside}=product;
     const d=rotated?length:depth;
@@ -1927,14 +1952,14 @@ h3 { font-size: 13px; font-weight: 650; }
     const depth=spec.railFront-(spec.rear+1.9)-2*gardenEdge;
     const usedDepth=products.reduce((total,product)=>total+product.depth,0)+
       gardenGap*Math.max(0,products.length-1);
+    const guideInset=(spec.span-spec.opening)/2;
+    const halfSpace=Math.min(gardenReach,spec.span-gardenReach)-guideInset;
     if(usedDepth>depth || products.some(product=>
-      product.width+2>spec.opening || product.height+8>gardenCeiling-gardenBase)) return null;
-    const center=spec.edges[bay]+spec.span/2;
+      product.width/2+1>halfSpace || gardenBottom(product)+product.height+8>gardenCeiling)) return null;
+    const x=spec.edges[bay]+(bay===2?gardenReach:spec.span-gardenReach);
     let front=spec.railFront-gardenEdge;
     return products.sort((a,b)=>Number(b.id==='ryobi-string')-Number(a.id==='ryobi-string')).map(product=>{
-      const isString=product.id==='ryobi-string';
-      const offset=products.length===2?Math.min(6,(spec.opening-product.width)/2-1):0;
-      const slot={product,x:center+(isString?offset:-offset),y:gardenBase+(isString?15:37),
+      const slot={product,x,y:gardenBottom(product),
         z:front-product.depth/2};
       front-=product.depth+gardenGap;
       return slot;
@@ -1954,15 +1979,28 @@ h3 { font-size: 13px; font-weight: 650; }
       }
     });
   }
+  function restoreGardenTrays(saved) {
+    if(!Array.isArray(saved)) return;
+    gardenUpperTrays.forEach((columns,index)=>{
+      for(const bay of gardenBays){
+        const heights=saved[index]?.[bay];
+        if(gardenLayouts[index].some(item=>item.bay===bay) && validColumn(levelsByBay[bay],heights)){
+          columns[bay]=heights.slice();
+        }
+      }
+    });
+  }
   function revealGardenBay(bay) {
     doorOpen[doorForBay(bay)]=true;
     setView('angle');
-    yaw=bay===2?.20:-.20;
+    const shared=gardenLayouts[version].filter(item=>item.bay===bay).length===2;
+    yaw=(bay===2?1:-1)*(shared?.35:.20);
     pitch=.15;
   }
   function updateGardenUi() {
     const layout=gardenLayouts[version];
-    const key=JSON.stringify([version,gardenProductPicker.value,layout]);
+    const upperCounts=gardenBays.map(bay=>levelsByBay[bay].filter(trayAvailable).length*variants[version].count);
+    const key=JSON.stringify([version,gardenProductPicker.value,layout,upperCounts]);
     if(key===gardenUiKey) return;
     gardenUiKey=key;
     const spec=dimensions(), product=gardenCatalog.find(item=>item.id===gardenProductPicker.value);
@@ -1986,6 +2024,10 @@ h3 { font-size: 13px; font-weight: 650; }
       ' Los módulos 1 y 2 tienen la mesa de trabajo.';
     get('[data-garden-size]').textContent='Corte de '+product.cut+'″ · espacio reservado aprox. '+
       [product.width,product.height,product.depth].map(formatCm).join(' × ')+' cm (ancho × alto × fondo).';
+    const upper=gardenBays.flatMap((bay,index)=>gardenOccupies(bay)?
+      ['Módulo '+(bay+1)+' · '+upperCounts[index]+(upperCounts[index]===1?' charola arriba':' charolas arriba')]:[]);
+    get('[data-garden-support-height]').textContent='Horquillas a '+formatCm(gardenSupportY+bodyOffsetY)+' cm del piso'+
+      (upper.length?'. '+upper.join('. '):'')+'.';
     get('[data-garden-link]').href=product.url;
     get('[data-garden-list]').replaceChildren(...layout.map(item=>{
       const row=document.createElement('li');
@@ -2003,8 +2045,9 @@ h3 { font-size: 13px; font-weight: 650; }
         ['Quitar',()=>{
           layout.splice(layout.indexOf(item),1);
           const stillOccupied=gardenOccupies(item.bay);
+          if(!stillOccupied) gardenUpperTrays[version][item.bay]=null;
           gardenFeedback.textContent=stillOccupied?
-            'La otra herramienta sigue en el módulo '+(item.bay+1)+'.':
+            'La otra herramienta sigue en el módulo '+(item.bay+1)+' con las charolas que caben arriba.':
             'Charolas repuestas en el módulo '+(item.bay+1)+'.';
           refreshTrays();
           syncEditorToTray();
@@ -2438,9 +2481,9 @@ h3 { font-size: 13px; font-weight: 650; }
       currentExtraction===1?'Charola retirada':'Extracción · '+percentage+'%';
     get('.tl-phase').textContent=phase;
     const lane=tray && spec.count===2?(tray.lane===0?' · delantera':' · trasera'):'';
-    get('.tl-phase-tray').textContent=tray?'M'+(tray.bay+1)+' · '+levelLabel(tray)+' · '+tray.h+' cm'+lane:'';
+    get('.tl-phase-tray').textContent=tray?'M'+(tray.bay+1)+' · '+levelLabel(tray)+' · '+traySize(tray)+' cm'+lane:'';
     updateRestoreButton();
-    const product=products[tray?.h];
+    const product=products[traySize(tray)];
     root.querySelectorAll('.tl-tandem-measure').forEach(item=>{item.hidden=spec.count!==2;});
     const actualTrayDepth=product?(version===1?product.length:product.depth):spec.d;
     const rearGap=spec.trayFront-(spec.count-1)*spec.laneSpacing-actualTrayDepth-(spec.rear+1.9);
@@ -2450,7 +2493,7 @@ h3 { font-size: 13px; font-weight: 650; }
     get('.tl-tray-size').textContent=product?'IKEA '+product.article+' · '+[
       ...(version===1?[product.depth,product.length]:[product.length,product.depth]),product.height
     ].map(formatCm).join(' × ')+' cm en el modelo 3D':'Agrega una charola en Distribución para probarla.';
-    const column=tray?levelsByBay[tray.bay].filter(neighbor=>neighbor.h &&
+    const column=tray?levelsByBay[tray.bay].filter(neighbor=>traySize(neighbor) &&
       (tray.bay>=2 || (neighbor.row>=benchLowerCount)===(tray.row>=benchLowerCount))):[];
     const position=column.findIndex(neighbor=>neighbor.row===tray?.row);
     const above=position>=0?column[position+1]:undefined;
@@ -2462,12 +2505,15 @@ h3 { font-size: 13px; font-weight: 650; }
     const gapText=gaps.length?'Separación instalada · '+gaps.join(' · '):'';
     if(gapReadout.textContent!==gapText) gapReadout.textContent=gapText;
     const editorTray=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)];
-    heightPicker.value=editorTray.h;
-    const currentSize=editorTray.h?'charola de '+editorTray.h+' cm':'vacío';
-    const gardenBay=gardenOccupies(editorTray.bay);
-    heightPicker.disabled=gardenBay;
-    get('.tl-layout-current').textContent=gardenBay?
-      'Módulo '+(editorTray.bay+1)+' · las charolas se reponen al quitar las herramientas de jardín.':
+    const editorHeight=traySize(editorTray);
+    heightPicker.value=editorHeight;
+    const currentSize=editorHeight?'charola de '+editorHeight+' cm':'vacío';
+    heightPicker.disabled=!fitsAboveGarden(editorTray,10);
+    for(const item of heightPicker.options){
+      item.disabled=!fitsAboveGarden(editorTray,Number(item.value));
+    }
+    get('.tl-layout-current').textContent=heightPicker.disabled?
+      'Módulo '+(editorTray.bay+1)+' · nivel reservado para herramientas de jardín.':
       'Módulo '+(editorTray.bay+1)+' · '+levelLabel(editorTray)+' · actualmente '+currentSize+
       (spec.count===2?'. En C, el tamaño se aplica a la delantera y a la trasera.':'.')+
       (!traysStowed()?' Guarda las charolas para poder cambiar el tamaño.':'');
@@ -2481,7 +2527,7 @@ h3 { font-size: 13px; font-weight: 650; }
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
         doors:doorOpen,doorLayoutRevision:2,selected,active,extraction,removedFronts:[...removedFronts],
-        accessoryLayouts,accessoryLayoutRevision:3,gardenLayouts,
+        accessoryLayouts,accessoryLayoutRevision:3,gardenLayouts,gardenUpperTrays,
         accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
         accessoryQuantity:Number(accessoryCount.value),
         accessorySurface:(movingAccessory?.surface??accessorySurface.value)===''?null:
@@ -2501,6 +2547,7 @@ h3 { font-size: 13px; font-weight: 650; }
       const column=levelsByBay[i+(snapshot.trayLayoutRevision===3?0:2)];
       if(column && validColumn(column,heights)) heights.forEach((h,j)=>{column[j].h=h;});
     });
+    restoreGardenTrays(snapshot.gardenUpperTrays);
     refreshTrays();
     const doorCount=doorCountFor(version);
     restoreDoorStates(doorStatesFor(doorCount,snapshot.doorLayoutRevision===2?doorCount:4,snapshot.doors));
@@ -2526,7 +2573,7 @@ h3 { font-size: 13px; font-weight: 650; }
       if(Number.isFinite(snapshot.extraction)) extraction=clamp(snapshot.extraction,0,1);
       else if(snapshot.stage===2) extraction=1;
       else if(snapshot.stage===1){
-        const spec=dimensions(), product=products[trays[active].h];
+        const spec=dimensions(), product=products[traySize(trays[active])];
         const trayDepth=version===1?product.length:product.depth;
         const previousSlide=Math.min(spec.d*.61,trayDepth/2+.7);
         extraction=previousSlide/spec.depth;
@@ -2589,7 +2636,7 @@ h3 { font-size: 13px; font-weight: 650; }
     if(viewMode==='posts') setView('detail');
     extraction=clamp(value,0,1);
     active=extraction>0?index:-1;
-    update('Charola de '+tray.h+' cm del módulo '+(tray.bay+1)+' · extracción '+formatCm(extraction*100)+'%.');
+    update('Charola de '+traySize(tray)+' cm del módulo '+(tray.bay+1)+' · extracción '+formatCm(extraction*100)+'%.');
   }
   versions.forEach((button,index)=>button.addEventListener('click',()=>{
     if(version===index) return;
@@ -2621,9 +2668,9 @@ h3 { font-size: 13px; font-weight: 650; }
     ];
     change(messages[index]);
   }));
-  function validColumn(column,heights) {
+  function validColumn(column,heights,floor=null) {
     if(!Array.isArray(heights) || heights.length!==column.length) return false;
-    let occupiedUntil=21.5;
+    let occupiedUntil=floor===null?21.5:floor-1.5;
     for(let i=0;i<column.length;i++){
       const tray=column[i], h=heights[i];
       if(tray.bay<2 && i===benchLowerCount) occupiedUntil=benchUpperBase;
@@ -2643,7 +2690,12 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     const allSmall=button.dataset.layout==='small';
     levelsByBay.forEach((column,i)=>{
-      if(!gardenOccupies(i)) column.forEach((tray,j)=>{tray.h=allSmall?10:mixed[i][j];});
+      const desired=column.map((tray,j)=>{
+        const height=allSmall?10:mixed[i][j];
+        return fitsAboveGarden(tray,height)?height:0;
+      });
+      if(gardenOccupies(i)) gardenUpperTrays[version][i]=desired;
+      else column.forEach((tray,j)=>{tray.h=desired[j];});
     });
     if(!allSmall) selected=mixedExample;
     refreshTrays();
@@ -2652,7 +2704,7 @@ h3 { font-size: 13px; font-weight: 650; }
     setAllDoors(true);
     setView('front');
     const message=gardenLayouts[version].length?
-      'Distribución aplicada a los módulos disponibles para charolas.':
+      'Distribución aplicada, incluidas las charolas que caben arriba de las herramientas de jardín.':
       allSmall?42*variants[version].count+' charolas de 10 cm en las cuatro columnas.':'Charolas de 10, 23 y 36 cm en ambos módulos.';
     change(message);
   }));
@@ -2675,15 +2727,19 @@ h3 { font-size: 13px; font-weight: 650; }
       return;
     }
     const bay=Number(columnPicker.value);
-    if(gardenOccupies(bay)) return;
     const level=Number(levelPicker.value);
     const height=Number(heightPicker.value);
     const column=levelsByBay[bay];
-    const candidate=column.map((tray,i)=>i===level?height:tray.h);
-    if(!validColumn(column,candidate)){
-      const bottom=column[level].top-products[height].height;
-      const sectionBase=bay<2 && level>=benchLowerCount?benchUpperBase:21.5;
-      const conflicts=column.filter((tray,i)=>i!==level && tray.h &&
+    if(!fitsAboveGarden(column[level],height)){
+      update('Esta charola necesita un nivel más alto para librar las herramientas de jardín.');
+      return;
+    }
+    const candidate=column.map((tray,i)=>i===level?height:traySize(tray));
+    const floor=gardenTrayFloor(bay);
+    if(!validColumn(column,candidate,floor)){
+      const bottom=height?column[level].top-products[height].height:column[level].top;
+      const sectionBase=floor===null?(bay<2 && level>=benchLowerCount?benchUpperBase:21.5):floor-1.5;
+      const conflicts=column.filter((tray,i)=>i!==level && traySize(tray) &&
         column[level].top+1.5>trayBottom(tray) && bottom<tray.top+1.5);
       const message=bottom<sectionBase+1.5?
         'Este nivel está demasiado bajo para una charola de '+height+' cm. Elige un nivel más alto.':
@@ -2692,7 +2748,8 @@ h3 { font-size: 13px; font-weight: 650; }
       layoutFeedback.textContent=message;
       return;
     }
-    column[level].h=height;
+    if(floor===null) column[level].h=height;
+    else gardenUpperTrays[version][bay]=candidate;
     if(height) selected=trays.indexOf(column[level]);
     refreshTrays();
     doorOpen[doorForBay(bay)]=true;
