@@ -572,7 +572,18 @@ h3 { font-size: 13px; font-weight: 650; }
   const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
   const accessorySurfaceOrder=[1,2,3,4,0];
   const accessorySurfaceLabel=surface=>(surface||5)+' · '+accessorySurfaceNames[surface];
-  const accessoryLayouts=variants.map(()=>[]);
+  // The initial layout for model A mirrors the user's saved arrangement.
+  const accessoryLayouts=[[
+    {id:1,productId:'klkcms-cable-ties',surface:0,x:.13,y:0},
+    {id:3,productId:'workpro-rail',surface:1,x:4.86,y:125.49},
+    {id:4,productId:'ares-62008',surface:1,x:7.36,y:97.65},
+    {id:7,productId:'nihome-drivers',surface:1,x:3.3,y:70.39},
+    {id:8,productId:'nihome-hammers',surface:0,x:40.29,y:3.02},
+    {id:9,productId:'nihome-pliers',surface:1,x:3.39,y:48.87},
+    {id:11,productId:'nihome-wrenches',surface:1,x:3.82,y:19.79},
+    {id:14,productId:'casoman-magnetic-10',surface:2,x:7.72,y:96.44},
+    {id:15,productId:'casoman-pliers-14',surface:2,x:7.45,y:71.23}
+  ],[],[]];
   const accessoryProjections=new Map();
   const accessoryGap=1;
   const accessoryTolerance=.0001;
@@ -582,7 +593,7 @@ h3 { font-size: 13px; font-weight: 650; }
     {key:'ArrowUp',icon:'↑',label:'Arriba',x:0,y:1},
     {key:'ArrowDown',icon:'↓',label:'Abajo',x:0,y:-1}
   ];
-  let nextAccessoryId=1;
+  let nextAccessoryId=1+Math.max(0,...accessoryLayouts.flat().map(item=>item.id));
   let selectedAccessory=null;
   let movingAccessory=null;
   let accessoryUiKey='';
