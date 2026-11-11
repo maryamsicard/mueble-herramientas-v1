@@ -573,8 +573,8 @@ h3 { font-size: 13px; font-weight: 650; }
   const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
   const accessorySurfaceOrder=[1,2,3,4,0];
   const accessorySurfaceLabel=surface=>(surface||5)+' · '+accessorySurfaceNames[surface];
-  // The initial layout for model A mirrors the user's saved arrangement.
-  const accessoryLayouts=[[
+  // Keep the positions the user chose and recognize copies of this older preset on reload.
+  const previousDefaultA=[
     {id:1,productId:'klkcms-cable-ties',surface:0,x:.13,y:0},
     {id:3,productId:'workpro-rail',surface:1,x:4.86,y:125.49},
     {id:4,productId:'ares-62008',surface:1,x:7.36,y:97.65},
@@ -584,7 +584,87 @@ h3 { font-size: 13px; font-weight: 650; }
     {id:11,productId:'nihome-wrenches',surface:1,x:3.82,y:19.79},
     {id:14,productId:'casoman-magnetic-10',surface:2,x:7.72,y:96.44},
     {id:15,productId:'casoman-pliers-14',surface:2,x:7.45,y:71.23}
-  ],[],[]];
+  ];
+  const onPegboard=(surface,items)=>items.map(([productId,x,y])=>({productId,surface,x,y}));
+  const hardwareBins=(y,...xs)=>xs.map(x=>['foraineam-bin',x,y]);
+  let nextAccessoryId=1+Math.max(...previousDefaultA.map(item=>item.id));
+  const accessoryLayouts=[
+    [
+      ...onPegboard(0,[
+        ['ares-62008',4,25],['wallpeg-7-set-4',33,40],
+        ...hardwareBins(2.5,17,28.5),...hardwareBins(11.5,17,28.5)
+      ]),
+      ...onPegboard(1,hardwareBins(6,4,16,28)),
+      ...onPegboard(2,[
+        ['nihome-drivers',3.5,126.5],['nihome-pliers',3.5,46.5],['klkcms-cable-ties',6,19],
+        ...hardwareBins(22,23.5),...hardwareBins(31,23.5),...hardwareBins(6,4,16,28)
+      ]),
+      ...onPegboard(3,[
+        ['workpro-rail',4.3,126],['ares-62008',9,96],['nihome-wrenches',3.5,65],
+        ['workpro-rail',4.3,32],...hardwareBins(8,4,16,28),...hardwareBins(18,4,16,28)
+      ]),
+      ...onPegboard(4,[
+        ['casoman-pliers-14',6.2,130],['nihome-drivers',4.1,100],['casoman-magnetic-10',5.7,69],
+        ['klkcms-cable-ties',3,42],...hardwareBins(44,21.2,32.4),...hardwareBins(54,21.2,32.4),
+        ...hardwareBins(8,5,16.7,28.4),...hardwareBins(20,5,16.7,28.4)
+      ])
+    ],[
+      ...onPegboard(0,[
+        ['klkcms-cable-ties',.5,4.5],['nihome-hammers',16.5,1.5],
+        ['wallpeg-7-set-4',7.12,40.5],...hardwareBins(31,2.4)
+      ]),
+      ...onPegboard(1,[
+        ['casoman-pliers-14',.33,130],['ares-62008',3.58,101],['klkcms-cable-ties',2,72],
+        ...hardwareBins(73,18.5),...hardwareBins(82,18.5),...hardwareBins(91,18.5),
+        ['ares-62008',3.58,43],['casoman-pliers-14',.33,19.5],...hardwareBins(7,3.7,16.9)
+      ]),
+      ...onPegboard(2,[
+        ['ares-62008',3.05,127],['klkcms-cable-ties',2,97],['ares-62008',3.05,69],
+        ['klkcms-cable-ties',2,39],['ares-62008',3.05,10],
+        ...hardwareBins(99,18.5),...hardwareBins(108,18.5),...hardwareBins(117,18.5),
+        ...hardwareBins(40,18.5),...hardwareBins(49,18.5),...hardwareBins(58,18.5)
+      ]),
+      ...onPegboard(3,[
+        ['ares-62008',3.05,127],['klkcms-cable-ties',2,97],['ares-62008',3.05,68],
+        ['klkcms-cable-ties',2,38],
+        ...hardwareBins(99,18.5),...hardwareBins(108,18.5),...hardwareBins(117,18.5),
+        ...hardwareBins(40,18.5),...hardwareBins(49,18.5),...hardwareBins(58,18.5),
+        ...hardwareBins(11,3.7,16.9),...hardwareBins(21,3.7,16.9)
+      ]),
+      ...onPegboard(4,[
+        ['casoman-pliers-14',.33,130],['ares-62008',3.58,101],['casoman-pliers-14',.33,76],
+        ['ares-62008',3.58,47],['klkcms-cable-ties',2,18],
+        ...hardwareBins(20,18.5),...hardwareBins(30,18.5),...hardwareBins(6,3.7,16.9)
+      ])
+    ],[
+      ...onPegboard(0,[
+        ['klkcms-cable-ties',.5,5],['nihome-hammers',39.5,1.5],
+        ['wallpeg-7-set-3',1.2,37],['wallpeg-5-set-4',37.85,37],
+        ...hardwareBins(5,17,28.3),...hardwareBins(15,17,28.3),...hardwareBins(25,17,28.3)
+      ]),
+      ...onPegboard(1,[
+        ['workpro-rail',4.8,125],['ares-62008',9.6,96],['nihome-drivers',4.1,66],
+        ['nihome-wrenches',4.1,36],['ares-62008',9.6,7]
+      ]),
+      ...onPegboard(2,[
+        ['casoman-pliers-14',5.8,133],['casoman-magnetic-10',5.18,100],['nihome-pliers',3.5,74],
+        ['casoman-pliers-14',5.8,50],['klkcms-cable-ties',4,21],
+        ...hardwareBins(24,23),...hardwareBins(34,23),...hardwareBins(7,4,16,28)
+      ]),
+      ...onPegboard(3,[
+        ['nihome-wrenches',3.5,126],['workpro-rail',4.3,94],['nihome-drivers',3.5,64],
+        ['nihome-pliers',3.5,39],...hardwareBins(14,4,16,28),...hardwareBins(23,4,16,28)
+      ]),
+      ...onPegboard(4,[
+        ['casoman-pliers-14',6.2,132],['casoman-magnetic-10',5.7,100],['ares-62008',9.58,70],
+        ['klkcms-cable-ties',4,40],...hardwareBins(41,21.2,32.4),...hardwareBins(50,21.2,32.4),
+        ...hardwareBins(12,5,16.7,28.4),...hardwareBins(22,5,16.7,28.4)
+      ])
+    ]
+  ].map((layout,index)=>[
+    ...(index===0?previousDefaultA.map(item=>({...item})):[]),
+    ...layout.map(item=>({...item,id:nextAccessoryId++}))
+  ]);
   const accessoryProjections=new Map();
   const accessoryGap=1;
   const accessoryTolerance=.0001;
@@ -594,7 +674,6 @@ h3 { font-size: 13px; font-weight: 650; }
     {key:'ArrowUp',icon:'↑',label:'Arriba',x:0,y:1},
     {key:'ArrowDown',icon:'↓',label:'Abajo',x:0,y:-1}
   ];
-  let nextAccessoryId=1+Math.max(0,...accessoryLayouts.flat().map(item=>item.id));
   let selectedAccessory=null;
   let movingAccessory=null;
   let accessoryUiKey='';
@@ -1920,10 +1999,18 @@ h3 { font-size: 13px; font-weight: 650; }
     change();
   }
   function restoreAccessories(snapshot) {
-    if(Array.isArray(snapshot.accessoryLayouts)){
+    const savedLayouts=snapshot.accessoryLayouts;
+    // Upgrade only a saved copy of the previous default, leaving edited layouts intact.
+    const upgradePreset=snapshot.accessoryLayoutRevision===1 && savedLayouts?.length===3 &&
+      Array.isArray(savedLayouts[0]) && savedLayouts[0].length===previousDefaultA.length &&
+      savedLayouts.slice(1).every(layout=>Array.isArray(layout) && layout.length===0) &&
+      previousDefaultA.every(expected=>savedLayouts[0].some(item=>item &&
+        item.productId===expected.productId && item.surface===expected.surface &&
+        item.x===expected.x && item.y===expected.y));
+    if(Array.isArray(savedLayouts) && !upgradePreset){
       const ids=new Set();
       accessoryLayouts.forEach((_,index)=>{
-        const saved=snapshot.accessoryLayouts[index];
+        const saved=savedLayouts[index];
         if(!Array.isArray(saved)) return;
         const spec=dimensions(index);
         accessoryLayouts[index]=saved.filter(item=>{
@@ -2080,7 +2167,7 @@ h3 { font-size: 13px; font-weight: 650; }
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
         doors:doorOpen,selected,active,extraction,removedFronts:[...removedFronts],
-        accessoryLayouts,accessoryLayoutRevision:1,
+        accessoryLayouts,accessoryLayoutRevision:2,
         accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
         accessoryQuantity:Number(accessoryCount.value),
         accessorySurface:(movingAccessory?.surface??accessorySurface.value)===''?null:
