@@ -91,13 +91,17 @@ h3 { font-size: 13px; font-weight: 650; }
 .summary-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px 12px; margin: 0; }
 .summary-metrics dt { color: var(--muted-foreground); font-size: 11px; }
 .summary-metrics dd { margin: 0; font-weight: 650; line-height: 1.35; }
-.tray-field { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); }
-.tray-field input[type="range"] { width: 100%; margin: 0; accent-color: var(--primary); }
-.tray-catalog { display: grid; gap: 9px; }
+.tray-catalog { display: grid; gap: 22px; }
 .tray-card { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
 .tray-card p { margin-top: 3px; }
-.tray-preview { display: block; width: 180px; max-width: 100%; height: auto; margin: 8px auto 0; }
-.tray-catalog + .control-group { margin-top: 17px; }
+.tray-preview { display: block; width: 100%; max-width: 260px; height: auto; margin: 14px auto 6px; color: #6d6259; }
+.tray-preview .outline { fill: none; stroke: currentColor; stroke-width: .55; stroke-linecap: round; stroke-linejoin: round; }
+.tray-preview .hidden-edge { stroke: #c6b9ad; stroke-dasharray: 1.8 1.5; }
+.tray-preview .drawing-cota { fill: none; stroke: #a16a54; stroke-width: .35; }
+.tray-preview .drawing-cota text { fill: #8a5140; stroke: none; font: 4.3px system-ui,sans-serif; text-anchor: middle; }
+.layout-editor { margin-top: 18px; }
+.layout-editor summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
+.layout-editor .control-group { margin-top: 8px; }
 .tl-layout-feedback { color: var(--primary); }
 .tl-layout-feedback:empty { display: none; }
 [aria-labelledby="tab-charolas"] .control-group + .control-group { margin-top: 13px; padding-top: 0; border-top: 0; }
@@ -122,7 +126,15 @@ h3 { font-size: 13px; font-weight: 650; }
   background: #faf7f3;
 }
 .scene-phase { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
-.scene-footer input { width: 100%; margin: 0; accent-color: var(--primary); }
+.scene-range { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 12px; }
+.scene-range input { flex: 1 1 100px; min-width: 70px; margin: 0; accent-color: var(--primary); }
+.scene-footer button { min-height: 27px; padding: 3px 8px; font-size: 11px; }
+.scene-footer .actions { gap: 5px; }
+.scene-extra { margin-top: 2px; }
+.scene-extra summary { cursor: pointer; }
+.scene-extra[open] { max-height: 110px; overflow: auto; }
+.scene-extra p { margin-top: 5px; }
+.scene-extra .actions { margin-top: 6px; }
 
 @media (max-width: 860px) and (min-height: 500px), (max-width: 580px) {
   .site-header { align-items: stretch; flex-direction: column; padding: 7px 10px; gap: 6px; }
@@ -131,7 +143,7 @@ h3 { font-size: 13px; font-weight: 650; }
   .view-heading .tl-dims { display: none; }
   .simulator-main {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(150px,var(--scene-height,62%)) 10px minmax(0, 1fr);
+    grid-template-rows: minmax(150px,var(--scene-height,68%)) 10px minmax(0, 1fr);
     grid-template-areas: "scene" "resize" "controls";
   }
   .scene-resize { cursor: row-resize; }
@@ -235,63 +247,48 @@ h3 { font-size: 13px; font-weight: 650; }
       <section class="control-panel" id="panel-charolas" role="tabpanel" aria-labelledby="tab-charolas" tabindex="0">
         <div class="panel-intro">
           <h2>Charolas TROFAST disponibles</h2>
-          <p class="text-small text-muted">Dimensiones exteriores del modelo 3D · largo × ancho × alto.</p>
+          <p class="text-small text-muted">Dibujos de referencia con cotas · largo × ancho × alto.</p>
         </div>
         <div class="tray-catalog">
           <article class="tray-card" data-product="10">
             <h3>Delgada · 10 cm</h3>
             <p class="text-small tabular-nums" data-product-size></p>
-            <canvas class="tray-preview" role="img" aria-label="Vista 3D de la charola TROFAST delgada de 10 cm"></canvas>
+            <svg class="tray-preview" role="img" aria-label="Dibujo acotado de la charola TROFAST delgada de 10 cm"></svg>
           </article>
           <article class="tray-card" data-product="23">
             <h3>Mediana · 23 cm</h3>
             <p class="text-small tabular-nums" data-product-size></p>
-            <canvas class="tray-preview" role="img" aria-label="Vista 3D de la charola TROFAST mediana de 23 cm"></canvas>
+            <svg class="tray-preview" role="img" aria-label="Dibujo acotado de la charola TROFAST mediana de 23 cm"></svg>
           </article>
           <article class="tray-card" data-product="36">
             <h3>Profunda · 36 cm</h3>
             <p class="text-small tabular-nums" data-product-size></p>
-            <canvas class="tray-preview" role="img" aria-label="Vista 3D de la charola TROFAST profunda de 36 cm"></canvas>
+            <svg class="tray-preview" role="img" aria-label="Dibujo acotado de la charola TROFAST profunda de 36 cm"></svg>
           </article>
         </div>
-        <div class="control-group">
-          <h3>Selecciona una charola del modelo</h3>
-          <p class="text-small text-muted">Toca una charola para sacarla. Vuelve a tocarla para guardarla. El deslizador permite ajustar cualquier posición intermedia.</p>
-          <div class="tray-field control-group">
-            <p class="tl-selected-tray text-small"><strong>Charola seleccionada</strong></p>
-            <p class="tl-tray-size text-small text-muted tabular-nums"></p>
-            <p class="tl-gap text-small text-muted tabular-nums" aria-live="polite" hidden></p>
-            <p class="tl-double-depth text-small text-muted" hidden>Modelo C · dos charolas de la misma altura por nivel. Retira por completo la delantera para acceder a la trasera. Guarda la trasera antes de volver a insertar la delantera.</p>
-            <label for="tl-extraction">Extracción de la charola</label>
-            <input id="tl-extraction" type="range" min="0" max="100" step="any" value="0" data-extraction aria-label="Extracción de la charola">
-            <p class="tl-extraction-readout text-small text-muted tabular-nums"></p>
+        <details class="layout-editor">
+          <summary>Cambiar la distribución</summary>
+          <div class="control-group">
+            <h3>Cambiar el tamaño en una posición</h3>
+            <p class="text-small text-muted">Para cambiar una charola, elige su columna y nivel. Después elige el tamaño para aplicar el cambio.</p>
+            <div class="field-grid">
+              <label for="tl-column">Columna</label>
+              <select id="tl-column">
+                <option value="0">Módulo 1 · banco</option><option value="1">Módulo 2 · banco</option>
+                <option value="2">Módulo 3 · alto</option><option value="3">Módulo 4 · alto</option>
+              </select>
+              <label for="tl-level">Nivel</label>
+              <select id="tl-level"></select>
+              <label for="tl-height">Tamaño de charola</label>
+              <select id="tl-height">
+                <option value="0">Vacío</option><option value="10">10 cm</option>
+                <option value="23">23 cm</option><option value="36">36 cm</option>
+              </select>
+            </div>
+            <p class="tl-layout-current text-small text-muted"></p>
+            <p class="tl-layout-feedback text-small" aria-live="polite"></p>
           </div>
-          <div class="actions"><button type="button" class="btn-primary" data-tray-action>Retirar por completo</button></div>
-        </div>
-        <div class="control-group">
-          <h3>Distribución de las cuatro columnas</h3>
-          <div class="actions" role="group" aria-label="Distribuciones de charolas">
-            <button type="button" data-layout="small">Todas de 10 cm</button>
-            <button type="button" data-layout="mixed">Combinadas</button>
-          </div>
-          <p class="text-small text-muted">Para cambiar una charola, elige su columna y nivel. Después elige el tamaño para aplicar el cambio.</p>
-          <div class="field-grid">
-            <label for="tl-column">Columna</label>
-            <select id="tl-column">
-              <option value="0">Módulo 1 · banco</option><option value="1">Módulo 2 · banco</option>
-              <option value="2">Módulo 3 · alto</option><option value="3">Módulo 4 · alto</option>
-            </select>
-            <label for="tl-level">Nivel</label>
-            <select id="tl-level"></select>
-            <label for="tl-height">Tamaño de charola</label>
-            <select id="tl-height">
-              <option value="0">Vacío</option><option value="10">10 cm</option>
-              <option value="23">23 cm</option><option value="36">36 cm</option>
-            </select>
-          </div>
-          <p class="tl-layout-current text-small text-muted"></p>
-          <p class="tl-layout-feedback text-small" aria-live="polite"></p>
-        </div>
+        </details>
       </section>
 
       <section class="control-panel" id="panel-puertas" role="tabpanel" aria-labelledby="tab-puertas" tabindex="0" hidden>
@@ -340,11 +337,28 @@ h3 { font-size: 13px; font-weight: 650; }
           <g data-cota="casters"><line></line><line></line><line></line><line></line><line></line><text></text></g>
           <g data-cota="base"><line></line><line></line><line></line><line></line><line></line><text></text></g>
           <g data-cota="pegboard"><line></line><line></line><line></line><text></text></g>
+          <g data-cota="bench"><line></line><line></line><line></line><line></line><line></line><text></text></g>
         </svg>
       </div>
       <div class="scene-footer text-small text-muted">
+        <div class="actions" role="group" aria-label="Distribuciones de charolas">
+          <span>Distribución</span>
+          <button type="button" data-layout="small">Todas de 10 cm</button>
+          <button type="button" data-layout="mixed">Combinadas</button>
+        </div>
         <div class="scene-phase"><strong class="tl-phase">Charola guardada</strong><span class="tl-phase-tray"></span></div>
-        <input type="range" min="0" max="100" step="any" value="0" data-extraction aria-label="Recorrido de la charola">
+        <div class="scene-range">
+          <input type="range" min="0" max="100" step="any" value="0" data-extraction aria-label="Recorrido de la charola">
+          <span class="tl-extraction-readout tabular-nums"></span>
+          <button type="button" data-restore-front hidden>Reponer delantera</button>
+        </div>
+        <details class="scene-extra">
+          <summary>Detalle de la charola seleccionada</summary>
+          <p class="tl-tray-size"></p>
+          <p class="tl-gap" hidden></p>
+          <p class="tl-double-depth" hidden>Modelo C · dos charolas de la misma altura por nivel. Retira la delantera para acceder a la trasera. Guarda la trasera antes de reponer la delantera.</p>
+          <div class="actions"><button type="button" data-tray-action>Retirar por completo</button></div>
+        </details>
         <p class="scene-note" id="navigation-help">Toca una charola para sacarla o guardarla · arrastra para girar o mover.</p>
       </div>
     </section>
@@ -410,6 +424,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const versions = [...root.querySelectorAll('[data-version]')];
   const viewButtons = [...root.querySelectorAll('[data-view]')];
   const trayButton = get('[data-tray-action]');
+  const restoreFrontButton = get('[data-restore-front]');
   const gl = canvas.getContext('webgl', {alpha: true, antialias: true});
   if (!gl) {
     status.textContent = 'La vista 3D requiere WebGL. Abre el simulador en un navegador compatible.';
@@ -481,7 +496,7 @@ h3 { font-size: 13px; font-weight: 650; }
   let panX = 0;
   let panY = 0;
   let navigationMode = 'rotate';
-  let scenePercent = 62;
+  let scenePercent = 68;
   let sidebarWidth = 320;
   let viewMode = 'angle';
   const doorOpen = [true,true,true,true];
@@ -732,7 +747,8 @@ h3 { font-size: 13px; font-weight: 650; }
     }
   }
 
-  function drawTray(tray,index,spec,rotated=version===1) {
+  function drawTray(tray,index,spec) {
+    const rotated=version===1;
     const {edges,span} = spec;
     const {bay,h,offset,lane} = tray;
     const product=products[h];
@@ -806,71 +822,83 @@ h3 { font-size: 13px; font-weight: 650; }
       box(ix,y+1.31,iz+d*.38,(insideW-4)*.53,4,.65,p.work,id);
     }
   }
-  let catalogTheme = '';
   function renderTrayCatalog() {
-    if(catalogTheme===themeKey) return;
-    const savedProject=project, savedPositions=positions, savedHits=hitTriangles;
-    const width=320, height=250;
-    const framebuffer=gl.createFramebuffer(), texture=gl.createTexture(), depth=gl.createRenderbuffer();
-    gl.bindTexture(gl.TEXTURE_2D,texture);
-    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-    gl.bindRenderbuffer(gl.RENDERBUFFER,depth);
-    gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,width,height);
-    gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,texture,0);
-    gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depth);
-    gl.viewport(0,0,width,height);
-    const cy=Math.cos(.48), sy=Math.sin(.48), cp=Math.cos(.31), sp=Math.sin(.31);
-    project=([x,y,z])=>{
-      const inward=x*sy+z*cy;
-      return [2*(80+2*(x*cy-z*sy))/160-1,1-2*(104-2*(y*cp-inward*sp))/125,
-        -(y*sp+inward*cp)/120];
-    };
-    const pixels=new Uint8Array(width*height*4);
-    const image=document.createElement('canvas');
-    image.width=width;
-    image.height=height;
-    const context=image.getContext('2d'), imageData=context.createImageData(width,height);
-    root.querySelectorAll('[data-product]').forEach(card=>{
-      const h=Number(card.dataset.product), product=products[h];
-      card.querySelector('[data-product-size]').textContent=
-        [product.length,product.depth,product.height].map(formatCm).join(' × ')+' cm';
-      positions=[];
-      hitTriangles=[];
-      drawTray({bay:0,h,top:product.height,row:-1,lane:0,offset:0},-100,
-        {edges:[-22],span:44,trayFront:product.depth/2,laneSpacing:0},false);
-      gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-      gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(positions),gl.DYNAMIC_DRAW);
-      gl.drawArrays(gl.TRIANGLES,0,positions.length/6);
-      gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
-      let minX=width, maxX=0, minY=height, maxY=0;
-      for(let y=0;y<height;y++){
-        imageData.data.set(pixels.subarray((height-1-y)*width*4,(height-y)*width*4),y*width*4);
-        for(let x=0;x<width;x++){
-          if(pixels[((height-1-y)*width+x)*4+3]===0) continue;
-          minX=Math.min(minX,x); maxX=Math.max(maxX,x);
-          minY=Math.min(minY,y); maxY=Math.max(maxY,y);
-        }
+    const projectPoint=(x,z,y)=>[Math.sqrt(3)/2*(x-z),.5*(x+z)-y];
+    const coordinates=point=>point.map(value=>value.toFixed(3)).join(' ');
+    const segment=(a,b)=>'<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>';
+    function roundedOutline(width,depth,height,radius) {
+      const a=width/2, b=depth/2, k=.55228475;
+      const point=(x,z)=>coordinates(projectPoint(x,z,height));
+      return 'M'+point(a-radius,-b)+' L'+point(-a+radius,-b)+
+        ' C'+point(-a+radius-radius*k,-b)+' '+point(-a,-b+radius-radius*k)+' '+point(-a,-b+radius)+
+        ' L'+point(-a,b-radius)+' C'+point(-a,b-radius+radius*k)+' '+point(-a+radius-radius*k,b)+' '+point(-a+radius,b)+
+        ' L'+point(a-radius,b)+' C'+point(a-radius+radius*k,b)+' '+point(a,b-radius+radius*k)+' '+point(a,b-radius)+
+        ' L'+point(a,-b+radius)+' C'+point(a,-b+radius-radius*k)+' '+point(a-radius+radius*k,-b)+' '+point(a-radius,-b)+' Z';
+    }
+    function frontOutline(width,depth,height,radius) {
+      const a=width/2-radius, b=depth/2-radius;
+      const point=(x,z)=>coordinates(projectPoint(x,z,height));
+      function arc(cx,cz,start,end) {
+        const k=4/3*Math.tan((end-start)/4);
+        const sx=cx+radius*Math.cos(start), sz=cz+radius*Math.sin(start);
+        const ex=cx+radius*Math.cos(end), ez=cz+radius*Math.sin(end);
+        return ' C'+point(sx-k*radius*Math.sin(start),sz+k*radius*Math.cos(start))+
+          ' '+point(ex+k*radius*Math.sin(end),ez-k*radius*Math.cos(end))+' '+point(ex,ez);
       }
-      context.putImageData(imageData,0,0);
-      const preview=card.querySelector('canvas');
-      const cropWidth=maxX-minX+1, cropHeight=maxY-minY+1;
-      preview.width=cropWidth+16;
-      preview.height=cropHeight+16;
-      preview.getContext('2d').drawImage(image,minX,minY,cropWidth,cropHeight,8,8,cropWidth,cropHeight);
+      return 'M'+point(a+radius/Math.sqrt(2),-b-radius/Math.sqrt(2))+
+        arc(a,-b,-Math.PI/4,0)+' L'+point(a+radius,b)+
+        arc(a,b,0,Math.PI/2)+' L'+point(-a,b+radius)+arc(-a,b,Math.PI/2,3*Math.PI/4);
+    }
+    function sidePoint(width,depth,height,radius,sign) {
+      return projectPoint(sign*(width/2-radius+radius/Math.sqrt(2)),
+        -sign*(depth/2-radius+radius/Math.sqrt(2)),height);
+    }
+    function dimension(a,b,text,name) {
+      const dx=b[0]-a[0], dy=b[1]-a[1], length=Math.hypot(dx,dy);
+      const nx=-dy/length, ny=dx/length;
+      const tick=point=>segment([point[0]-nx*1.4,point[1]-ny*1.4],[point[0]+nx*1.4,point[1]+ny*1.4]);
+      const x=(a[0]+b[0])/2+nx*3.5, y=(a[1]+b[1])/2+ny*3.5;
+      let angle=Math.atan2(dy,dx)*180/Math.PI;
+      if(angle>90) angle-=180;
+      return '<g class="drawing-cota" data-dimension="'+name+'">'+segment(a,b)+tick(a)+tick(b)+
+        '<text x="'+x+'" y="'+y+'" transform="rotate('+angle+' '+x+' '+y+')">'+text+'</text></g>';
+    }
+    root.querySelectorAll('[data-product]').forEach(card=>{
+      const product=products[Number(card.dataset.product)];
+      const {length,depth,height,heel}=product;
+      card.querySelector('[data-product-size]').textContent=
+        [length,depth,height].map(formatCm).join(' × ')+' cm';
+      const preview=card.querySelector('svg');
+      const minY=-height-(length+depth)/4-7;
+      preview.setAttribute('viewBox','-53 '+minY+' 106 '+(36-minY));
+      const widthStart=projectPoint(-length/2,depth/2,0).map((v,i)=>i===1?v+9:v);
+      const widthEnd=projectPoint(length/2,depth/2,0).map((v,i)=>i===1?v+9:v);
+      const depthStart=projectPoint(-length/2-7,-depth/2,0);
+      const depthEnd=projectPoint(-length/2-7,depth/2,0);
+      const heightStart=projectPoint(length/2+7,-depth/2,0);
+      const heightEnd=projectPoint(length/2+7,-depth/2,height);
+      const bodyWidth=heel[0]-1.1, bodyDepth=heel[1]-1.05;
+      const outlines='<path class="outline hidden-edge" d="'+roundedOutline(bodyWidth,bodyDepth,0,6.1)+'"/>'+
+        '<g class="outline">'+
+        segment(sidePoint(39.12,27.18,height-1.39,7.85,-1),sidePoint(bodyWidth,bodyDepth,0,6.1,-1))+
+        segment(sidePoint(39.12,27.18,height-1.39,7.85,1),sidePoint(bodyWidth,bodyDepth,0,6.1,1))+
+        '<path d="'+frontOutline(bodyWidth,bodyDepth,0,6.1)+'"/>'+
+        '<path d="'+frontOutline(39.12,27.18,height-1.39,7.85)+'"/>'+
+        '<path d="'+frontOutline(length,depth,height-1.11,3.23)+'"/></g>'+
+        '<path class="outline" fill-rule="evenodd" style="fill:var(--panel)" d="'+
+        roundedOutline(length,depth,height,3.23)+' '+roundedOutline(40.25,28.21,height,7.8)+'"/>';
+      const extensions='<g class="drawing-cota">'+
+        segment(projectPoint(-length/2,depth/2,height),widthStart)+
+        segment(projectPoint(length/2,depth/2,height),widthEnd)+
+        segment(projectPoint(-length/2,-depth/2,0),depthStart)+
+        segment(projectPoint(-length/2,depth/2,0),depthEnd)+
+        segment(projectPoint(length/2,-depth/2,0),heightStart)+
+        segment(projectPoint(length/2,-depth/2,height),heightEnd)+'</g>';
+      preview.innerHTML=outlines+extensions+
+        dimension(widthStart,widthEnd,formatCm(length)+' cm','length')+
+        dimension(depthStart,depthEnd,formatCm(depth)+' cm','depth')+
+        dimension(heightStart,heightEnd,formatCm(height)+' cm','height');
     });
-    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-    gl.bindTexture(gl.TEXTURE_2D,null);
-    gl.bindRenderbuffer(gl.RENDERBUFFER,null);
-    gl.deleteFramebuffer(framebuffer);
-    gl.deleteTexture(texture);
-    gl.deleteRenderbuffer(depth);
-    project=savedProject;
-    positions=savedPositions;
-    hitTriangles=savedHits;
-    catalogTheme=themeKey;
   }
 
   function traySupports(bay,spec) {
@@ -1063,7 +1091,6 @@ h3 { font-size: 13px; font-weight: 650; }
     dimensionOverlay.toggleAttribute('hidden',!showCotas);
     if(showCotas) drawCotas(spec,width,height);
     readPalette();
-    renderTrayCatalog();
     positions=[];
     hitTriangles=[];
     build(spec);
@@ -1071,6 +1098,7 @@ h3 { font-size: 13px; font-weight: 650; }
     gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
     gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(positions),gl.DYNAMIC_DRAW);
     gl.drawArrays(gl.TRIANGLES,0,positions.length/6);
+    if(!animating) updateRestoreButton();
     if(animating) schedule();
     else previous=0;
   }
@@ -1114,7 +1142,13 @@ h3 { font-size: 13px; font-weight: 650; }
       line(lines[3],point([spec.outerLeft,bottom,baseFront]),point([baseCotaX,bottom,baseFront]));
       line(lines[4],point([spec.outerLeft,top,baseFront]),point([baseCotaX,top,baseFront]));
     }
-    const pegboardY=benchHeight+bodyOffsetY+40;
+    const benchTop=benchHeight+bodyOffsetY;
+    const benchCotaX=spec.outerLeft-20, benchFront=spec.interiorFront-.35;
+    mark('bench',[benchCotaX,0,benchFront],[benchCotaX,benchTop,benchFront],
+      'Mesa · '+formatCm(benchTop)+' cm',[-45,-4]);
+    line(dimensionMarks.bench.lines[3],point([spec.outerLeft,0,benchFront]),point([benchCotaX,0,benchFront]));
+    line(dimensionMarks.bench.lines[4],point([spec.edges[0],benchTop,benchFront]),point([benchCotaX,benchTop,benchFront]));
+    const pegboardY=benchTop+40;
     mark('pegboard',[right+8,pegboardY,spec.railFront],[right+8,pegboardY,closedPegboardFace],
       'Pegboard · '+formatCm(closedPegboardFace-spec.railFront)+' cm',[0,-22],Math.abs(Math.sin(yaw))>.18);
   }
@@ -1215,15 +1249,13 @@ h3 { font-size: 13px; font-weight: 650; }
       slider.value=currentExtraction*100;
       slider.setAttribute('aria-valuetext',tray?readout:'Sin charolas');
     });
-    get('.tl-extraction-readout').textContent=tray?readout:'';
+    get('.tl-extraction-readout').textContent=tray?percentage+'% · '+distance+' cm':'';
     const phase=!tray?'Sin charolas':currentExtraction===0?'Charola guardada':
       currentExtraction===1?'Charola retirada':'Extracción · '+percentage+'%';
     get('.tl-phase').textContent=phase;
     const lane=tray && spec.count===2?(tray.lane===0?' · delantera':' · trasera'):'';
-    get('.tl-phase-tray').textContent=tray?'Módulo '+(tray.bay+1)+' · '+tray.h+' cm'+lane:'';
-    get('.tl-selected-tray').textContent=tray?
-      'Seleccionada · módulo '+(tray.bay+1)+' · '+levelLabel(tray)+' · '+tray.h+' cm'+lane:
-      'Selecciona una charola del modelo.';
+    get('.tl-phase-tray').textContent=tray?'M'+(tray.bay+1)+' · '+levelLabel(tray)+' · '+tray.h+' cm'+lane:'';
+    updateRestoreButton();
     const product=products[tray?.h];
     root.querySelectorAll('.tl-tandem-measure').forEach(item=>{item.hidden=spec.count!==2;});
     const actualTrayDepth=product?(version===1?product.length:product.depth):spec.d;
@@ -1323,6 +1355,11 @@ h3 { font-size: 13px; font-weight: 650; }
   function toggleTray(index) {
     setTrayExtraction(index,active===index || removedFronts.has(index)?0:1);
     save();
+  }
+  function updateRestoreButton() {
+    const tray=trays[selected];
+    restoreFrontButton.hidden=!(tray?.lane===1 && removedFronts.has(selected-frontTrays.length) &&
+      (active!==selected || extraction===0) && tray.offset<=.01);
   }
   function setTrayExtraction(index,value) {
     const tray=trays[index];
@@ -1455,6 +1492,10 @@ h3 { font-size: 13px; font-weight: 650; }
   });
   doorButtons.forEach((button,index)=>button.addEventListener('click',()=>toggleDoor(index)));
   trayButton.addEventListener('click',()=>toggleTray(selected));
+  restoreFrontButton.addEventListener('click',()=>{
+    setTrayExtraction(selected-frontTrays.length,0);
+    save();
+  });
   extractionSliders.forEach(slider=>{
     slider.addEventListener('input',()=>setTrayExtraction(selected,Number(slider.value)/100));
     slider.addEventListener('change',save);
@@ -1685,7 +1726,8 @@ h3 { font-size: 13px; font-weight: 650; }
   new ResizeObserver(schedule).observe(canvas);
   new MutationObserver(schedule).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change',schedule);
-  update('Elige una charola y ajusta el deslizador de extracción.');
+  renderTrayCatalog();
+  update('Toca una charola del modelo para sacarla o guardarla.');
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
     restore(saved?.privateContent);
