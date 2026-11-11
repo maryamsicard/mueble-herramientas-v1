@@ -488,6 +488,8 @@ h3 { font-size: 13px; font-weight: 650; }
   ];
   const magneticMount='El respaldo magnético requiere una superficie de acero. En pegboard de madera, el montaje se simula con una placa de acero.';
   const wallMount='Soporte para atornillar a la pared. Para el pegboard, la simulación supone una placa o fijación pasante.';
+  const pegboardPitch=2.54;
+  const wallPegSetSize=4;
   const accessoryCatalog = [{
     id:'klkcms-cable-ties',
     label:'Organizador de cinchos',
@@ -523,14 +525,24 @@ h3 { font-size: 13px; font-weight: 650; }
     draw:drawNiHomeRack
   })),...[
     {size:'5',depth:12.7},{size:'7',depth:17.78}
-  ].map(item=>({
-    ...item,id:'wallpeg-'+item.size,label:'WallPeg · '+item.size+' pulg',name:'WallPeg · Contenedor de '+item.size+' pulg',
-    url:'https://www.amazon.com.mx/dp/B07WF2PH5H',source:'https://wallpegstore.com/product/12-piece-pegboard-bin-kit/',
-    width:10.16,height:7.62,above:.75,
-    mounting:'Ganchos integrados para pegboard de 1/4 pulg con centros a 1 pulg.',
-    modelNote:'Cotas de WallPeg por contenedor. Se muestra con tornillos, tuercas y taquetes de ejemplo.',
-    draw:drawPartsBin
-  })),{
+  ].flatMap(item=>{
+    const bin={
+      ...item,id:'wallpeg-'+item.size,label:'WallPeg · '+item.size+' pulg',name:'WallPeg · Contenedor de '+item.size+' pulg',
+      url:'https://www.amazon.com.mx/dp/B07WF2PH5H',source:'https://wallpegstore.com/product/12-piece-pegboard-bin-kit/',
+      width:10.16,height:7.62,above:.75,
+      mounting:'Ganchos integrados para pegboard de 1/4 pulg con centros a 1 pulg.',
+      modelNote:'Cotas de WallPeg por contenedor. Se muestra con tornillos, tuercas y taquetes de ejemplo.',
+      draw:drawPartsBin
+    };
+    return [bin,{
+      ...bin,id:bin.id+'-set-4',label:'WallPeg · 4 de '+item.size+' pulg',
+      name:'WallPeg · Set de 4 contenedores de '+item.size+' pulg',
+      width:wallPegSetSize*bin.width+(wallPegSetSize-1)*pegboardPitch,
+      bin,
+      modelNote:'Cuatro contenedores en una fila, con 2.54 cm libres entre piezas. La cantidad indica cuántas filas colocar.',
+      draw:drawWallPegSet
+    }];
+  }),{
     id:'casoman-magnetic-10',label:'CASOMAN · 10 pinzas',name:'CASOMAN · Soporte magnético de 10 ranuras',
     url:'https://www.amazon.com.mx/dp/B091PVB652',
     width:31.75,height:6.096,depth:4.318,above:7,below:13,extraDepth:2,
@@ -904,11 +916,11 @@ h3 { font-size: 13px; font-weight: 650; }
     const surface=facePoints.map(([u,v,f])=>transform([u,v,f+.007*direction]));
     face(surface,p.peg,id,.03);
     const plane=faceZ+.015*direction;
-    const columns = Math.floor((w-3)/2.54);
-    const rows = Math.floor((h-4)/2.54);
+    const columns = Math.floor((w-3)/pegboardPitch);
+    const rows = Math.floor((h-4)/pegboardPitch);
     for(let i=0;i<=columns;i++) for(let j=0;j<=rows;j++){
-      const a=x+(w-columns*2.54)/2+i*2.54;
-      const b=y+(h-rows*2.54)/2+j*2.54;
+      const a=x+(w-columns*pegboardPitch)/2+i*pegboardPitch;
+      const b=y+(h-rows*pegboardPitch)/2+j*pegboardPitch;
       const r=.26;
       face([[a-r,b,plane],[a,b+r,plane],[a+r,b,plane],[a,b-r,plane]].map(transform),p.hole,id);
     }
@@ -1030,6 +1042,12 @@ h3 { font-size: 13px; font-weight: 650; }
     const mountColor=product.size?color:toolSteel;
     for(const x of [w*.25,w*.75]){
       box(x-.16,h-.5,.05,.32,product.above+.5,.35,mountColor,id,transform);
+    }
+  }
+  function drawWallPegSet(transform,id,highlight,{bin}) {
+    const step=bin.width+pegboardPitch;
+    for(let i=0;i<wallPegSetSize;i++){
+      drawPartsBin(([x,y,z])=>transform([x+i*step,y,z]),id,highlight,bin);
     }
   }
   function drawNiHomeRack(transform,id,highlight,product) {
@@ -1674,12 +1692,14 @@ h3 { font-size: 13px; font-weight: 650; }
     const isMoving=Boolean(movingAccessory);
     accessoryPicker.disabled=isMoving;
     accessoryCount.disabled=accessoryCount.hidden=isMoving;
-    get('label[for="tl-accessory-count"]').hidden=isMoving;
+    const quantityLabel=get('label[for="tl-accessory-count"]');
+    quantityLabel.hidden=isMoving;
+    quantityLabel.textContent=product?.bin?'Cantidad de sets':'Cantidad';
     accessoryPlaceButton.textContent=isMoving?'Mover aquí':'Colocar';
     accessoryCancelButton.hidden=!isMoving;
     const formatSize=size=>[size.width,size.height,size.depth].map(formatCm).join(' × ')+' cm';
     get('[data-accessory-size]').textContent=product?
-      'Soporte '+(product.estimated?'aprox. ':'')+formatSize(product)+' · ancho × alto × fondo':'';
+      (product.bin?'Set ':'Soporte ')+(product.estimated?'aprox. ':'')+formatSize(product)+' · ancho × alto × fondo':'';
     get('[data-accessory-loaded]').textContent=product?'Espacio con herramientas · '+formatSize(accessoryFootprint(product)):'';
     const spec=dimensions();
     for(const item of [...accessorySurface.options].slice(1)){
@@ -1859,8 +1879,9 @@ h3 { font-size: 13px; font-weight: 650; }
     const placements=findAccessorySlots(surface,product,quantity,moveId,spec);
     const panelLabel='Pegboard '+accessorySurfaceLabel(surface);
     if(placements.length!==quantity){
+      const units=product.bin?(placements.length===1?' set.':' sets.'):(placements.length===1?' pieza.':' piezas.');
       accessoryFeedback.textContent=panelLabel+(placements.length?
-        ' · espacio para '+placements.length+(placements.length===1?' pieza.':' piezas.'):
+        ' · espacio para '+placements.length+units:
         ' · sin espacio libre para este accesorio.');
       return;
     }
@@ -1874,8 +1895,10 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     movingAccessory=null;
     revealAccessoryPanel(surface);
-    accessoryFeedback.textContent=panelLabel+' · '+(quantity===1?
-      (moveId!==undefined?'accesorio movido.':'accesorio colocado.'):quantity+' accesorios colocados.');
+    const unit=product.bin?'set':'accesorio';
+    const message=moveId!==undefined?unit+' movido.':
+      quantity===1?unit+' colocado.':quantity+' '+unit+'s colocados.';
+    accessoryFeedback.textContent=panelLabel+' · '+message;
     change();
   }
   function restoreAccessories(snapshot) {
