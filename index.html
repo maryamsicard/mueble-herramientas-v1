@@ -303,23 +303,21 @@ h3 { font-size: 13px; font-weight: 650; }
 
       <section class="control-panel" id="panel-puertas" role="tabpanel" aria-labelledby="tab-puertas" tabindex="0" hidden>
         <div class="panel-intro">
-          <h2>Puertas y chapas</h2>
+          <h2>Puertas y chapa</h2>
           <p class="text-small text-muted">Prueba la apertura de las hojas y consulta la chapa del diseño.</p>
         </div>
         <div class="control-group">
           <h3>Simulación de apertura y cierre de las puertas</h3>
-          <p class="text-small text-muted" data-door-description></p>
+          <p class="text-small text-muted">Puerta 1 a la izquierda y puerta 2 a la derecha. Ambas abren hasta 125°.</p>
           <div class="actions" role="group" aria-label="Simulación de apertura y cierre de las puertas">
             <button type="button" data-door="0">1</button>
             <button type="button" data-door="1">2</button>
-            <button type="button" data-door="2">3</button>
-            <button type="button" data-door="3">4</button>
           </div>
         </div>
         <div class="control-group">
           <h3>Chapa de combinación</h3>
           <p><strong>RETRIN MP10003 · negra</strong></p>
-          <p class="text-small text-muted">Chapa horizontal de sobreponer con combinación de tres dígitos. Se atornilla de frente sobre el travesaño central. <span data-lock-count></span></p>
+          <p class="text-small text-muted">Una chapa horizontal de sobreponer con combinación de tres dígitos, atornillada al travesaño en la unión de las dos puertas.</p>
           <p class="text-small tabular-nums">Medidas frontales · 10.9 × 4.6 cm</p>
           <p class="text-small"><a href="https://www.amazon.com.mx/dp/B0D6KTG15Z" target="_blank" rel="noopener noreferrer">Ver RETRIN MP10003 en Amazon México</a></p>
         </div>
@@ -507,10 +505,10 @@ h3 { font-size: 13px; font-weight: 650; }
   const tandemGap=.4;
   const variants = [
     {w:42, d:30, depth:50, count:1, frontRecess:14.3},
-    {w:30, d:42, depth:60, count:1, frontRecess:12.4, doorCount:2, centerBench:true},
+    {w:30, d:42, depth:60, count:1, frontRecess:12.4, centerBench:true},
     {w:42, d:30, depth:80, count:2, frontRecess:13.9}
   ];
-  const doorCountFor=index=>variants[index].doorCount??4;
+  const doorCount=2;
   const gardenCatalog=[
     {id:'ryobi-hedge',name:'Cortasetos RYOBI P2609BTL',cut:22,height:97,width:23,depth:18.6,hold:64,
       url:'https://www.amazon.com.mx/dp/B0C3Z4SNZB',draw:drawHedgeTrimmer},
@@ -620,8 +618,8 @@ h3 { font-size: 13px; font-weight: 650; }
     return {width:product.width,height:product.height+below+(product.above??0),
       depth:product.depth+(product.extraDepth??0),below};
   }
-  const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
-  const accessoryPanelNumber=surface=>surface||doorCountFor(version)+1;
+  const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2'];
+  const accessoryPanelNumber=surface=>surface||doorCount+1;
   const accessorySurfaceLabel=surface=>accessoryPanelNumber(surface)+' · '+accessorySurfaceNames[surface];
   // Keep the positions the user chose and recognize copies of this older preset on reload.
   const previousDefaultA=[
@@ -771,15 +769,12 @@ h3 { font-size: 13px; font-weight: 650; }
   const doorRailFace=2.1;
   const doorStileWidth=6.2;
   const doorMeetingGap=.48;
-  const exteriorDoorOpening=125;
-  const interiorDoorOpening=90;
-  const exteriorDoor=(index,count)=>index===0 || index===count-1;
-  const doorOpening=(index,count)=>exteriorDoor(index,count)?exteriorDoorOpening:interiorDoorOpening;
+  const doorOpening=125*Math.PI/180;
   const frameSideWidth=3;
   const pegboardThickness=.5;
   const closedPegboardFace=doorOriginZ+doorPegboardZ-pegboardThickness/2;
   let version = 0;
-  const doorForBay=(bay,index=version)=>doorCountFor(index)===2?bay%2:bay;
+  const doorForBay=bay=>variants[version].centerBench?bay%2:Math.floor(bay/2);
   const removedFronts = new Set();
   const gardenOccupies=bay=>gardenLayouts[version].some(item=>item.bay===bay);
   function gardenTrayFloor(bay,index=version) {
@@ -814,23 +809,15 @@ h3 { font-size: 13px; font-weight: 650; }
   let scenePercent = 68;
   let sidebarWidth = 320;
   let viewMode = 'angle';
-  const doorOpen = [true,true,true,true];
+  const doorOpen = [true,true];
   const doorAngle = doorOpen.map(() => 1);
-  const haspFold = [1,1];
-  function doorStatesFor(count,previousCount,states) {
-    if(count===previousCount) return states.slice();
-    return count===2?[states[0]||states[2],states[1]||states[3],false,false]:
-      [states[0],states[1],states[0],states[1]];
-  }
+  let haspFold = 1;
   function restoreDoorStates(states) {
     doorOpen.forEach((_,index)=>{
-      doorOpen[index]=index<doorCountFor(version) && Boolean(states[index]);
+      doorOpen[index]=Boolean(states[index]);
       doorAngle[index]=Number(doorOpen[index]);
     });
-    haspFold.forEach((_,pair)=>{haspFold[pair]=Number(doorOpen[pair*2] || doorOpen[pair*2+1]);});
-  }
-  function setAllDoors(open) {
-    doorOpen.forEach((_,index)=>{doorOpen[index]=open && index<doorCountFor(version);});
+    haspFold=Number(doorOpen.some(Boolean));
   }
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -853,10 +840,13 @@ h3 { font-size: 13px; font-weight: 650; }
     const doorFront=doorOriginZ+doorRailFace;
     const rear=doorFront-depth;
     const doorClearance=Math.floor(closedPegboardFace-interiorFront);
-    return {w,d,count,doorCount:doorCountFor(variantIndex),centerBench,laneSpacing,rackDepth,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
+    return {w,d,count,centerBench,laneSpacing,rackDepth,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
       doorClearance,interiorFront,trayFront,tableWidth:2*span+2.5,railBack,railFront,postBands};
   };
-  accessoryLayouts[1]=accessoryLayouts[1].map(item=>mergeDoubleDoorPegboards(item,dimensions(1)));
+  accessoryLayouts.forEach((layout,index)=>{
+    const spec=dimensions(index);
+    accessoryLayouts[index]=layout.map(item=>mergeDoubleDoorPegboards(item,spec));
+  });
   const trayTravel=(tray,spec)=>spec.depth-(spec.count-1-tray.lane)*spec.laneSpacing;
 
   function makeProgram(vertex,fragment,attributes) {
@@ -1035,12 +1025,12 @@ h3 { font-size: 13px; font-weight: 650; }
       face([back[i],front[i],front[next],back[next]],color,id,-.18);
     }
   }
-  function drawCombinationLock(sign,seam,y,pair,transform) {
-    const id=pair*2+(sign>0?1:2);
+  function drawCombinationLock(sign,seam,y,transform) {
+    const id=sign>0?1:2;
     const graphite=[.13,.13,.14], dial=[.22,.22,.23], markings=[.68,.67,.64];
     if(sign>0){
       const hingeX=seam-4.85, hingeZ=doorRailFace+.5;
-      const angle=haspFold[pair]*Math.PI;
+      const angle=haspFold*Math.PI;
       const co=Math.cos(angle), si=Math.sin(angle);
       const fold=([u,v,z])=>transform([hingeX+u*co-z*si,v,hingeZ+u*si+z*co]);
       roundedHardware(-.6,y-2.3,-.18,10.9,4.6,.36,.62,graphite,id,fold);
@@ -1661,21 +1651,28 @@ h3 { font-size: 13px; font-weight: 650; }
     }
   }
   function doorLayout(i,spec) {
-    const sign=i%2===0?1:-1;
-    const double=spec.doorCount===2;
-    const pivot=double?sign*(spec.outerLeft+.35):[spec.outerLeft+.35,-2.5,2.5,-spec.outerLeft-.35][i];
-    const meeting=double?0:i<2?spec.edges[0]+spec.span+1.25:spec.edges[2]+spec.span+1.25;
-    const leaf=Math.abs(meeting-pivot)-doorMeetingGap/2;
+    const sign=i===0?1:-1;
+    const pivot=sign*(spec.outerLeft+.35);
+    const leaf=Math.abs(pivot)-doorMeetingGap/2;
     const local=sign>0?0:-leaf;
-    const hingeInset=double || i===0 || i===3?5.3:3.7, meetingInset=3.7;
+    const hingeInset=5.3, meetingInset=3.7;
     const boardX=local+(sign>0?hingeInset:meetingInset);
-    return {sign,pivot,meeting,leaf,local,boardX,boardWidth:leaf-hingeInset-meetingInset};
+    return {sign,pivot,leaf,local,boardX,boardWidth:leaf-hingeInset-meetingInset};
   }
   function mergeDoubleDoorPegboards(item,spec) {
     if(!Number.isInteger(item?.surface) || item.surface<1 || item.surface>4) return item;
     const surface=Math.ceil(item.surface/2);
-    const x=item.surface%2===1?item.x+doorLayout(surface-1,spec).boardWidth-
-      doorLayout(item.surface-1,{...spec,doorCount:4,edges:leftBenchEdges(spec.left,spec.span)}).boardWidth:item.x;
+    let x=item.x;
+    if(item.surface%2===1){
+      // Preserve each original panel's coordinate system on its half of the wider leaf.
+      const index=item.surface-1;
+      const oldPivot=index===0?spec.outerLeft+.35:2.5;
+      const oldEdges=leftBenchEdges(spec.left,spec.span);
+      const oldMeeting=oldEdges[index]+spec.span+1.25;
+      const oldHingeInset=index===0?5.3:3.7;
+      const oldWidth=Math.abs(oldMeeting-oldPivot)-doorMeetingGap/2-oldHingeInset-3.7;
+      x+=doorLayout(surface-1,spec).boardWidth-oldWidth;
+    }
     return {...item,surface,x};
   }
 
@@ -1756,9 +1753,9 @@ h3 { font-size: 13px; font-weight: 650; }
     trays.forEach((tray,index) => {
       if(trayAvailable(tray) && !removedFronts.has(index) && viewMode!=='posts') drawTray(tray,index,spec);
     });
-    for(let i=0;i<spec.doorCount;i++){
-      const {sign,pivot,meeting,leaf,local,boardX,boardWidth}=doorLayout(i,spec);
-      const theta=sign*doorAngle[i]*doorOpening(i,spec.doorCount)*Math.PI/180;
+    for(let i=0;i<doorCount;i++){
+      const {sign,pivot,leaf,local,boardX,boardWidth}=doorLayout(i,spec);
+      const theta=sign*doorAngle[i]*doorOpening;
       const co=Math.cos(theta), si=Math.sin(theta);
       const t=([x,y,z]) => [pivot+x*co-z*si,y,doorOriginZ+x*si+z*co];
       const id=i+1;
@@ -1790,7 +1787,7 @@ h3 { font-size: 13px; font-weight: 650; }
       for(const stileY of [y+8,middle+6]){
         drawStile(stileX,stileY,doorStileWidth,stileHeight,i*11+stileY);
       }
-      drawCombinationLock(sign,meeting-pivot,middle,Math.floor(i/2),t);
+      drawCombinationLock(sign,-pivot,middle,t);
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
       const spacerBack=doorPegboardZ+.35;
       box(boardX,29,spacerBack,boardWidth,159,panelBack-spacerBack,p.steel,id,t);
@@ -1815,17 +1812,14 @@ h3 { font-size: 13px; font-weight: 650; }
       return value+Math.sign(target-value)*speed*dt;
     };
     const spec=dimensions();
-    for(let pair=0;pair<spec.doorCount/2;pair++){
-      const doors=[2*pair,2*pair+1];
-      for(const i of doors){
-        if(!doorOpen[i]) doorAngle[i]=toward(doorAngle[i],0,.0038);
-      }
-      const fold=doors.some(i=>doorOpen[i] || doorAngle[i]>0);
-      haspFold[pair]=toward(haspFold[pair],Number(fold),.007);
-      if(haspFold[pair]===1){
-        for(const i of doors){
-          if(doorOpen[i]) doorAngle[i]=toward(doorAngle[i],1,.0038);
-        }
+    for(let i=0;i<doorCount;i++){
+      if(!doorOpen[i]) doorAngle[i]=toward(doorAngle[i],0,.0038);
+    }
+    const fold=doorOpen.some(Boolean) || doorAngle.some(angle=>angle>0);
+    haspFold=toward(haspFold,Number(fold),.007);
+    if(haspFold===1){
+      for(let i=0;i<doorCount;i++){
+        if(doorOpen[i]) doorAngle[i]=toward(doorAngle[i],1,.0038);
       }
     }
     trays.forEach((tray,index) => {
@@ -2001,10 +1995,11 @@ h3 { font-size: 13px; font-weight: 650; }
     });
   }
   function revealGardenBay(bay) {
-    doorOpen[doorForBay(bay)]=true;
+    const door=doorForBay(bay);
+    doorOpen[door]=true;
     setView('angle');
     const shared=gardenLayouts[version].filter(item=>item.bay===bay).length===2;
-    yaw=(bay===2?1:-1)*(shared?.35:.20);
+    yaw=(door===0?1:-1)*(shared?.35:.20);
     pitch=.15;
   }
   function updateGardenUi() {
@@ -2115,7 +2110,7 @@ h3 { font-size: 13px; font-weight: 650; }
     };
   }
   function accessoryFits(placement,product,spec) {
-    if(placement.surface<0 || placement.surface>spec.doorCount) return false;
+    if(!Number.isInteger(placement.surface) || placement.surface<0 || placement.surface>doorCount) return false;
     const panel=accessoryPanelSize(placement.surface,spec);
     const footprint=accessoryFootprint(product);
     return placement.x>=0 && placement.y>=0 &&
@@ -2148,8 +2143,7 @@ h3 { font-size: 13px; font-weight: 650; }
     get('[data-accessory-loaded]').textContent=product?'Espacio con herramientas · '+formatSize(accessoryFootprint(product)):'';
     const spec=dimensions();
     const previousSurface=accessorySurface.value;
-    const surfaces=[...Array.from({length:spec.doorCount},(_,index)=>index+1),0];
-    const options=surfaces.map(surface=>{
+    const options=[1,2,0].map(surface=>{
       const fits=product && accessoryFits({surface,x:0,y:0},product,spec);
       const item=option(surface,accessorySurfaceLabel(surface)+(fits?'':' (no cabe)'));
       item.disabled=!fits;
@@ -2357,7 +2351,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function restoreAccessories(snapshot) {
     const savedLayouts=snapshot.accessoryLayouts;
-    const oldDoorPanels=(snapshot.accessoryLayoutRevision??0)<3;
+    const usesOldPanels=index=>(snapshot.accessoryLayoutRevision??0)<(index===1?3:4);
     // Upgrade only a saved copy of the previous default, leaving edited layouts intact.
     const upgradePreset=snapshot.accessoryLayoutRevision===1 && savedLayouts?.length===3 &&
       Array.isArray(savedLayouts[0]) && savedLayouts[0].length===previousDefaultA.length &&
@@ -2371,7 +2365,7 @@ h3 { font-size: 13px; font-weight: 650; }
         const saved=savedLayouts[index];
         if(!Array.isArray(saved)) return;
         const spec=dimensions(index);
-        const placements=index===1 && oldDoorPanels?saved.map(item=>mergeDoubleDoorPegboards(item,spec)):saved;
+        const placements=usesOldPanels(index)?saved.map(item=>mergeDoubleDoorPegboards(item,spec)):saved;
         accessoryLayouts[index]=placements.filter(item=>{
           if(!item || !Number.isSafeInteger(item.id) || item.id<1 || ids.has(item.id) ||
             !Number.isInteger(item.surface) || !accessorySurfaceNames[item.surface] ||
@@ -2391,8 +2385,9 @@ h3 { font-size: 13px; font-weight: 650; }
     if(Number.isInteger(snapshot.accessoryQuantity)){
       accessoryCount.value=clamp(snapshot.accessoryQuantity,1,100);
     }
-    if(Number.isInteger(snapshot.accessorySurface) && accessorySurfaceNames[snapshot.accessorySurface]){
-      accessorySurface.value=version===1 && oldDoorPanels?Math.ceil(snapshot.accessorySurface/2):snapshot.accessorySurface;
+    if(Number.isInteger(snapshot.accessorySurface) && snapshot.accessorySurface>=0 && snapshot.accessorySurface<=4){
+      const surface=usesOldPanels(version)?Math.ceil(snapshot.accessorySurface/2):snapshot.accessorySurface;
+      if(accessorySurfaceNames[surface]) accessorySurface.value=surface;
     }
   }
   populateAccessoryPicker();
@@ -2461,13 +2456,7 @@ h3 { font-size: 13px; font-weight: 650; }
     get('.view-title').textContent=viewCopy[viewMode][0];
     get('.view-copy').textContent=viewCopy[viewMode][1];
     versions.forEach((button,index)=>button.setAttribute('aria-pressed',index===version));
-    get('[data-door-description]').textContent=spec.doorCount===2?
-      'Puerta 1 a la izquierda y puerta 2 a la derecha. Ambas abren hasta '+exteriorDoorOpening+'°.':
-      'De izquierda a derecha, las puertas 1 y 4 abren hasta '+exteriorDoorOpening+'°. Las puertas 2 y 3 abren a '+interiorDoorOpening+'°.';
-    get('[data-lock-count]').textContent=spec.doorCount===2?
-      'Una chapa en la unión de las dos hojas.':'Dos chapas, una por cada par de puertas.';
     doorButtons.forEach((button,index)=>{
-      button.hidden=index>=spec.doorCount;
       button.setAttribute('aria-pressed',doorOpen[index]);
       button.setAttribute('aria-label','Puerta '+(index+1)+(doorOpen[index]?' abierta':' cerrada'));
     });
@@ -2537,8 +2526,8 @@ h3 { font-size: 13px; font-weight: 650; }
     try {
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
-        doors:doorOpen,doorLayoutRevision:2,selected,active,extraction,removedFronts:[...removedFronts],
-        accessoryLayouts,accessoryLayoutRevision:3,gardenLayouts,gardenLayoutRevision:1,gardenUpperTrays,
+        doors:doorOpen,doorLayoutRevision:3,selected,active,extraction,removedFronts:[...removedFronts],
+        accessoryLayouts,accessoryLayoutRevision:4,gardenLayouts,gardenLayoutRevision:1,gardenUpperTrays,
         accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
         accessoryQuantity:Number(accessoryCount.value),
         accessorySurface:(movingAccessory?.surface??accessorySurface.value)===''?null:
@@ -2551,7 +2540,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function restore(snapshot) {
     if(!snapshot || !variants[snapshot.version] ||
-      !Array.isArray(snapshot.doors) || snapshot.doors.length!==4) return;
+      !Array.isArray(snapshot.doors) || ![2,4].includes(snapshot.doors.length)) return;
     version=snapshot.version;
     restoreGarden(snapshot.gardenLayouts,snapshot.gardenLayoutRevision);
     if(Array.isArray(snapshot.layout)) snapshot.layout.forEach((heights,i)=>{
@@ -2560,8 +2549,14 @@ h3 { font-size: 13px; font-weight: 650; }
     });
     restoreGardenTrays(snapshot.gardenUpperTrays);
     refreshTrays();
-    const doorCount=doorCountFor(version);
-    restoreDoorStates(doorStatesFor(doorCount,snapshot.doorLayoutRevision===2?doorCount:4,snapshot.doors));
+    const states=snapshot.doors;
+    const oldFour=states.length===4 && (snapshot.doorLayoutRevision??0)<(version===1?2:3);
+    if(oldFour){
+      restoreDoorStates(version===1?[states[0]||states[2],states[1]||states[3]]:
+        [states[0]||states[1],states[2]||states[3]]);
+    } else {
+      restoreDoorStates(states);
+    }
     if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
     dimensionsToggle.checked=snapshot.cotas!==false;
     // Older snapshots stored nine trays in the two bench columns.
@@ -2600,7 +2595,7 @@ h3 { font-size: 13px; font-weight: 650; }
     save();
   }
   function toggleDoor(i) {
-    if(i<0 || i>=doorCountFor(version)) return;
+    if(i<0 || i>=doorCount) return;
     if(doorOpen[i] && ((active>=0 && doorForBay(trays[active].bay)===i) ||
         trays.some(tray=>doorForBay(tray.bay)===i && tray.offset>.01))){
       update('Guarda la charola antes de cerrar esa puerta.');
@@ -2652,10 +2647,7 @@ h3 { font-size: 13px; font-weight: 650; }
   versions.forEach((button,index)=>button.addEventListener('click',()=>{
     if(version===index) return;
     cancelAccessoryMove();
-    const previousCount=doorCountFor(version);
     version=index;
-    const nextCount=doorCountFor(version);
-    if(previousCount!==nextCount) restoreDoorStates(doorStatesFor(nextCount,previousCount,doorOpen));
     selectedAccessory=null;
     accessoryFeedback.textContent='';
     gardenFeedback.textContent='';
@@ -2674,7 +2666,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     const messages=[
       'Versión A · reborde de 42 cm en las ranuras.',
-      'Versión B · mesa central, dos puertas y reborde de 30 cm en las ranuras.',
+      'Versión B · mesa central y reborde de 30 cm en las ranuras.',
       'Versión C · dos charolas de frente de 42 cm por nivel · fondo total de '+variants[2].depth+' cm.'
     ];
     change(messages[index]);
@@ -2712,7 +2704,7 @@ h3 { font-size: 13px; font-weight: 650; }
     refreshTrays();
     syncEditorToTray();
     layoutFeedback.textContent='';
-    setAllDoors(true);
+    doorOpen.fill(true);
     setView('front');
     const message=gardenLayouts[version].length?
       'Distribución aplicada, incluidas las charolas que caben arriba de las herramientas de jardín.':
@@ -2803,10 +2795,9 @@ h3 { font-size: 13px; font-weight: 650; }
       update('Guarda la charola antes de cerrar las puertas.');
       return;
     }
-    setAllDoors(false);
+    doorOpen.fill(false);
     setView('angle');
-    change(doorCountFor(version)===2?
-      'Fachada cerrada · dos hojas y una chapa central.':'Fachada cerrada · dos marcos sobrepuestos.');
+    change('Fachada cerrada · dos hojas y una chapa central.');
   });
   viewButtons.forEach(button=>button.addEventListener('click',()=>{
     const view=button.dataset.view;
@@ -2816,7 +2807,7 @@ h3 { font-size: 13px; font-weight: 650; }
       setView(view);
       change('Detalle · reborde de la charola dentro de la ranura lateral.');
     } else if(view==='posts' && viewMode!=='posts'){
-      setAllDoors(true);
+      doorOpen.fill(true);
       setView(view);
       change('Charolas ocultas para inspeccionar las ranuras continuas.');
     } else {
@@ -2831,10 +2822,10 @@ h3 { font-size: 13px; font-weight: 650; }
       const spec=dimensions();
       const centerZ=viewMode==='posts'?(spec.railBack+spec.railFront)/2:spec.count===2?spec.rear/2:0;
       const cosYaw=Math.cos(yaw),sinYaw=Math.sin(yaw);
-      for(const index of [0,spec.doorCount-1]){
+      for(let index=0;index<doorCount;index++){
         if(!doorOpen[index] && doorAngle[index]===0) continue;
         const {leaf,pivot,sign}=doorLayout(index,spec);
-        const theta=sign*exteriorDoorOpening*Math.PI/180;
+        const theta=sign*doorOpening;
         const co=Math.cos(theta),si=Math.sin(theta);
         for(const x of [0,sign*leaf]){
           for(const z of [spec.interiorFront-doorOriginZ,doorRailFace+1.65]){
