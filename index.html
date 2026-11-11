@@ -303,11 +303,11 @@ h3 { font-size: 13px; font-weight: 650; }
       <section class="control-panel" id="panel-puertas" role="tabpanel" aria-labelledby="tab-puertas" tabindex="0" hidden>
         <div class="panel-intro">
           <h2>Puertas y chapas</h2>
-          <p class="text-small text-muted">Prueba el movimiento de las cuatro hojas y consulta la chapa del diseño.</p>
+          <p class="text-small text-muted">Prueba la apertura de las hojas y consulta la chapa del diseño.</p>
         </div>
         <div class="control-group">
           <h3>Simulación de apertura y cierre de las puertas</h3>
-          <p class="text-small text-muted">Hojas numeradas del 1 al 4, de izquierda a derecha. Pulsa una para abrirla o cerrarla.</p>
+          <p class="text-small text-muted" data-door-description></p>
           <div class="actions" role="group" aria-label="Simulación de apertura y cierre de las puertas">
             <button type="button" data-door="0">1</button>
             <button type="button" data-door="1">2</button>
@@ -318,7 +318,7 @@ h3 { font-size: 13px; font-weight: 650; }
         <div class="control-group">
           <h3>Chapa de combinación</h3>
           <p><strong>RETRIN MP10003 · negra</strong></p>
-          <p class="text-small text-muted">Chapa horizontal de sobreponer con combinación de tres dígitos. Se atornilla de frente sobre el travesaño central. El diseño lleva dos unidades, una por cada par de puertas.</p>
+          <p class="text-small text-muted">Chapa horizontal de sobreponer con combinación de tres dígitos. Se atornilla de frente sobre el travesaño central. <span data-lock-count></span></p>
           <p class="text-small tabular-nums">Medidas frontales · 10.9 × 4.6 cm</p>
           <p class="text-small"><a href="https://www.amazon.com.mx/dp/B0D6KTG15Z" target="_blank" rel="noopener noreferrer">Ver RETRIN MP10003 en Amazon México</a></p>
         </div>
@@ -505,9 +505,10 @@ h3 { font-size: 13px; font-weight: 650; }
   const tandemGap=.4;
   const variants = [
     {w:42, d:30, depth:50, count:1, frontRecess:14.3},
-    {w:30, d:42, depth:60, count:1, frontRecess:12.4},
+    {w:30, d:42, depth:60, count:1, frontRecess:12.4, doorCount:2, centerBench:true},
     {w:42, d:30, depth:80, count:2, frontRecess:13.9}
   ];
+  const doorCountFor=index=>variants[index].doorCount??4;
   const gardenCatalog=[
     {id:'ryobi-hedge',name:'Cortasetos RYOBI P2609BTL',cut:22,height:97,width:23,depth:18.6,
       url:'https://www.amazon.com.mx/dp/B0C3Z4SNZB',draw:drawHedgeTrimmer},
@@ -609,8 +610,8 @@ h3 { font-size: 13px; font-weight: 650; }
       depth:product.depth+(product.extraDepth??0),below};
   }
   const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
-  const accessorySurfaceOrder=[1,2,3,4,0];
-  const accessorySurfaceLabel=surface=>(surface||5)+' · '+accessorySurfaceNames[surface];
+  const accessoryPanelNumber=surface=>surface||doorCountFor(version)+1;
+  const accessorySurfaceLabel=surface=>accessoryPanelNumber(surface)+' · '+accessorySurfaceNames[surface];
   // Keep the positions the user chose and recognize copies of this older preset on reload.
   const previousDefaultA=[
     {id:1,productId:'klkcms-cable-ties',surface:0,x:.13,y:0},
@@ -763,6 +764,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const pegboardThickness=.5;
   const closedPegboardFace=doorOriginZ+doorPegboardZ-pegboardThickness/2;
   let version = 0;
+  const doorForBay=(bay,index=version)=>doorCountFor(index)===2?bay%2:bay;
   const removedFronts = new Set();
   const gardenOccupies=bay=>gardenLayouts[version].some(item=>item.bay===bay);
   const trayAvailable=tray=>Boolean(tray?.h && tray.lane<variants[version].count && !gardenOccupies(tray.bay));
@@ -782,16 +784,32 @@ h3 { font-size: 13px; font-weight: 650; }
   const doorOpen = [true,true,true,true];
   const doorAngle = doorOpen.map(() => 1);
   const haspFold = [1,1];
+  function doorStatesFor(count,previousCount,states) {
+    if(count===previousCount) return states.slice();
+    return count===2?[states[0]||states[2],states[1]||states[3],false,false]:
+      [states[0],states[1],states[0],states[1]];
+  }
+  function restoreDoorStates(states) {
+    doorOpen.forEach((_,index)=>{
+      doorOpen[index]=index<doorCountFor(version) && Boolean(states[index]);
+      doorAngle[index]=Number(doorOpen[index]);
+    });
+    haspFold.forEach((_,pair)=>{haspFold[pair]=Number(doorOpen[pair*2] || doorOpen[pair*2+1]);});
+  }
+  function setAllDoors(open) {
+    doorOpen.forEach((_,index)=>{doorOpen[index]=open && index<doorCountFor(version);});
+  }
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+  const leftBenchEdges=(left,span)=>[left+4.5,left+7+span,7,9.5+span];
   const dimensions = (variantIndex=version) => {
-    const {w,d,depth,count,frontRecess} = variants[variantIndex];
+    const {w,d,depth,count,frontRecess,centerBench=false} = variants[variantIndex];
     const span = w + 2;
     const cabinetWidth=4*span+28;
     const left=-cabinetWidth/2;
     const width=cabinetWidth+2*frameSideWidth;
     const outerLeft=left-frameSideWidth;
-    const edges = [left+4.5, left+7+span, 7, 9.5+span];
+    const edges=centerBench?[-span-1.25,1.25,left+4.5,-left-4.5-span]:leftBenchEdges(left,span);
     const interiorFront=-frontRecess;
     const trayFront=interiorFront;
     const laneSpacing=d+tandemGap;
@@ -802,9 +820,10 @@ h3 { font-size: 13px; font-weight: 650; }
     const doorFront=doorOriginZ+doorRailFace;
     const rear=doorFront-depth;
     const doorClearance=Math.floor(closedPegboardFace-interiorFront);
-    return {w,d,count,laneSpacing,rackDepth,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
+    return {w,d,count,doorCount:doorCountFor(variantIndex),centerBench,laneSpacing,rackDepth,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
       doorClearance,interiorFront,trayFront,tableWidth:2*span+2.5,railBack,railFront,postBands};
   };
+  accessoryLayouts[1]=accessoryLayouts[1].map(item=>mergeDoubleDoorPegboards(item,dimensions(1)));
   const trayTravel=(tray,spec)=>spec.depth-(spec.count-1-tray.lane)*spec.laneSpacing;
 
   function makeProgram(vertex,fragment,attributes) {
@@ -1610,13 +1629,21 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function doorLayout(i,spec) {
     const sign=i%2===0?1:-1;
-    const pivot=[spec.outerLeft+.35,-2.5,2.5,-spec.outerLeft-.35][i];
-    const meeting=i<2?spec.edges[0]+spec.span+1.25:spec.edges[2]+spec.span+1.25;
+    const double=spec.doorCount===2;
+    const pivot=double?sign*(spec.outerLeft+.35):[spec.outerLeft+.35,-2.5,2.5,-spec.outerLeft-.35][i];
+    const meeting=double?0:i<2?spec.edges[0]+spec.span+1.25:spec.edges[2]+spec.span+1.25;
     const leaf=Math.abs(meeting-pivot)-doorMeetingGap/2;
     const local=sign>0?0:-leaf;
-    const hingeInset=i===0 || i===3?5.3:3.7, meetingInset=3.7;
+    const hingeInset=double || i===0 || i===3?5.3:3.7, meetingInset=3.7;
     const boardX=local+(sign>0?hingeInset:meetingInset);
     return {sign,pivot,meeting,leaf,local,boardX,boardWidth:leaf-hingeInset-meetingInset};
+  }
+  function mergeDoubleDoorPegboards(item,spec) {
+    if(!Number.isInteger(item?.surface) || item.surface<1 || item.surface>4) return item;
+    const surface=Math.ceil(item.surface/2);
+    const x=item.surface%2===1?item.x+doorLayout(surface-1,spec).boardWidth-
+      doorLayout(item.surface-1,{...spec,doorCount:4,edges:leftBenchEdges(spec.left,spec.span)}).boardWidth:item.x;
+    return {...item,surface,x};
   }
 
   function build(spec) {
@@ -1630,9 +1657,12 @@ h3 { font-size: 13px; font-weight: 650; }
     metalBase(spec);
 
     geometryOffsetY=bodyOffsetY;
-    box(left,18,rear,edges[2]-left,182,1.9,p.panel);
-    const litBack=blend(p.panel,p.warmLight,.22);
-    box(edges[2],18,rear,-left-edges[2],182,1.9,litBack);
+    if(spec.centerBench){
+      box(left,18,rear,cabinetWidth,182,1.9,p.panel);
+    } else {
+      box(left,18,rear,edges[2]-left,182,1.9,p.panel);
+      box(edges[2],18,rear,-left-edges[2],182,1.9,blend(p.panel,p.warmLight,.22));
+    }
     box(left+.025,18,rear,cabinetWidth-.05,3.5,body,p.frame);
     box(left+.025,197,rear,cabinetWidth-.05,2.975,body,p.frame);
     const skin=1.8;
@@ -1655,12 +1685,20 @@ h3 { font-size: 13px; font-weight: 650; }
     box(-left-4.5,21.5,back,4.5-skin,175.5,interiorDepth,p.frame);
     box(edges[0]+span,21.5,back,2.5,benchBottom-21.5,interiorDepth,p.frame);
     box(edges[0]+span,benchUpperBase,back,2.5,197-benchUpperBase,interiorDepth,p.frame);
-    for(const [z,postDepth] of spec.postBands){
-      box(edges[2]+span,21.5,z,2.5,175.5,postDepth,p.frame);
+    if(spec.centerBench){
+      for(const [from,to] of [[edges[2]+span,edges[0]],[edges[1]+span,edges[3]]]){
+        for(const [z,postDepth] of spec.postBands){
+          box(from,21.5,z,to-from,175.5,postDepth,p.frame);
+        }
+      }
+    } else {
+      for(const [z,postDepth] of spec.postBands){
+        box(edges[2]+span,21.5,z,2.5,175.5,postDepth,p.frame);
+      }
+      box(-7,21.5,back,14,175.5,interiorDepth-3,p.frame);
+      box(-2.1,21.5,interiorFront-3,4.2,175.5,1.5-interiorFront,p.frame);
+      box(-2.52,21.5,-1.5,5.04,175.5,1.1,p.frame);
     }
-    box(-7,21.5,back,14,175.5,interiorDepth-3,p.frame);
-    box(-2.1,21.5,interiorFront-3,4.2,175.5,1.5-interiorFront,p.frame);
-    box(-2.52,21.5,-1.5,5.04,175.5,1.1,p.frame);
 
     const lightZ=(spec.railBack+spec.railFront)/2;
     for(const x of [edges[2],edges[3]+span-.08]){
@@ -1685,7 +1723,7 @@ h3 { font-size: 13px; font-weight: 650; }
     trays.forEach((tray,index) => {
       if(trayAvailable(tray) && !removedFronts.has(index) && viewMode!=='posts') drawTray(tray,index,spec);
     });
-    for(let i=0;i<4;i++){
+    for(let i=0;i<spec.doorCount;i++){
       const {sign,pivot,meeting,leaf,local,boardX,boardWidth}=doorLayout(i,spec);
       const theta=sign*doorAngle[i]*Math.PI/2;
       const co=Math.cos(theta), si=Math.sin(theta);
@@ -1743,7 +1781,8 @@ h3 { font-size: 13px; font-weight: 650; }
       animating=true;
       return value+Math.sign(target-value)*speed*dt;
     };
-    for(let pair=0;pair<2;pair++){
+    const spec=dimensions();
+    for(let pair=0;pair<spec.doorCount/2;pair++){
       const doors=[2*pair,2*pair+1];
       for(const i of doors){
         if(!doorOpen[i]) doorAngle[i]=toward(doorAngle[i],0,.0038);
@@ -1756,9 +1795,8 @@ h3 { font-size: 13px; font-weight: 650; }
         }
       }
     }
-    const spec=dimensions();
     trays.forEach((tray,index) => {
-      const ready=trayAvailable(tray) && doorAngle[tray.bay]>.995;
+      const ready=trayAvailable(tray) && doorAngle[doorForBay(tray.bay)]>.995;
       const target=active===index && ready ? extraction*trayTravel(tray,spec) : 0;
       tray.offset=toward(tray.offset,target,.145);
     });
@@ -1917,7 +1955,7 @@ h3 { font-size: 13px; font-weight: 650; }
     });
   }
   function revealGardenBay(bay) {
-    doorOpen[bay]=true;
+    doorOpen[doorForBay(bay)]=true;
     setView('angle');
     yaw=bay===2?.20:-.20;
     pitch=.15;
@@ -2023,6 +2061,7 @@ h3 { font-size: 13px; font-weight: 650; }
     };
   }
   function accessoryFits(placement,product,spec) {
+    if(placement.surface<0 || placement.surface>spec.doorCount) return false;
     const panel=accessoryPanelSize(placement.surface,spec);
     const footprint=accessoryFootprint(product);
     return placement.x>=0 && placement.y>=0 &&
@@ -2054,13 +2093,16 @@ h3 { font-size: 13px; font-weight: 650; }
       (product.bin?'Set ':'Soporte ')+(product.estimated?'aprox. ':'')+formatSize(product)+' · ancho × alto × fondo':'';
     get('[data-accessory-loaded]').textContent=product?'Espacio con herramientas · '+formatSize(accessoryFootprint(product)):'';
     const spec=dimensions();
-    for(const item of [...accessorySurface.options].slice(1)){
-      const surface=Number(item.value);
+    const previousSurface=accessorySurface.value;
+    const surfaces=[...Array.from({length:spec.doorCount},(_,index)=>index+1),0];
+    const options=surfaces.map(surface=>{
       const fits=product && accessoryFits({surface,x:0,y:0},product,spec);
+      const item=option(surface,accessorySurfaceLabel(surface)+(fits?'':' (no cabe)'));
       item.disabled=!fits;
-      item.textContent=accessorySurfaceLabel(surface)+(fits?'':' (no cabe)');
-    }
-    if(accessorySurface.selectedOptions[0]?.disabled) accessorySurface.value='';
+      return item;
+    });
+    accessorySurface.replaceChildren(option('','Elige un pegboard'),...options);
+    if(options.some(item=>item.value===previousSurface && !item.disabled)) accessorySurface.value=previousSurface;
     get('[data-accessory-mount]').textContent=product?.mounting??'';
     get('[data-accessory-model-note]').textContent=product?.modelNote??'';
     const link=get('[data-accessory-link]');
@@ -2091,7 +2133,7 @@ h3 { font-size: 13px; font-weight: 650; }
           layout.splice(index,1);
           if(selectedAccessory===placement.id) selectedAccessory=null;
           if(movingAccessory?.id===placement.id) cancelAccessoryMove();
-          accessoryFeedback.textContent='Accesorio retirado del pegboard '+(placement.surface||5)+'.';
+          accessoryFeedback.textContent='Accesorio retirado del pegboard '+accessoryPanelNumber(placement.surface)+'.';
           change();
         }]
       ]){
@@ -2185,7 +2227,7 @@ h3 { font-size: 13px; font-weight: 650; }
       return;
     }
     Object.assign(placement,next);
-    change('Posición ajustada en el pegboard '+(placement.surface||5)+'.');
+    change('Posición ajustada en el pegboard '+accessoryPanelNumber(placement.surface)+'.');
   }
   function findAccessorySlots(surface,product,quantity,moveId,spec) {
     const panel=accessoryPanelSize(surface,spec);
@@ -2213,7 +2255,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function revealAccessoryPanel(surface,center=false) {
     const viewAngle=surface===0?.22:surface%2===1?.52:-.52;
-    const doors=surface===0?[0,1]:[surface-1];
+    const doors=surface===0?[doorForBay(0),doorForBay(1)]:[surface-1];
     if(center || viewMode!=='angle' || doors.some(index=>!doorOpen[index]) ||
        Math.abs(yaw-viewAngle)>.18){
       setView('angle');
@@ -2261,6 +2303,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function restoreAccessories(snapshot) {
     const savedLayouts=snapshot.accessoryLayouts;
+    const oldDoorPanels=(snapshot.accessoryLayoutRevision??0)<3;
     // Upgrade only a saved copy of the previous default, leaving edited layouts intact.
     const upgradePreset=snapshot.accessoryLayoutRevision===1 && savedLayouts?.length===3 &&
       Array.isArray(savedLayouts[0]) && savedLayouts[0].length===previousDefaultA.length &&
@@ -2274,7 +2317,8 @@ h3 { font-size: 13px; font-weight: 650; }
         const saved=savedLayouts[index];
         if(!Array.isArray(saved)) return;
         const spec=dimensions(index);
-        accessoryLayouts[index]=saved.filter(item=>{
+        const placements=index===1 && oldDoorPanels?saved.map(item=>mergeDoubleDoorPegboards(item,spec)):saved;
+        accessoryLayouts[index]=placements.filter(item=>{
           if(!item || !Number.isSafeInteger(item.id) || item.id<1 || ids.has(item.id) ||
             !Number.isInteger(item.surface) || !accessorySurfaceNames[item.surface] ||
             !Number.isFinite(item.x) || !Number.isFinite(item.y)) return false;
@@ -2294,12 +2338,10 @@ h3 { font-size: 13px; font-weight: 650; }
       accessoryCount.value=clamp(snapshot.accessoryQuantity,1,100);
     }
     if(Number.isInteger(snapshot.accessorySurface) && accessorySurfaceNames[snapshot.accessorySurface]){
-      accessorySurface.value=snapshot.accessorySurface;
+      accessorySurface.value=version===1 && oldDoorPanels?Math.ceil(snapshot.accessorySurface/2):snapshot.accessorySurface;
     }
   }
   populateAccessoryPicker();
-  accessorySurface.replaceChildren(option('','Elige un pegboard'),...accessorySurfaceOrder.map(surface=>
-    option(surface,accessorySurfaceLabel(surface))));
   [accessoryPicker,accessoryCount,accessorySurface].forEach(control=>control.addEventListener('change',()=>{
     accessoryFeedback.textContent='';
     change();
@@ -2365,7 +2407,13 @@ h3 { font-size: 13px; font-weight: 650; }
     get('.view-title').textContent=viewCopy[viewMode][0];
     get('.view-copy').textContent=viewCopy[viewMode][1];
     versions.forEach((button,index)=>button.setAttribute('aria-pressed',index===version));
+    get('[data-door-description]').textContent=spec.doorCount===2?
+      'Puerta 1 a la izquierda y puerta 2 a la derecha. Cada una cubre una columna alta y media sección de trabajo.':
+      'Hojas numeradas del 1 al 4, de izquierda a derecha. Pulsa una para abrirla o cerrarla.';
+    get('[data-lock-count]').textContent=spec.doorCount===2?
+      'Una chapa en la unión de las dos hojas.':'Dos chapas, una por cada par de puertas.';
     doorButtons.forEach((button,index)=>{
+      button.hidden=index>=spec.doorCount;
       button.setAttribute('aria-pressed',doorOpen[index]);
       button.setAttribute('aria-label','Puerta '+(index+1)+(doorOpen[index]?' abierta':' cerrada'));
     });
@@ -2432,8 +2480,8 @@ h3 { font-size: 13px; font-weight: 650; }
     try {
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
-        doors:doorOpen,selected,active,extraction,removedFronts:[...removedFronts],
-        accessoryLayouts,accessoryLayoutRevision:2,gardenLayouts,
+        doors:doorOpen,doorLayoutRevision:2,selected,active,extraction,removedFronts:[...removedFronts],
+        accessoryLayouts,accessoryLayoutRevision:3,gardenLayouts,
         accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
         accessoryQuantity:Number(accessoryCount.value),
         accessorySurface:(movingAccessory?.surface??accessorySurface.value)===''?null:
@@ -2454,8 +2502,8 @@ h3 { font-size: 13px; font-weight: 650; }
       if(column && validColumn(column,heights)) heights.forEach((h,j)=>{column[j].h=h;});
     });
     refreshTrays();
-    snapshot.doors.forEach((open,i)=>{doorOpen[i]=Boolean(open);doorAngle[i]=Number(Boolean(open));});
-    haspFold.forEach((_,i)=>{haspFold[i]=Number(doorOpen[2*i] || doorOpen[2*i+1]);});
+    const doorCount=doorCountFor(version);
+    restoreDoorStates(doorStatesFor(doorCount,snapshot.doorLayoutRevision===2?doorCount:4,snapshot.doors));
     if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
     dimensionsToggle.checked=snapshot.cotas!==false;
     // Older snapshots stored nine trays in the two bench columns.
@@ -2471,7 +2519,7 @@ h3 { font-size: 13px; font-weight: 650; }
         }
       });
     }
-    active=trayAvailable(trays[savedActive]) && doorOpen[trays[savedActive].bay]?savedActive:-1;
+    active=trayAvailable(trays[savedActive]) && doorOpen[doorForBay(trays[savedActive].bay)]?savedActive:-1;
     if(active>=frontTrays.length && !removedFronts.has(active-frontTrays.length)) active=-1;
     extraction=0;
     if(active>=0){
@@ -2494,8 +2542,9 @@ h3 { font-size: 13px; font-weight: 650; }
     save();
   }
   function toggleDoor(i) {
-    if(doorOpen[i] && ((active>=0 && trays[active].bay===i) ||
-        trays.some(tray=>tray.bay===i && tray.offset>.01))){
+    if(i<0 || i>=doorCountFor(version)) return;
+    if(doorOpen[i] && ((active>=0 && doorForBay(trays[active].bay)===i) ||
+        trays.some(tray=>doorForBay(tray.bay)===i && tray.offset>.01))){
       update('Guarda la charola antes de cerrar esa puerta.');
       return;
     }
@@ -2536,7 +2585,7 @@ h3 { font-size: 13px; font-weight: 650; }
       removedFronts.delete(index);
       tray.offset=trayTravel(tray,dimensions());
     }
-    doorOpen[tray.bay]=true;
+    doorOpen[doorForBay(tray.bay)]=true;
     if(viewMode==='posts') setView('detail');
     extraction=clamp(value,0,1);
     active=extraction>0?index:-1;
@@ -2545,7 +2594,10 @@ h3 { font-size: 13px; font-weight: 650; }
   versions.forEach((button,index)=>button.addEventListener('click',()=>{
     if(version===index) return;
     cancelAccessoryMove();
+    const previousCount=doorCountFor(version);
     version=index;
+    const nextCount=doorCountFor(version);
+    if(previousCount!==nextCount) restoreDoorStates(doorStatesFor(nextCount,previousCount,doorOpen));
     selectedAccessory=null;
     accessoryFeedback.textContent='';
     gardenFeedback.textContent='';
@@ -2564,7 +2616,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     const messages=[
       'Versión A · reborde de 42 cm en las ranuras.',
-      'Versión B · reborde de 30 cm en las ranuras.',
+      'Versión B · mesa central, dos puertas y reborde de 30 cm en las ranuras.',
       'Versión C · dos charolas de frente de 42 cm por nivel · fondo total de '+variants[2].depth+' cm.'
     ];
     change(messages[index]);
@@ -2597,7 +2649,7 @@ h3 { font-size: 13px; font-weight: 650; }
     refreshTrays();
     syncEditorToTray();
     layoutFeedback.textContent='';
-    doorOpen.fill(true);
+    setAllDoors(true);
     setView('front');
     const message=gardenLayouts[version].length?
       'Distribución aplicada a los módulos disponibles para charolas.':
@@ -2608,7 +2660,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const tray=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)];
     if(trayAvailable(tray)){
       selected=trays.indexOf(tray);
-      doorOpen[tray.bay]=true;
+      doorOpen[doorForBay(tray.bay)]=true;
     }
     layoutFeedback.textContent='';
     update();
@@ -2643,7 +2695,7 @@ h3 { font-size: 13px; font-weight: 650; }
     column[level].h=height;
     if(height) selected=trays.indexOf(column[level]);
     refreshTrays();
-    doorOpen[bay]=true;
+    doorOpen[doorForBay(bay)]=true;
     if(viewMode==='posts' || viewMode==='detail') setView('front');
     const message='Cambio aplicado en el módulo '+(bay+1)+' · '+levelLabel(column[level])+' · '+(height?height+' cm':'vacío')+'.';
     change(message);
@@ -2683,19 +2735,20 @@ h3 { font-size: 13px; font-weight: 650; }
       update('Guarda la charola antes de cerrar las puertas.');
       return;
     }
-    doorOpen.fill(false);
+    setAllDoors(false);
     setView('angle');
-    change('Fachada cerrada · dos marcos sobrepuestos.');
+    change(doorCountFor(version)===2?
+      'Fachada cerrada · dos hojas y una chapa central.':'Fachada cerrada · dos marcos sobrepuestos.');
   });
   viewButtons.forEach(button=>button.addEventListener('click',()=>{
     const view=button.dataset.view;
     if(view==='detail'){
       const {bay}=trays[selected];
-      doorOpen[bay]=true;
+      doorOpen[doorForBay(bay)]=true;
       setView(view);
       change('Detalle · reborde de la charola dentro de la ranura lateral.');
     } else if(view==='posts' && viewMode!=='posts'){
-      doorOpen.fill(true);
+      setAllDoors(true);
       setView(view);
       change('Charolas ocultas para inspeccionar las ranuras continuas.');
     } else {
@@ -2843,7 +2896,7 @@ h3 { font-size: 13px; font-weight: 650; }
         selectTab('tab-herramientas');
         if(preview.x!==placement.x || preview.y!==placement.y){
           Object.assign(placement,preview);
-          change('Posición ajustada en el pegboard '+(placement.surface||5)+'.');
+          change('Posición ajustada en el pegboard '+accessoryPanelNumber(placement.surface)+'.');
           return;
         }
       }
