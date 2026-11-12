@@ -2533,8 +2533,9 @@ h3 { font-size: 13px; font-weight: 650; }
     });
     get('[data-door-description]').textContent=spec.doorCount===2?
       'Puerta 1 a la izquierda y puerta 2 a la derecha. Ambas abren hasta '+exteriorDoorOpening+'°.':
-      'Las puertas 1 y 4 abren a '+exteriorDoorOpening+'° y las centrales a '+interiorDoorOpening+
-      '°. Con las cuatro abiertas, cierra una central para que la otra se abra a '+exteriorDoorOpening+'°.';
+      'Las puertas 1 y 4 abren a '+exteriorDoorOpening+'°. Abre una central por separado para llevarla a '+exteriorDoorOpening+
+      '°. Si abres las dos centrales, quedan a '+interiorDoorOpening+
+      '°. Con las cuatro abiertas, cierra una central para ampliar la apertura de la otra.';
     get('[data-lock-count]').textContent=spec.doorCount===2?
       'Una chapa en la unión de las dos hojas.':'Dos chapas, una por cada par de puertas.';
     doorButtons.forEach((button,index)=>{
@@ -2689,6 +2690,9 @@ h3 { font-size: 13px; font-weight: 650; }
     if(extendNeighbor){
       extendedMiddleDoor=middleDoorNeighbor(i);
       change('Puerta '+(i+1)+' cerrada. La puerta '+(extendedMiddleDoor+1)+' se abre a '+exteriorDoorOpening+'°.');
+    } else if(canExtendMiddleDoor(i)){
+      extendedMiddleDoor=i;
+      change('Puerta '+(i+1)+' abierta a '+exteriorDoorOpening+'°.');
     } else {
       change('Puerta '+(i+1)+(doorOpen[i]?' abierta.':' cerrada.'));
     }
