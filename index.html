@@ -110,10 +110,10 @@ h3 { font-size: 13px; font-weight: 650; }
 .layout-editor { margin-top: 18px; }
 .layout-editor summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
 .layout-editor .control-group { margin-top: 8px; }
-#floor-saw, #garden-tools { margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
-.saw-size { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
-.saw-size label { display: grid; gap: 3px; }
-.saw-size input { width: 100%; }
+#floor-tools, #garden-tools { margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.floor-tool-size { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
+.floor-tool-size label { display: grid; gap: 3px; }
+.floor-tool-size input { width: 100%; }
 .tl-layout-feedback { color: var(--primary); }
 .tl-layout-feedback:empty { display: none; }
 .accessory-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
@@ -339,30 +339,31 @@ h3 { font-size: 13px; font-weight: 650; }
       </section>
 
       <section class="control-panel" id="panel-herramientas" role="tabpanel" aria-labelledby="tab-herramientas" tabindex="0" hidden>
-        <details class="layout-editor" id="floor-saw">
-          <summary>Ingletadora en la base</summary>
-          <form class="control-group" id="floor-saw-form">
-            <h2>DEWALT DW714-B3 · 10 pulgadas</h2>
-            <p class="text-small text-muted">Medidas de referencia de la sierra ensamblada. Puedes ingresar las de tu sierra con el cabezal abajo y los accesorios que dejes montados.</p>
-            <div class="saw-size" role="group" aria-label="Dimensiones de la ingletadora en centímetros">
+        <details class="layout-editor" id="floor-tools">
+          <summary>Herramientas en la base</summary>
+          <form class="control-group" id="floor-tool-form">
+            <label for="floor-tool-product">Herramienta</label>
+            <select id="floor-tool-product"></select>
+            <p class="text-small text-muted" data-floor-tool-description></p>
+            <div class="floor-tool-size" role="group" aria-label="Dimensiones de la herramienta en centímetros">
               <label>Ancho (cm)<input type="number" min="1" max="200" step="any" name="width" required></label>
               <label>Alto (cm)<input type="number" min="1" max="200" step="any" name="height" required></label>
               <label>Fondo (cm)<input type="number" min="1" max="200" step="any" name="depth" required></label>
             </div>
             <div class="field-grid">
-              <label for="floor-saw-bay">Módulo</label>
-              <select id="floor-saw-bay" name="bay"></select>
+              <label for="floor-tool-bay">Módulo</label>
+              <select id="floor-tool-bay" name="bay"></select>
             </div>
-            <p class="text-small text-muted" data-saw-space></p>
+            <p class="text-small text-muted" data-floor-tool-space></p>
             <div class="actions">
               <button type="submit" class="btn-primary">Probar encaje</button>
-              <button type="button" data-saw-remove hidden>Quitar sierra</button>
+              <button type="button" data-floor-tool-remove hidden>Quitar</button>
             </div>
-            <p class="accessory-feedback text-small" data-saw-result role="status"></p>
+            <p class="accessory-feedback text-small" data-floor-tool-result role="status"></p>
             <div class="actions">
-              <a class="text-small" href="https://www.amazon.com.mx/dp/B0759XTMRG" target="_blank" rel="noopener noreferrer">Ver en Amazon</a>
-              <a class="text-small" href="https://www.dewalt.com.mx/es-mx/producto/dw714-b3/sierra-ingletadora-compuesta-de-10-254mm-con-cable" target="_blank" rel="noopener noreferrer">Ficha DEWALT</a>
-              <a class="text-small" href="https://www.walmart.com.mx/ip/sierra-de-inglete-dewalt-5000-rpm-1600-w-dewalt-dw714/00088591148146" target="_blank" rel="noopener noreferrer">Medidas de referencia</a>
+              <a class="text-small" data-floor-tool-amazon target="_blank" rel="noopener noreferrer">Ver en Amazon</a>
+              <a class="text-small" data-floor-tool-source target="_blank" rel="noopener noreferrer">Ficha DEWALT</a>
+              <a class="text-small" data-floor-tool-measurements target="_blank" rel="noopener noreferrer" hidden>Medidas de referencia</a>
             </div>
           </form>
         </details>
@@ -570,13 +571,24 @@ h3 { font-size: 13px; font-weight: 650; }
   const gardenReach=16;
   const gardenSupportY=gardenBase+gardenFloorGap+Math.max(...gardenCatalog.map(product=>product.hold));
   const gardenBottom=product=>gardenSupportY-product.hold;
-  const floorSawReference={width:50,height:41,depth:61};
-  const floorSawForm=get('#floor-saw-form');
-  const floorSawBay=get('#floor-saw-bay');
-  const floorSawResult=get('[data-saw-result]');
-  const floorSawRemove=get('[data-saw-remove]');
-  const floorSawHit=350;
-  let floorSaw=null;
+  const floorToolCatalog=[
+    {id:'dw714-b3',name:'Ingletadora DEWALT DW714-B3',hit:350,size:{width:50,height:41,depth:61},draw:drawMiterSaw,
+      description:'Medidas de referencia de la sierra ensamblada. Puedes ingresar las de tu sierra con el cabezal abajo y los accesorios que dejes montados.',
+      amazon:'https://www.amazon.com.mx/dp/B0759XTMRG',
+      source:'https://www.dewalt.com.mx/es-mx/producto/dw714-b3/sierra-ingletadora-compuesta-de-10-254mm-con-cable',
+      measurements:'https://www.walmart.com.mx/ip/sierra-de-inglete-dewalt-5000-rpm-1600-w-dewalt-dw714/00088591148146'},
+    {id:'dwfp55126',name:'Compresor DEWALT DWFP55126',hit:351,size:{width:42.16,height:51.05,depth:43.69},draw:drawPancakeCompressor,
+      description:'Medidas del compresor de 6 galones ensamblado, según DEWALT México. Puedes ingresar las medidas de tu unidad.',
+      amazon:'https://www.amazon.com.mx/dp/B00K34UZBW',
+      source:'https://www.dewalt.com.mx/es-mx/producto/dwfp55126/compresor-de-aire-de-165-psi-de-6-gal-con-cable'}
+  ];
+  const floorToolForm=get('#floor-tool-form');
+  const floorToolPicker=get('#floor-tool-product');
+  const floorToolBay=get('#floor-tool-bay');
+  const floorToolResult=get('[data-floor-tool-result]');
+  const floorToolRemove=get('[data-floor-tool-remove]');
+  const storedFloorTools=[];
+  let floorToolPreview=null;
   const gardenProductPicker=get('#garden-product');
   const gardenBayPicker=get('#garden-bay');
   const gardenFeedback=get('[data-garden-feedback]');
@@ -836,7 +848,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const doorForBay=(bay,index=version)=>doorCountFor(index)===2?bay%2:bay;
   const removedFronts = new Set();
   const gardenOccupies=bay=>gardenLayouts[version].some(item=>item.bay===bay);
-  const sawOccupies=bay=>floorSaw?.fits && floorSaw.bay===bay;
+  const floorToolAt=bay=>storedFloorTools.find(tool=>tool.bay===bay);
   function toolTrayFloor(bay,index=version) {
     let floor=null;
     for(const item of gardenLayouts[index]){
@@ -844,7 +856,8 @@ h3 { font-size: 13px; font-weight: 650; }
       const product=gardenCatalog.find(product=>product.id===item.id);
       floor=Math.max(floor??0,gardenBottom(product)+product.height+gardenTrayGap);
     }
-    if(index===version && sawOccupies(bay)) floor=gardenBase+floorSaw.size.height+gardenTrayGap;
+    const floorTool=index===version?floorToolAt(bay):null;
+    if(floorTool) floor=gardenBase+floorTool.size.height+gardenTrayGap;
     return floor;
   }
   function fitsAboveTools(tray,height) {
@@ -1355,20 +1368,21 @@ h3 { font-size: 13px; font-weight: 650; }
       slot.product.draw(([x,y,z])=>[slot.x+x,slot.y+y,slot.z+z],id);
     }
   }
-  function drawFloorSaw(spec) {
-    const {bay,size,fits,rotated}=floorSaw;
+  function drawFloorTool({product,bay,size,fits,rotated},spec) {
     const x=spec.edges[bay]+spec.span/2;
     const y=fits?gardenBase+bodyOffsetY:0;
     const depth=rotated?size.width:size.depth;
     const z=fits?spec.railFront-.5-depth/2:
       doorOriginZ+doorLayout(doorForBay(bay),spec).leaf+6+depth/2;
     const transform=([u,v,w])=>{
-      u*=size.width/floorSawReference.width;
-      v*=size.height/floorSawReference.height;
-      w*=size.depth/floorSawReference.depth;
+      u*=size.width/product.size.width;
+      v*=size.height/product.size.height;
+      w*=size.depth/product.size.depth;
       return rotated?[x+w,y+v,z-u]:[x+u,y+v,z+w];
     };
-    const id=floorSawHit;
+    product.draw(transform,product.hit,product.size);
+  }
+  function drawMiterSaw(transform,id) {
     const yellow=[.97,.72,.10], silver=[.64,.65,.66], steel=[.50,.51,.53];
     for(const side of [-1,1]){
       const end=side<0?-25:15;
@@ -1404,6 +1418,43 @@ h3 { font-size: 13px; font-weight: 650; }
     roundedHardware(-8,37,14,16,4,5,1.8,yellow,id,transform);
     roundedHardware(-5,28,17,10,3,2,1.1,toolBlack,id,transform);
     roundedHardware(-5,18,-30.5,10,9,9,2,toolBlack,id,transform);
+  }
+  function drawPancakeCompressor(transform,id,{width,height,depth}) {
+    const yellow=[.98,.72,.085], dark=[.15,.15,.16], steel=[.60,.62,.64], brass=[.72,.51,.24];
+    const footHeight=4.4;
+    for(const angle of [Math.PI/2,Math.PI*7/6,Math.PI*11/6]){
+      const x=14*Math.cos(angle), z=14*Math.sin(angle);
+      gardenRod([x,0,z],[x,footHeight,z],2.75,toolBlack,id,transform);
+    }
+    const profile=[[4.2,.71],[5.5,.85],[8.4,.96],[12.1,1],[17.5,1],[21,.95],[23.8,.82],[25.2,.64]];
+    const count=36;
+    const rings=profile.map(([y,radius])=>Array.from({length:count},(_,i)=>{
+      const angle=i*2*Math.PI/count;
+      return transform([Math.cos(angle)*width*radius/2,y,Math.sin(angle)*depth*radius/2]);
+    }));
+    for(let level=0;level<rings.length-1;level++){
+      for(let i=0;i<count;i++){
+        const next=(i+1)%count;
+        face([rings[level][i],rings[level][next],rings[level+1][next],rings[level+1][i]],
+          yellow,id,.09*Math.sin(i*2*Math.PI/count));
+      }
+    }
+    face(rings[0],yellow,id,-.21);
+    face(rings.at(-1),yellow,id,.10);
+    for(const level of [0,3,7]) contourRim(rings[level],yellow);
+    roundedHardware(-13,24,-11,26,15,23,3.6,dark,id,transform);
+    roundedHardware(-14,27,8,28,10.5,6,2.6,toolBlack,id,transform);
+    for(const x of [-6,6]){
+      gardenRod([x,33.7,14],[x,33.7,15],3.3,dark,id,transform);
+      gardenRod([x,33.7,15],[x,33.7,15.2],2.6,[.85,.85,.81],id,transform);
+      toolSegment([x,33.7,15.3],[x+1.25,35,15.3],.22,.09,toolRed,id,transform);
+      gardenRod([x,27.6,13.9],[x,27.6,18.4],1.28,brass,id,transform);
+    }
+    gardenRod([0,29.6,14],[0,29.6,17.8],2.2,steel,id,transform);
+    for(const x of [-9.5,6]) roundedHardware(x,37,-3.4,3.5,height-40.5,7,1.15,toolBlack,id,transform);
+    roundedHardware(-9.5,height-4, -3.4,19,4,7,1.65,toolBlack,id,transform);
+    for(let i=0;i<5;i++) box(-8+i*4,39,-9,.9,.35,4,steel,id,transform);
+    gardenRod([0,3,12],[0,5.5,12],1.1,brass,id,transform);
   }
   function drawDriver(x,y,z,shaft,handle,r,color,id,transform) {
     box(x-.17,y-shaft,z-.17,.34,shaft+.15,.34,toolSteel,id,transform);
@@ -1953,7 +2004,8 @@ h3 { font-size: 13px; font-weight: 650; }
       pegboard(boardX,doorPegboardBottom,doorPegboardZ,boardWidth,doorPegboardHeight,-1,id,t,id);
     }
     geometryOffsetY=0;
-    if(floorSaw) drawFloorSaw(spec);
+    for(const tool of storedFloorTools) drawFloorTool(tool,spec);
+    if(floorToolPreview) drawFloorTool(floorToolPreview,spec);
   }
 
   let frame = 0;
@@ -2086,9 +2138,8 @@ h3 { font-size: 13px; font-weight: 650; }
       label.textContent=text;
     };
     const right=-spec.outerLeft;
-    const comparingSaw=floorSaw && !floorSaw.fits;
-    const widthY=comparingSaw?totalHeight+4:4;
-    mark('width',[spec.outerLeft,widthY,8],[right,widthY,8],'Ancho '+spec.width+' cm',comparingSaw?[0,-8]:[0,14]);
+    const widthY=floorToolPreview?totalHeight+4:4;
+    mark('width',[spec.outerLeft,widthY,8],[right,widthY,8],'Ancho '+spec.width+' cm',floorToolPreview?[0,-8]:[0,14]);
     mark('height',[right+9,0,1],[right+9,totalHeight,1],'Alto '+formatCm(totalHeight)+' cm',[24,-5]);
     mark('depth',[right+10,6,spec.rear],[right+10,6,spec.doorFront],
       'Fondo '+spec.depth+' cm',[12,-7],Math.abs(Math.sin(yaw))>.18 && width>=500);
@@ -2137,96 +2188,132 @@ h3 { font-size: 13px; font-weight: 650; }
     el.textContent=label;
     return el;
   }
-  function floorSawSpace(bay,spec) {
+  function floorToolSpace(bay,spec) {
     return {width:spec.opening,height:(bay<2?benchBottom:gardenCeiling)-gardenBase,
       depth:spec.railFront-(spec.rear+1.9)};
   }
-  function planFloorSaw(bay,size,spec) {
-    if(!Number.isInteger(bay) || !levelsByBay[bay] || !size ||
-       !Object.keys(floorSawReference).every(key=>Number.isFinite(size[key]) && size[key]>=1 && size[key]<=200)) return null;
-    const room=floorSawSpace(bay,spec);
+  function planFloorTool(product,bay,size,spec) {
+    if(!product || !Number.isInteger(bay) || !levelsByBay[bay] || !size ||
+       !Object.keys(product.size).every(key=>Number.isFinite(size[key]) && size[key]>=1 && size[key]<=200)) return null;
+    const room=floorToolSpace(bay,spec);
     const clears=(width,depth)=>width+1<=room.width && depth+1<=room.depth && size.height+.5<=room.height;
     const rotated=!clears(size.width,size.depth) && clears(size.depth,size.width);
     const fitsInRoom=rotated || clears(size.width,size.depth);
-    return {bay,size,rotated,fitsInRoom,fits:fitsInRoom && !gardenOccupies(bay)};
+    const occupiedBy=gardenOccupies(bay)?'herramientas de jardín':floorToolAt(bay)?.product.name;
+    return {product,bay,size,rotated,fitsInRoom,occupiedBy,fits:fitsInRoom && !occupiedBy};
   }
   function bayTraysStowed(bay) {
     return (active<0 || trays[active].bay!==bay) &&
       ![...removedFronts].some(index=>trays[index].bay===bay) &&
       trays.every(tray=>tray.bay!==bay || tray.offset<=.01);
   }
-  function fillFloorSawForm(size,bay) {
-    for(const key of Object.keys(floorSawReference)) floorSawForm.elements.namedItem(key).value=size[key];
-    floorSawBay.value=bay;
+  const selectedFloorProduct=()=>floorToolCatalog.find(product=>product.id===floorToolPicker.value);
+  const selectedStoredFloorTool=()=>storedFloorTools.find(tool=>tool.product.id===floorToolPicker.value);
+  function fillFloorToolForm(product,size,bay) {
+    floorToolPicker.value=product.id;
+    for(const key of Object.keys(product.size)) floorToolForm.elements.namedItem(key).value=size[key];
+    floorToolBay.value=bay;
+    get('[data-floor-tool-description]').textContent=product.description;
+    get('[data-floor-tool-amazon]').href=product.amazon;
+    get('[data-floor-tool-source]').href=product.source;
+    const measurements=get('[data-floor-tool-measurements]');
+    measurements.hidden=!product.measurements;
+    if(product.measurements) measurements.href=product.measurements;
   }
-  function revealFloorSaw() {
-    doorOpen[doorForBay(floorSaw.bay)]=true;
+  function selectFloorTool(product) {
+    floorToolPreview=null;
+    floorToolResult.textContent='';
+    const stored=storedFloorTools.find(tool=>tool.product===product);
+    fillFloorToolForm(product,stored?.size??product.size,stored?.bay??Number(floorToolBay.value));
+    updateFloorToolUi();
+    schedule();
+  }
+  function revealFloorTool({bay,fits}) {
+    doorOpen[doorForBay(bay)]=true;
     setView('angle');
-    yaw=floorSaw.bay<2?-.23:.23;
+    yaw=bay<2?-.23:.23;
     pitch=.19;
-    if(!floorSaw.fits) zoom=.76;
+    if(!fits) zoom=.76;
   }
-  function updateFloorSawUi() {
-    const spec=dimensions(), room=floorSawSpace(Number(floorSawBay.value),spec);
-    get('[data-saw-space]').textContent='Espacio útil entre guías · '+
+  function updateFloorToolUi() {
+    const spec=dimensions(), room=floorToolSpace(Number(floorToolBay.value),spec);
+    get('[data-floor-tool-space]').textContent='Espacio útil entre guías · '+
       [room.width,room.height,room.depth].map(formatCm).join(' × ')+' cm (ancho × alto × fondo). La prueba deja 5 mm por lado.';
-    const stored=Boolean(floorSaw?.fits);
-    floorSawForm.querySelectorAll('input, select, button[type="submit"]').forEach(control=>{control.disabled=stored;});
-    floorSawRemove.hidden=!floorSaw;
-    if(!floorSaw) return;
-    const {bay,size,fits,fitsInRoom,rotated}=floorSaw;
+    const stored=selectedStoredFloorTool();
+    floorToolForm.querySelectorAll('input, [name="bay"]').forEach(control=>{control.disabled=Boolean(stored);});
+    floorToolForm.querySelector('button[type="submit"]').textContent=stored?'Ver módulo':'Probar encaje';
+    const plan=stored??floorToolPreview;
+    floorToolRemove.hidden=!plan;
+    if(!plan) return;
+    const {bay,size,fits,fitsInRoom,rotated,occupiedBy}=plan;
     if(fits){
       const count=levelsByBay[bay].filter(trayAvailable).length*spec.count;
-      floorSawResult.textContent='Sierra guardada en el módulo '+(bay+1)+(rotated?' · girada 90°':'')+
+      floorToolResult.textContent='En la base del módulo '+(bay+1)+(rotated?' · giro de 90°':'')+
         ' · '+count+(count===1?' charola disponible arriba.':' charolas disponibles arriba.');
     } else {
       const width=Math.min(size.width,size.depth);
-      const reason=fitsInRoom?'El módulo está ocupado por herramientas de jardín.':
-        width+1>room.width?'La sierra necesita '+formatCm(width)+' cm de ancho como mínimo y el paso mide '+formatCm(room.width)+' cm.':
-        'La sierra supera el espacio útil con la holgura del modelo.';
-      floorSawResult.textContent=reason+' Se muestra delante del módulo '+(bay+1)+' para comparar.';
+      const reason=fitsInRoom?'El módulo está ocupado por '+occupiedBy+'.':
+        width>room.width?'La herramienta mide '+formatCm(width)+' cm en su lado más estrecho y el paso mide '+formatCm(room.width)+' cm.':
+        'La herramienta supera el espacio útil con la holgura del modelo.';
+      floorToolResult.textContent=reason+' Se muestra delante del módulo '+(bay+1)+' para comparar.';
     }
   }
-  function restoreFloorSaw(saved) {
-    const plan=planFloorSaw(saved?.bay,saved?.size,dimensions());
-    if(!plan?.fits) return;
-    floorSaw=plan;
-    fillFloorSawForm(plan.size,plan.bay);
+  function restoreFloorTools(saved) {
+    for(const item of saved){
+      const product=floorToolCatalog.find(entry=>entry.id===item?.id);
+      if(!product || storedFloorTools.some(tool=>tool.product===product)) continue;
+      const plan=planFloorTool(product,item.bay,item.size,dimensions());
+      if(plan?.fits) storedFloorTools.push(plan);
+    }
+    const first=storedFloorTools[0];
+    if(first) fillFloorToolForm(first.product,first.size,first.bay);
   }
-  floorSawBay.replaceChildren(...levelsByBay.map((_,bay)=>option(bay,'Módulo '+(bay+1))));
-  fillFloorSawForm(floorSawReference,2);
-  floorSawForm.addEventListener('input',()=>{
-    if(floorSaw?.fits) return;
-    floorSaw=null;
-    floorSawResult.textContent='';
-    updateFloorSawUi();
+  floorToolBay.replaceChildren(...levelsByBay.map((_,bay)=>option(bay,'Módulo '+(bay+1))));
+  floorToolPicker.replaceChildren(...floorToolCatalog.map(product=>option(product.id,product.name)));
+  fillFloorToolForm(floorToolCatalog[0],floorToolCatalog[0].size,2);
+  floorToolPicker.addEventListener('change',()=>selectFloorTool(selectedFloorProduct()));
+  floorToolForm.addEventListener('input',event=>{
+    if(event.target===floorToolPicker || selectedStoredFloorTool()) return;
+    floorToolPreview=null;
+    floorToolResult.textContent='';
+    updateFloorToolUi();
     schedule();
   });
-  floorSawForm.addEventListener('submit',event=>{
+  floorToolForm.addEventListener('submit',event=>{
     event.preventDefault();
-    const size=Object.fromEntries(Object.keys(floorSawReference).map(key=>[key,floorSawForm.elements.namedItem(key).valueAsNumber]));
-    const plan=planFloorSaw(Number(floorSawBay.value),size,dimensions());
-    if(!plan || floorSaw?.fits) return;
-    if(plan.fits && !bayTraysStowed(plan.bay)){
-      floorSawResult.textContent='Guarda las charolas del módulo antes de colocar la sierra.';
+    const stored=selectedStoredFloorTool();
+    if(stored){
+      revealFloorTool(stored);
+      change();
       return;
     }
-    floorSaw=plan;
+    const product=selectedFloorProduct();
+    const size=Object.fromEntries(Object.keys(product.size).map(key=>[key,floorToolForm.elements.namedItem(key).valueAsNumber]));
+    const plan=planFloorTool(product,Number(floorToolBay.value),size,dimensions());
+    if(!plan) return;
+    if(plan.fits && !bayTraysStowed(plan.bay)){
+      floorToolResult.textContent='Guarda las charolas del módulo antes de colocar la herramienta.';
+      return;
+    }
+    floorToolPreview=plan.fits?null:plan;
+    if(plan.fits) storedFloorTools.push(plan);
     refreshTrays();
     syncEditorToTray();
-    revealFloorSaw();
-    change(plan.fits?'Sierra colocada en la base.':'Sierra a escala delante del módulo.');
+    revealFloorTool(plan);
+    change(plan.fits?'Herramienta colocada en la base.':'Herramienta a escala delante del módulo.');
   });
-  floorSawRemove.addEventListener('click',()=>{
-    if(!floorSaw) return;
-    const {bay,fits}=floorSaw;
-    if(fits && !bayTraysStowed(bay)){
-      floorSawResult.textContent='Guarda las charolas del módulo antes de retirar la sierra.';
+  floorToolRemove.addEventListener('click',()=>{
+    const stored=selectedStoredFloorTool();
+    if(stored && !bayTraysStowed(stored.bay)){
+      floorToolResult.textContent='Guarda las charolas del módulo antes de retirar la herramienta.';
       return;
     }
-    floorSaw=null;
-    if(fits) upperToolTrays[version][bay]=null;
-    floorSawResult.textContent=fits?'Sierra retirada. Charolas repuestas.':'Vista de la sierra retirada.';
+    floorToolPreview=null;
+    if(stored){
+      storedFloorTools.splice(storedFloorTools.indexOf(stored),1);
+      upperToolTrays[version][stored.bay]=null;
+    }
+    floorToolResult.textContent=stored?'Herramienta retirada. Charolas repuestas.':'Vista de la herramienta retirada.';
     refreshTrays();
     syncEditorToTray();
     change();
@@ -2288,7 +2375,7 @@ h3 { font-size: 13px; font-weight: 650; }
   function updateGardenUi() {
     const layout=gardenLayouts[version];
     const upperCounts=gardenBays.map(bay=>levelsByBay[bay].filter(trayAvailable).length*variants[version].count);
-    const key=JSON.stringify([version,gardenProductPicker.value,layout,upperCounts,floorSaw?.fits?floorSaw.bay:null]);
+    const key=JSON.stringify([version,gardenProductPicker.value,layout,upperCounts,storedFloorTools.map(tool=>tool.bay)]);
     if(key===gardenUiKey) return;
     gardenUiKey=key;
     get('[data-garden-count]').textContent=layout.length?' · '+layout.length+' '+(layout.length===1?'colocada':'colocadas'):'';
@@ -2296,8 +2383,9 @@ h3 { font-size: 13px; font-weight: 650; }
     const placed=layout.find(item=>item.id===product.id);
     const previousBay=gardenBayPicker.value;
     const options=gardenBays.map(bay=>{
-      if(sawOccupies(bay)){
-        const item=option(bay,'Módulo '+(bay+1)+' · con ingletadora');
+      const floorTool=floorToolAt(bay);
+      if(floorTool){
+        const item=option(bay,'Módulo '+(bay+1)+' · '+floorTool.product.name);
         item.disabled=true;
         return item;
       }
@@ -2370,7 +2458,7 @@ h3 { font-size: 13px; font-weight: 650; }
     if(gardenBayPicker.value==='') return;
     const bay=Number(gardenBayPicker.value), id=gardenProductPicker.value;
     const layout=gardenLayouts[version];
-    if(sawOccupies(bay) || layout.some(item=>item.id===id)) return;
+    if(floorToolAt(bay) || layout.some(item=>item.id===id)) return;
     const occupied=layout.filter(item=>item.bay===bay);
     if(!gardenPlan([...occupied,{id,bay}],bay,dimensions())) return;
     if(!bayTraysStowed(bay)){
@@ -2984,7 +3072,7 @@ h3 { font-size: 13px; font-weight: 650; }
     if(message) status.textContent=message;
     updateAccessoryUi();
     updateGardenUi();
-    updateFloorSawUi();
+    updateFloorToolUi();
     schedule();
   }
   function save() {
@@ -2993,7 +3081,7 @@ h3 { font-size: 13px; font-weight: 650; }
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
         doors:doorOpen,doorLayoutRevision:4,extendedMiddleDoor,selected,active,extraction,removedFronts:[...removedFronts],
         accessoryLayouts,accessoryLayoutRevision:5,gardenLayouts,gardenLayoutRevision:1,gardenUpperTrays:upperToolTrays,
-        floorSaw:floorSaw?.fits?{bay:floorSaw.bay,size:floorSaw.size}:null,
+        floorTools:storedFloorTools.map(({product,bay,size})=>({id:product.id,bay,size})),
         accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
         accessoryQuantity:Number(accessoryCount.value),
         accessorySurface:(movingAccessory?.surface??accessorySurface.value)===''?null:
@@ -3012,7 +3100,11 @@ h3 { font-size: 13px; font-weight: 650; }
       const column=levelsByBay[i+(snapshot.trayLayoutRevision===3?0:2)];
       if(column && validColumn(column,heights)) heights.forEach((h,j)=>{column[j].h=h;});
     });
-    if(snapshot.version===version) restoreFloorSaw(snapshot.floorSaw);
+    if(snapshot.version===version){
+      const saved=Array.isArray(snapshot.floorTools)?snapshot.floorTools:
+        snapshot.floorSaw?[{...snapshot.floorSaw,id:'dw714-b3'}]:[];
+      restoreFloorTools(saved);
+    }
     restoreUpperToolTrays(snapshot.gardenUpperTrays);
     refreshTrays();
     if(snapshot.version===version) restoreModelState(snapshot);
@@ -3156,7 +3248,7 @@ h3 { font-size: 13px; font-weight: 650; }
     setView('front');
     const message=preset==='small'?
       trays.filter(trayAvailable).length+' charolas de 10 cm.':'Distribución combinada de 10, 23 y 36 cm.';
-    change(message+((gardenLayouts[version].length || floorSaw?.fits)?' Se conserva el espacio de las herramientas guardadas.':''));
+    change(message+((gardenLayouts[version].length || storedFloorTools.length)?' Se conserva el espacio de las herramientas guardadas.':''));
   }));
   function previewEditorLevel() {
     const tray=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)];
@@ -3440,13 +3532,15 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     if(!click) return;
     const hit=hitAt(event);
+    const floorProduct=floorToolCatalog.find(product=>product.hit===hit);
     if(hit>=1000){
       selectedAccessory=hit-1000;
       selectTab('tab-herramientas');
       update();
-    } else if(hit===floorSawHit){
+    } else if(floorProduct){
       selectTab('tab-herramientas');
-      get('#floor-saw').open=true;
+      get('#floor-tools').open=true;
+      if(floorToolPicker.value!==floorProduct.id) selectFloorTool(floorProduct);
       update();
     } else if(gardenBays.some(bay=>hit===300+bay)){
       selectTab('tab-herramientas');
