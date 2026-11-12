@@ -516,7 +516,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const variants = [
     {w:42, d:30, depth:50, count:1, frontRecess:14.3},
     {w:30, d:42, depth:60, count:1, frontRecess:12.4, doorCount:2, centerBench:true},
-    {w:42, d:30, depth:80, count:2, frontRecess:13.9}
+    {w:42, d:30, depth:80, count:2, frontRecess:13.9, flushBench:true}
   ];
   const doorCountFor=index=>variants[index].doorCount??4;
   const gardenCatalog=[
@@ -746,6 +746,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const levels = Array.from({length:13},(_,i)=>36+i*pitchStep);
   const benchHeight=92;
   const benchBottom=benchHeight-2.8;
+  const benchDoorOpening=[benchBottom-.5,benchHeight+.5];
   const benchUpperBase=154;
   const benchLowerCount=5;
   const benchLevels=[...levels.slice(0,benchLowerCount),...levels.slice(-3)];
@@ -775,7 +776,10 @@ h3 { font-size: 13px; font-weight: 650; }
     [17.39,11.25],[16.4,12.14]];
   const formatCm = new Intl.NumberFormat('es-MX',{maximumFractionDigits:2}).format;
   const doorOriginZ=1.3;
+  const frameFront=.28;
   const doorPegboardZ=-2.62;
+  const doorPegboardBottom=29;
+  const doorPegboardHeight=159;
   const doorRailFace=2.1;
   const doorStileWidth=6.2;
   const doorMeetingGap=.48;
@@ -846,7 +850,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const leftBenchEdges=(left,span)=>[left+4.5,left+7+span,7,9.5+span];
   const dimensions = (variantIndex=version) => {
-    const {w,d,depth,count,frontRecess,centerBench=false} = variants[variantIndex];
+    const {w,d,depth,count,frontRecess,centerBench=false,flushBench=false} = variants[variantIndex];
     const span = w + 2;
     const cabinetWidth=4*span+28;
     const left=-cabinetWidth/2;
@@ -863,8 +867,8 @@ h3 { font-size: 13px; font-weight: 650; }
     const doorFront=doorOriginZ+doorRailFace;
     const rear=doorFront-depth;
     const doorClearance=Math.floor(closedPegboardFace-interiorFront);
-    return {w,d,count,doorCount:doorCountFor(variantIndex),centerBench,laneSpacing,rackDepth,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
-      doorClearance,interiorFront,trayFront,tableWidth:2*span+2.5,railBack,railFront,postBands};
+    return {w,d,count,doorCount:doorCountFor(variantIndex),centerBench,flushBench,laneSpacing,rackDepth,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
+      doorClearance,interiorFront,trayFront,tableWidth:2*span+2.5,tableFront:flushBench?frameFront:interiorFront-.35,railBack,railFront,postBands};
   };
   accessoryLayouts[1]=accessoryLayouts[1].map(item=>mergeDoubleDoorPegboards(item,dimensions(1)));
   const trayTravel=(tray,spec)=>spec.depth-(spec.count-1-tray.lane)*spec.laneSpacing;
@@ -1167,14 +1171,20 @@ h3 { font-size: 13px; font-weight: 650; }
       for(const z of [rear+baseTubeSize,front-baseTubeSize]) wheel(x,z);
     }
   }
-  function pegboard(x,y,z,w,h,direction,id,transform=identity,surfaceIndex=-1) {
+  const doorBenchGap=(surface,spec)=>spec.flushBench && (surface===1 || surface===2)?benchDoorOpening:null;
+  function verticalSections(y,h,gap) {
+    return gap?[[y,gap[0]-y],[gap[1],y+h-gap[1]]]:[[y,h]];
+  }
+  function pegboard(x,y,z,w,h,direction,id,transform=identity,surfaceIndex=-1,gap=null) {
     const p = palette;
     const half=pegboardThickness/2;
-    box(x,y,z-half,w,h,pegboardThickness,p.peg,id,transform);
     const faceZ=z+half*direction;
-    const facePoints=[[x,y,faceZ],[x+w,y,faceZ],[x+w,y+h,faceZ],[x,y+h,faceZ]];
-    const surface=facePoints.map(([u,v,f])=>transform([u,v,f+.007*direction]));
-    face(surface,p.peg,id,.03);
+    for(const [bottom,height] of verticalSections(y,h,gap)){
+      box(x,bottom,z-half,w,height,pegboardThickness,p.peg,id,transform);
+      const finishZ=faceZ+.007*direction;
+      const top=bottom+height;
+      face([[x,bottom,finishZ],[x+w,bottom,finishZ],[x+w,top,finishZ],[x,top,finishZ]].map(transform),p.peg,id,.03);
+    }
     const plane=faceZ+.015*direction;
     const columns = Math.floor((w-3)/pegboardPitch);
     const rows = Math.floor((h-4)/pegboardPitch);
@@ -1182,6 +1192,7 @@ h3 { font-size: 13px; font-weight: 650; }
       const a=x+(w-columns*pegboardPitch)/2+i*pegboardPitch;
       const b=y+(h-rows*pegboardPitch)/2+j*pegboardPitch;
       const r=.26;
+      if(gap && b+r>gap[0] && b-r<gap[1]) continue;
       face([[a-r,b,plane],[a,b+r,plane],[a+r,b,plane],[a,b-r,plane]].map(transform),p.hole,id);
     }
     if(surfaceIndex>=0){
@@ -1768,7 +1779,7 @@ h3 { font-size: 13px; font-weight: 650; }
     pineBox(left+.025,197,rear,cabinetWidth-.05,2.975,body,p.frame,'x');
     const skin=1.8;
     plankedSurface(cabinetWidth,-rear,(u,v,lift=0)=>[left+u,199.985+lift,rear+v],65);
-    const frameBack=-3.05, frameFront=.28;
+    const frameBack=-3.05;
     for(const [y,h] of [[18,3.5],[197,3]]){
       box(outerLeft,y,frameBack,width,h,frameFront-frameBack,p.facadeTrim);
       boardSurface(width,h,(u,v)=>[outerLeft+u,y+v,frameFront+.012],p.facadeTrim,y);
@@ -1809,7 +1820,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
 
     const tableX=edges[0], tableWidth=spec.tableWidth;
-    pineBox(tableX,benchBottom,back,tableWidth,2.8,interiorDepth-.35,p.work,'x');
+    pineBox(tableX,benchBottom,back,tableWidth,benchHeight-benchBottom,spec.tableFront-back,p.work,'x');
     pineBox(tableX,benchUpperBase-3,back,tableWidth,3,interiorDepth,p.frame,'x');
     pegboard(tableX+2,benchHeight+4,back+1.1,tableWidth-4,147-benchHeight-4,1,0,identity,0);
     const lampZ=interiorFront-interiorDepth*.47;
@@ -1829,7 +1840,15 @@ h3 { font-size: 13px; font-weight: 650; }
       const y=18.35, height=181.3;
       const middle=y+height/2;
       const plankFace=.64, panelBack=-.93, grooveDepth=.35;
-      pineBox(local,y,panelBack,leaf,height,plankFace-grooveDepth-panelBack,blend(p.door,p.fg,.17),'y',id,t);
+      const gap=doorBenchGap(id,spec);
+      const recessedBack=panelBack+(gap ? .3 : 0);
+      const doorWood=blend(p.door,p.fg,.17);
+      pineBox(local,y,recessedBack,leaf,height,plankFace-grooveDepth-recessedBack,doorWood,'y',id,t);
+      if(gap){
+        for(const [bottom,sectionHeight] of verticalSections(y,height,gap)){
+          pineBox(local,bottom,panelBack,leaf,sectionHeight,recessedBack-panelBack,doorWood,'y',id,t);
+        }
+      }
       plankedSurface(height,leaf,(u,v,lift=0)=>t([local+v,y+u,plankFace+lift]),41+i*13,id,grooveDepth);
       const railBase=plankFace-.02;
       // The two meeting stiles and the closing gap read as one full-width stile.
@@ -1857,8 +1876,10 @@ h3 { font-size: 13px; font-weight: 650; }
       drawCombinationLock(sign,meeting-pivot,middle,Math.floor(i/2),t);
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
       const spacerBack=doorPegboardZ+.35;
-      box(boardX,29,spacerBack,boardWidth,159,panelBack-spacerBack,p.steel,id,t);
-      pegboard(boardX,29,doorPegboardZ,boardWidth,159,-1,id,t,i+1);
+      for(const [bottom,sectionHeight] of verticalSections(doorPegboardBottom,doorPegboardHeight,gap)){
+        box(boardX,bottom,spacerBack,boardWidth,sectionHeight,panelBack-spacerBack,p.steel,id,t);
+      }
+      pegboard(boardX,doorPegboardBottom,doorPegboardZ,boardWidth,doorPegboardHeight,-1,id,t,id,gap);
     }
     geometryOffsetY=0;
   }
@@ -2008,7 +2029,7 @@ h3 { font-size: 13px; font-weight: 650; }
       line(lines[4],point([spec.outerLeft,top,baseFront]),point([baseCotaX,top,baseFront]));
     }
     const benchTop=benchHeight+bodyOffsetY;
-    const benchCotaX=spec.outerLeft-20, benchFront=spec.interiorFront-.35;
+    const benchCotaX=spec.outerLeft-20, benchFront=spec.tableFront;
     mark('bench',[benchCotaX,0,benchFront],[benchCotaX,benchTop,benchFront],
       'Mesa · '+formatCm(benchTop)+' cm',[-45,-4]);
     line(dimensionMarks.bench.lines[3],point([spec.outerLeft,0,benchFront]),point([benchCotaX,0,benchFront]));
@@ -2199,7 +2220,7 @@ h3 { font-size: 13px; font-weight: 650; }
       depth:spec.interiorFront-(spec.rear+1.9+1.1+pegboardThickness/2)-.02
     };
     return {
-      width:doorLayout(surface-1,spec).boardWidth,height:159,
+      width:doorLayout(surface-1,spec).boardWidth,height:doorPegboardHeight,
       depth:closedPegboardFace-spec.interiorFront-.02
     };
   }
@@ -2360,12 +2381,87 @@ h3 { font-size: 13px; font-weight: 650; }
       x+footprint.width+gap<=item.x || x>=item.x+item.width+gap ||
       y+footprint.height+gap<=item.y || y>=item.y+item.height+gap);
   }
+  function benchAccessoryObstacle(surface,spec) {
+    const gap=doorBenchGap(surface,spec);
+    if(!gap) return null;
+    return {x:0,y:gap[0]-doorPegboardBottom,width:accessoryPanelSize(surface,spec).width,height:gap[1]-gap[0]};
+  }
+  function accessoryObstacles(surface,excludedId,spec,layout) {
+    const occupied=accessoryOccupants(surface,excludedId,layout);
+    const bench=benchAccessoryObstacle(surface,spec);
+    if(bench) occupied.push(bench);
+    return occupied;
+  }
+  function shiftBenchSide(item,footprint,layout,panel,bench,above) {
+    const items=layout.filter(other=>other.surface===item.surface && (above?other.y>bench.y:other.y<bench.y))
+      .map(other=>({...other,...accessoryFootprint(accessoryCatalog.find(product=>product.id===other.productId))}));
+    // Measure from the bottom of the upper section or the top of the lower section.
+    const toAxis=(y,height)=>above?y:panel.height-y-height;
+    items.sort((a,b)=>toAxis(a.y,a.height)-toAxis(b.y,b.height));
+    const start=(above?bench.y+bench.height:panel.height-bench.y)+accessoryGap;
+    const placed=[];
+    const changes=new Map();
+    let distance=0;
+    for(const candidate of [{...item,...footprint},...items]){
+      let position=Math.max(start,toAxis(candidate.y,candidate.height));
+      for(const other of placed){
+        if(candidate.x+candidate.width+accessoryGap-accessoryTolerance<=other.x ||
+           other.x+other.width+accessoryGap-accessoryTolerance<=candidate.x) continue;
+        position=Math.max(position,other.end+accessoryGap);
+      }
+      if(position+candidate.height>panel.height+accessoryTolerance) return null;
+      placed.push({x:candidate.x,width:candidate.width,end:position+candidate.height});
+      const shiftedY=toAxis(position,candidate.height);
+      const y=Math.abs(shiftedY-candidate.y)<accessoryTolerance && candidate.id!==item.id?candidate.y:shiftedY;
+      distance+=Math.abs(y-candidate.y);
+      changes.set(candidate.id,y);
+    }
+    return {changes,distance};
+  }
+  function alignBenchAccessories(layout,spec) {
+    if(!spec.flushBench) return layout;
+    const placed=[];
+    const blocked=[];
+    for(const item of layout){
+      const bench=benchAccessoryObstacle(item.surface,spec);
+      const product=accessoryCatalog.find(product=>product.id===item.productId);
+      const footprint=accessoryFootprint(product);
+      if(bench && !clearOfAccessories(footprint,item.x,item.y,[bench])) blocked.push({item,bench,product,footprint});
+      else placed.push({...item});
+    }
+    for(const {item,bench,product,footprint} of blocked){
+      const panel=accessoryPanelSize(item.surface,spec);
+      const occupied=accessoryObstacles(item.surface,item.id,spec,placed);
+      const maxY=panel.height-footprint.height;
+      const options=[0,maxY,...occupied.flatMap(other=>[
+        other.y+other.height+accessoryGap,other.y-footprint.height-accessoryGap
+      ])].sort((a,b)=>Math.abs(a-item.y)-Math.abs(b-item.y));
+      const y=options.find(y=>y>=0 && y<=maxY && clearOfAccessories(footprint,item.x,y,occupied));
+      if(y!==undefined){
+        placed.push({...item,y});
+        continue;
+      }
+      const shifts=[false,true].map(above=>shiftBenchSide(item,footprint,placed,panel,bench,above))
+        .filter(Boolean).sort((a,b)=>a.distance-b.distance);
+      if(shifts.length){
+        const {changes}=shifts[0];
+        placed.forEach(other=>{if(changes.has(other.id)) other.y=changes.get(other.id);});
+        placed.push({...item,y:changes.get(item.id)});
+        continue;
+      }
+      const [slot]=findAccessorySlots(item.surface,product,1,item.id,spec,placed);
+      placed.push(slot?{...item,...slot}:{...item,surface:null});
+    }
+    const byId=new Map(placed.map(item=>[item.id,item]));
+    return layout.map(item=>byId.get(item.id));
+  }
   function accessoryAdjustment(placement) {
     const product=accessoryCatalog.find(item=>item.id===placement.productId);
+    const spec=dimensions();
     return {
       footprint:accessoryFootprint(product),
-      panel:accessoryPanelSize(placement.surface,dimensions()),
-      occupied:accessoryOccupants(placement.surface,placement.id)
+      panel:accessoryPanelSize(placement.surface,spec),
+      occupied:accessoryObstacles(placement.surface,placement.id,spec)
     };
   }
   function allowedAccessoryPoint(x,y,{footprint,panel,occupied}) {
@@ -2379,7 +2475,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const next=allowedAccessoryPoint(
       placement.x+direction.x*(right<0?-1:1),placement.y+direction.y,accessoryAdjustment(placement));
     if(!next || (next.x===placement.x && next.y===placement.y)){
-      update('El accesorio llegó al borde del panel o al espacio de otra pieza.');
+      update('El accesorio llegó al límite de su espacio libre.');
       return;
     }
     Object.assign(placement,next);
@@ -2388,7 +2484,7 @@ h3 { font-size: 13px; font-weight: 650; }
   function findAccessorySlots(surface,product,quantity,moveId,spec,layout=accessoryLayouts[version]) {
     const panel=accessoryPanelSize(surface,spec);
     const footprint=accessoryFootprint(product);
-    const occupied=accessoryOccupants(surface,moveId,layout);
+    const occupied=accessoryObstacles(surface,moveId,spec,layout);
     const positions=(axis,size,max)=>[...new Set([0,...occupied.map(item=>item[axis]+item[size]+accessoryGap)])]
       .filter(position=>position+footprint[size]<=max+accessoryTolerance).sort((a,b)=>a-b);
     const slots=[];
@@ -2519,7 +2615,7 @@ h3 { font-size: 13px; font-weight: 650; }
           nextAccessoryId=Math.max(nextAccessoryId,item.id+1);
           return true;
         });
-        accessoryLayouts[index]=shouldSplit?splitDoubleDoorPegboards(valid,spec):valid;
+        accessoryLayouts[index]=alignBenchAccessories(shouldSplit?splitDoubleDoorPegboards(valid,spec):valid,spec);
       });
     }
     if(snapshot.version!==version) return;
@@ -2534,6 +2630,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
   }
   populateAccessoryPicker();
+  accessoryLayouts[version]=alignBenchAccessories(accessoryLayouts[version],dimensions());
   [accessoryPicker,accessoryCount,accessorySurface].forEach(control=>control.addEventListener('change',()=>{
     accessoryFeedback.textContent='';
     change();
@@ -2585,7 +2682,8 @@ h3 { font-size: 13px; font-weight: 650; }
     get('.tl-tray-count').textContent=spec.count===2?
       '2 · una detrás de otra · holguras menores de 0.5 cm':'1';
     get('.tl-double-depth').hidden=spec.count!==2;
-    get('.tl-table').textContent=spec.tableWidth+' cm de ancho · '+formatCm(benchHeight+bodyOffsetY)+' cm del piso';
+    get('.tl-table').textContent=spec.tableWidth+' cm de ancho · '+formatCm(benchHeight+bodyOffsetY)+' cm del piso'+
+      (spec.flushBench?' · al ras del marco frontal':'');
     get('.tl-body-height').textContent=formatCm(bodyHeight)+' cm';
     get('.tl-base-profile').textContent=formatCm(baseTubeSize)+' × '+formatCm(baseTubeSize)+' cm';
     get('.tl-caster-height').textContent=formatCm(casterHeight)+' cm';
