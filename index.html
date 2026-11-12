@@ -686,6 +686,14 @@ h3 { font-size: 13px; font-weight: 650; }
     mounting:magneticMount,
     modelNote:'La ficha da medidas del conjunto. El riel individual se aproximó con las fotos y se muestra con llaves y destornilladores.',
     draw:drawWorkproRail
+  },{
+    id:'pokipo-drills',label:'POKIPO · Rack de taladros y atornilladores',
+    name:'POKIPO PKP2311 · Rack de 4 posiciones para taladros y atornilladores',
+    url:'https://www.amazon.com/dp/B0CN43FRSZ',
+    width:41.91,height:5.08,depth:17.78,below:21,above:9,extraDepth:6.22,
+    mounting:'Montaje sobre el pegboard del nicho. Los tornillos deben atravesar el pegboard y fijarse a un respaldo sólido.',
+    modelNote:'Cotas del rack en la ficha. El volumen cargado es de referencia y muestra dos taladros, dos atornilladores inalámbricos y destornilladores manuales.',
+    draw:drawDrillRack
   }];
   function accessoryFootprint(product) {
     const below=product.below??0;
@@ -760,10 +768,11 @@ h3 { font-size: 13px; font-weight: 650; }
       ])
     ],[
       ...onPegboard(0,[
-        ['klkcms-cable-ties',.5,5],['nihome-hammers',39.5,1.5],
+        ['klkcms-cable-ties',.5,5],
         ['wallpeg-7-set-3',1.2,37],['wallpeg-5-set-4',37.85,37],
         ...hardwareBins(5,17,28.3),...hardwareBins(15,17,28.3),...hardwareBins(25,17,28.3)
       ]),
+      {productId:'nihome-hammers',surface:null,x:39.5,y:1.5},
       ...onPegboard(1,[
         ['workpro-rail',4.8,125],['ares-62008',9.6,96],['nihome-drivers',4.1,66],
         ['nihome-wrenches',4.1,36],['ares-62008',9.6,7]
@@ -781,7 +790,8 @@ h3 { font-size: 13px; font-weight: 650; }
         ['casoman-pliers-14',6.2,132],['casoman-magnetic-10',5.7,100],['ares-62008',9.58,70],
         ['klkcms-cable-ties',4,40],...hardwareBins(41,21.2,32.4),...hardwareBins(50,21.2,32.4),
         ...hardwareBins(12,5,16.7,28.4),...hardwareBins(22,5,16.7,28.4)
-      ])
+      ]),
+      ...onPegboard(0,[['pokipo-drills',42.5,.5]])
     ]
   ].map((layout,index)=>[
     ...(index===0?previousDefaultA.map(item=>({...item})):[]),
@@ -1489,6 +1499,46 @@ h3 { font-size: 13px; font-weight: 650; }
     box(x-.24,y-shaft,z-.1,.48,.9,.2,toolSteel,id,transform);
     roundedHardware(x-r,y+.05,z-r,2*r,handle,2*r,r*.74,color,id,transform);
     box(x-r*.45,y+handle*.2,z+r-.06,r*.9,handle*.63,.12,toolBlack,id,transform);
+  }
+  function drawDrillRack(transform,id,highlight,product) {
+    const {width,height,depth}=product;
+    const finish=highlight?[.36,.32,.28]:[.19,.19,.20];
+    const forkWidth=5.08, slotWidth=4.064, rod=.23;
+    const pitch=forkWidth+slotWidth;
+    const start=(width-5*forkWidth-4*slotWidth)/2;
+    const forkY=.26, tip=depth-rod;
+    box(0,0,0,width,height,.24,finish,id,transform);
+    box(0,0,0,width,.24,2.8,finish,id,transform);
+    for(const x of [.635,width/2,width-.635]){
+      gardenRod([x,3.95,.24],[x,3.95,.44],.26,toolSteel,id,transform);
+    }
+    for(let i=0;i<5;i++){
+      const left=start+i*pitch+rod, right=left+forkWidth-2*rod;
+      const fork=[[left,forkY,2.5],[left,forkY,tip-.6],[left+.6,forkY,tip],
+        [right-.6,forkY,tip],[right,forkY,tip-.6],[right,forkY,2.5]];
+      for(let j=1;j<fork.length;j++) gardenRod(fork[j-1],fork[j],rod,finish,id,transform);
+    }
+    for(let i=0;i<8;i++){
+      drawDriver((i+.5)*width/8,.28,1.45,8+(i%3)*2,9+(i%3)*1.8,.73,[.96,.70,.12],id,transform);
+    }
+    const yellow=[.94,.68,.10];
+    for(const [i,color,nose] of [[0,yellow,24],[1,toolBlue,20.6],[2,yellow,22.8],[3,toolRed,19.9]]){
+      const x=start+i*pitch+forkWidth+slotWidth/2;
+      const bodyY=i%2?-15.6:-16.8;
+      const collar=nose-(i%2?3.2:6.7);
+      roundedHardware(x-3.78,.47,5.65,7.56,4.25,9.55,1.02,toolBlack,id,transform);
+      roundedHardware(x-3.37,.45,6.3,6.74,1.15,8.25,.48,color,id,transform);
+      roundedHardware(x-2.08,-1.2,6.8,4.16,1.64,6.24,.61,color,id,transform);
+      toolSegment([x,bodyY+2.1,10.35],[x,.47,10],3.56,4.35,toolBlack,id,transform);
+      roundedHardware(x-1.4,bodyY+3.1,11.6,2.8,2.55,1.8,.38,toolBlack,id,transform);
+      gardenRod([x,bodyY,2.8],[x,bodyY,5.4],3.42,toolBlack,id,transform);
+      gardenRod([x,bodyY,5.1],[x,bodyY,collar],3.87,color,id,transform);
+      gardenRod([x,bodyY,collar],[x,bodyY,nose-1.7],i%2?1.72:2.74,toolBlack,id,transform);
+      gardenRod([x,bodyY,nose-1.7],[x,bodyY,nose],i%2?1.22:1.75,toolSteel,id,transform);
+      for(const y of [-1.3,-.45,.4,1.25]){
+        box(x+3.43,bodyY+y,6.1,.34,.18,2.8,toolBlack,id,transform);
+      }
+    }
   }
   function drawWrench(x,y,z,length,r,id,transform) {
     box(x-r*.36,y-length+r,z-.21,r*.72,length-r,.42,toolSteel,id,transform);
@@ -2918,7 +2968,7 @@ h3 { font-size: 13px; font-weight: 650; }
     return slots;
   }
   function revealAccessoryPanel(surface,center=false) {
-    const viewAngle=surface===0?.22:surface%2===1?.52:-.52;
+    const viewAngle=surface===0?0:surface%2===1?.52:-.52;
     const doors=surface===0?[doorForBay(0),doorForBay(1)]:[surface-1];
     if(center || viewMode!=='angle' || doors.some(index=>!doorOpen[index]) ||
        Math.abs(yaw-viewAngle)>.18){
