@@ -41,7 +41,10 @@ h3 { font-size: 13px; font-weight: 650; }
 .tabular-nums { font-variant-numeric: tabular-nums; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
-.simulator { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; min-height: 395px; }
+.simulator {
+  --desktop-scene-height: calc(max(395px, 100dvh) - var(--header-height, 65px));
+  display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: max(395px, 100dvh);
+}
 .site-header {
   display: flex; align-items: center; justify-content: space-between; gap: 10px 22px;
   padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border);
@@ -64,10 +67,13 @@ h3 { font-size: 13px; font-weight: 650; }
   grid-template-columns: minmax(0,1fr);
   min-height: 0; min-width: 0; background: var(--panel); border-right: 1px solid var(--border);
 }
-.control-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 10px; border-bottom: 1px solid var(--border); }
+.control-tabs {
+  position: sticky; top: 0; z-index: 1; align-self: start; background: var(--panel);
+  display: flex; flex-wrap: wrap; gap: 4px; padding: 10px; border-bottom: 1px solid var(--border);
+}
 .control-tabs button { flex: 1 1 auto; min-height: 29px; font-size: 11px; padding: 5px 3px; min-width: 0; white-space: nowrap; }
 .control-tabs button[aria-selected="true"] { font-weight: 650; }
-.control-panel { padding: 12px 16px 18px; overflow: auto; overscroll-behavior: contain; min-height: 0; }
+.control-panel { padding: 12px 16px 18px; min-height: 0; }
 .panel-intro { display: grid; gap: 4px; margin-bottom: 12px; }
 .control-group { display: grid; gap: 8px; }
 .control-group + .control-group { margin-top: 17px; padding-top: 15px; border-top: 1px solid var(--border); }
@@ -114,7 +120,11 @@ h3 { font-size: 13px; font-weight: 650; }
 .accessory-feedback { color: var(--primary); }
 .accessory-feedback:empty { display: none; }
 [aria-labelledby="tab-charolas"] .control-group + .control-group { margin-top: 13px; padding-top: 0; border-top: 0; }
-.tl-scene { grid-area: scene; display: grid; grid-template-rows: auto minmax(0,1fr) auto; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: linear-gradient(#fffefa, var(--scene-ground)); }
+.tl-scene {
+  grid-area: scene; display: grid; grid-template-rows: auto minmax(0,1fr) auto;
+  position: sticky; top: 0; align-self: start; height: var(--desktop-scene-height);
+  min-width: 0; min-height: 0; overflow: clip; background: linear-gradient(#fffefa, var(--scene-ground));
+}
 .scene-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; }
 .scene-toolbar button { min-height: 30px; padding: 4px 9px; font-size: 11px; background: var(--panel); }
 .scene-toolbar [aria-pressed="true"] { background: var(--selected); }
@@ -122,7 +132,10 @@ h3 { font-size: 13px; font-weight: 650; }
 .scene-viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .tl-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .tl-canvas:active { cursor: grabbing; }
-.scene-resize { grid-area: resize; position: relative; cursor: col-resize; touch-action: none; background: var(--panel); }
+.scene-resize {
+  grid-area: resize; position: sticky; top: 0; align-self: start; height: var(--desktop-scene-height);
+  cursor: col-resize; touch-action: none; background: var(--panel);
+}
 .scene-resize::after { content: ""; position: absolute; width: 3px; height: 40px; left: 50%; top: 50%; transform: translate(-50%,-50%); border-radius: 3px; background: #c5b6aa; }
 .cotas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .cotas line { stroke: #a16a54; stroke-width: 1; }
@@ -151,7 +164,7 @@ h3 { font-size: 13px; font-weight: 650; }
   .control-tabs { padding: 6px; }
 }
 @media (max-width: 860px) and (min-height: 500px), (max-width: 580px), (max-width: 1024px) and (pointer: coarse) {
-  .simulator:not(.viewer-expanded) { height: auto; min-height: 100dvh; }
+  .simulator:not(.viewer-expanded) { min-height: 100dvh; }
   .site-header { align-items: stretch; flex-direction: column; padding: 7px 10px; gap: 6px; }
   .site-title h1 { font-size: 15px; }
   .view-heading { padding: 6px 0 0; border-left: 0; border-top: 1px solid var(--border); display: block; }
@@ -162,22 +175,23 @@ h3 { font-size: 13px; font-weight: 650; }
     grid-template-areas: "scene" "resize" "controls";
   }
   .simulator:not(.viewer-expanded) .tl-scene {
+    position: relative; height: auto;
     grid-template-rows: auto max(150px, var(--scene-height,52svh)) auto;
-    overflow: clip;
   }
   .simulator:not(.viewer-expanded) .scene-viewport { overflow: clip; }
   .simulator:not(.viewer-expanded) .tl-canvas { touch-action: pan-y; }
   .simulator:not(.viewer-expanded) .scene-extra[open] { max-height: none; overflow: visible; }
-  .scene-resize { cursor: row-resize; }
+  .scene-resize { position: relative; align-self: stretch; height: auto; cursor: row-resize; }
   .scene-resize::after { width: 46px; height: 3px; }
   .sidebar { grid-template-rows: auto auto auto; align-content: start; border-right: 0; border-top: 1px solid var(--border); }
-  .control-tabs { padding: 6px; }
-  .control-panel { padding: 9px 12px 14px; overflow: visible; overscroll-behavior: auto; }
+  .control-tabs { position: static; padding: 6px; }
+  .control-panel { padding: 9px 12px 14px; }
   .scene-footer { padding: 11px 10px 8px; }
 }
-.viewer-expanded { grid-template-rows: minmax(0,1fr); }
+.viewer-expanded { grid-template-rows: minmax(0,1fr); min-height: 0; height: 100dvh; }
 .viewer-expanded .site-header, .viewer-expanded .sidebar, .viewer-expanded .scene-resize { display: none; }
 .viewer-expanded .simulator-main { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr); grid-template-areas: "scene"; }
+.viewer-expanded .tl-scene { position: relative; align-self: stretch; height: auto; }
 </style>
 </head>
 <body>
@@ -391,7 +405,7 @@ h3 { font-size: 13px; font-weight: 650; }
         <button type="button" data-expand aria-pressed="false">Ampliar visor</button>
       </div>
       <div class="scene-viewport">
-        <canvas class="tl-canvas" aria-label="Modelo tridimensional. Arrastra para girar o mover. Usa la rueda para acercar y las flechas para desplazar." aria-describedby="navigation-help" role="img" tabindex="0"></canvas>
+        <canvas class="tl-canvas" aria-label="Modelo tridimensional. Arrastra para girar o mover. Usa los controles de zoom para acercar y alejar." aria-describedby="navigation-help" role="img" tabindex="0"></canvas>
         <svg class="cotas" aria-hidden="true" hidden>
           <g data-cota="width"><line></line><line></line><line></line><text></text></g>
           <g data-cota="height"><line></line><line></line><line></line><text></text></g>
@@ -433,6 +447,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const get = selector => root.querySelector(selector);
   const canvas = get('.tl-canvas');
   const simulatorMain = get('.simulator-main');
+  const siteHeader = get('.site-header');
   const splitter = get('.scene-resize');
   const expandButton = get('[data-expand]');
   const navigationButtons = [...root.querySelectorAll('[data-navigation]')];
@@ -2147,9 +2162,11 @@ h3 { font-size: 13px; font-weight: 650; }
       note.textContent='Desliza en vertical para recorrer la página · amplía el visor para mover el modelo libremente.';
       return;
     }
-    note.textContent=currentTab==='tab-herramientas'?
+    const instruction=currentTab==='tab-herramientas'?
       'Arrastra un accesorio para ajustarlo · arrastra el fondo para mover la vista.':
       'Toca una charola para sacarla o guardarla · arrastra para girar o mover.';
+    note.textContent=compactLayout.matches?instruction:
+      instruction+' Junta o separa dos dedos en el trackpad para ajustar el zoom.';
   }
   function updateAccessoryUi() {
     const layout=accessoryLayouts[version];
@@ -2909,7 +2926,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function zoomView(factor,clientX,clientY) {
     const next=clamp(zoom*factor,.45,8);
-    if(clientX!==undefined){
+    if(Number.isFinite(clientX) && Number.isFinite(clientY)){
       const rect=canvas.getBoundingClientRect();
       const offsetX=clientX-rect.left-rect.width/2;
       const offsetY=rect.top+rect.height/2-clientY-8;
@@ -2931,11 +2948,14 @@ h3 { font-size: 13px; font-weight: 650; }
     setView('angle');
     update('Vista del mueble centrada.');
   });
+  let scrollBeforeExpand=0;
   function expandViewer(expanded) {
+    if(expanded) scrollBeforeExpand=scrollY;
     root.classList.toggle('viewer-expanded',expanded);
     expandButton.setAttribute('aria-pressed',expanded);
     expandButton.textContent=expanded?'Volver a controles':'Ampliar visor';
     updateNavigationHelp();
+    if(!expanded) scrollTo(0,scrollBeforeExpand);
     schedule();
   }
   expandButton.addEventListener('click',()=>expandViewer(!root.classList.contains('viewer-expanded')));
@@ -3073,17 +3093,26 @@ h3 { font-size: 13px; font-weight: 650; }
   canvas.addEventListener('pointerup',event=>finishPointer(event,true));
   canvas.addEventListener('pointercancel',event=>finishPointer(event,false));
   canvas.addEventListener('lostpointercapture',event=>finishPointer(event,false));
+  let trackpadScale=null;
   canvas.addEventListener('wheel',event=>{
-    if(pageScrolls()) return;
+    // Chromium and Firefox send trackpad pinches as Control-modified wheel events.
+    if(!event.ctrlKey) return;
     event.preventDefault();
-    if(drag?.adjustment) return;
+    if(trackpadScale!==null || drag?.adjustment) return;
     const units=event.deltaMode===1?16:event.deltaMode===2?canvas.clientHeight:1;
-    if(event.shiftKey || Math.abs(event.deltaX)>Math.abs(event.deltaY)){
-      panX-=event.deltaX*units/cameraScale();
-      panY+=event.deltaY*units/cameraScale();
-      schedule();
-    } else zoomView(Math.exp(-event.deltaY*units*.002),event.clientX,event.clientY);
+    zoomView(clamp(Math.exp(-event.deltaY*units/100),.75,1.25),event.clientX,event.clientY);
   },{passive:false});
+  canvas.addEventListener('gesturestart',event=>{
+    event.preventDefault();
+    trackpadScale=pointers.size===0?1:null;
+  },{passive:false});
+  canvas.addEventListener('gesturechange',event=>{
+    event.preventDefault();
+    if(trackpadScale===null || !Number.isFinite(event.scale) || event.scale<=0) return;
+    if(!drag?.adjustment) zoomView(event.scale/trackpadScale,event.clientX,event.clientY);
+    trackpadScale=event.scale;
+  },{passive:false});
+  canvas.addEventListener('gestureend',()=>{trackpadScale=null;});
   canvas.addEventListener('keydown',event=>{
     if(drag?.adjustment) return;
     const direction=accessoryDirections.find(item=>item.key===event.key);
@@ -3124,6 +3153,7 @@ h3 { font-size: 13px; font-weight: 650; }
     sidebarWidth=clamp(sidebarWidth,240,Math.max(240,maxWidth));
     root.style.setProperty('--sidebar-width',sidebarWidth+'px');
     root.style.setProperty('--scene-height',scenePercent+'svh');
+    root.style.setProperty('--header-height',siteHeader.getBoundingClientRect().height+'px');
     splitter.setAttribute('aria-orientation',compact?'horizontal':'vertical');
     splitter.setAttribute('aria-valuemin',compact?35:240);
     splitter.setAttribute('aria-valuemax',compact?80:Math.max(240,maxWidth));
@@ -3165,7 +3195,9 @@ h3 { font-size: 13px; font-weight: 650; }
     updateSplitter();
     updateNavigationHelp();
   });
-  new ResizeObserver(updateSplitter).observe(simulatorMain);
+  const layoutObserver=new ResizeObserver(updateSplitter);
+  layoutObserver.observe(simulatorMain);
+  layoutObserver.observe(siteHeader);
   updateSplitter();
 
   new ResizeObserver(schedule).observe(canvas);
