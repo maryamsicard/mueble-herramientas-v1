@@ -909,6 +909,7 @@ h3 { font-size: 13px; font-weight: 650; }
     varying vec3 color;
     varying vec3 wood;
     uniform float detail;
+    uniform float clearPine;
 
     float hash(vec2 point){
       vec3 p=fract(vec3(point.xyx)*0.1031);
@@ -930,23 +931,25 @@ h3 { font-size: 13px; font-weight: 650; }
       vec2 center=(cell+vec2(.26+.48*hash(cell+2.2),.28+.44*hash(cell+17.5)))*cellSize;
       vec2 toKnot=(uv-center)/vec2(5.7,1.38);
       float radius=length(toKnot);
-      float knot=smoothstep(.55,.72,hash(cell+42.3));
+      float knot=smoothstep(mix(.55,.88,clearPine),mix(.72,.98,clearPine),hash(cell+42.3));
       float influence=(1.0-smoothstep(.18,1.68,radius))*knot;
-      float drift=(noise(uv*vec2(.042,.32))-.5)*1.22;
-      drift+=(noise(uv*vec2(.112,.20))-.5)*.42;
+      float drift=(noise(uv*vec2(.042,.32))-.5)*mix(1.22,.69,clearPine);
+      drift+=(noise(uv*vec2(.112,.20))-.5)*mix(.42,.27,clearPine);
       float cross=uv.y+drift+.76*influence*smoothstep(-.42,.42,toKnot.y)-.38*influence;
       float growth=noise(vec2(uv.x*.051,cross*1.72));
       float band=.5+.5*sin(cross*6.6+1.6*growth);
-      float streak=smoothstep(.53,.85,growth)*(.41+.59*band);
+      float streak=smoothstep(.53,.85,growth)*mix(.41+.59*band,.68+.32*band,clearPine);
       float fibers=smoothstep(.46,.90,noise(vec2(uv.x*.37,cross*6.5)));
       float figure=noise(vec2(uv.x*.025,uv.y*.36))-.5;
       float knotHeart=(1.0-smoothstep(.12,.60,radius))*knot;
       float rings=(.5+.5*sin(radius*17.0+2.4*growth))*influence;
-      float tint=.045*figure-.073*streak-.042*fibers*detail-.17*knotHeart-.036*rings;
+      float tint=.045*figure-.073*streak-.042*fibers*detail
+        -mix(.17,.077,clearPine)*knotHeart-mix(.036,.019,clearPine)*rings;
       gl_FragColor=vec4(clamp(color+tint*vec3(1.0,1.18,1.38),0.0,1.0),1.0);
     }
   `,['p','c','grain']);
   const woodDetail=gl.getUniformLocation(woodProgram,'detail');
+  const woodClearPine=gl.getUniformLocation(woodProgram,'clearPine');
   const buffer = gl.createBuffer();
   const woodBuffer=gl.createBuffer();
   const contourBuffer=gl.createBuffer();
@@ -1010,6 +1013,7 @@ h3 { font-size: 13px; font-weight: 650; }
 
   let positions = [];
   let woodPositions=[];
+  let pinePositions=[];
   let contourPositions=[];
   let contourViewport;
   let hitTriangles = [];
@@ -1022,8 +1026,9 @@ h3 { font-size: 13px; font-weight: 650; }
   function face(points, color, id, shade=0) {
     addFace(points.map(projectVertex),color,id,shade);
   }
+  const faceTint=(color,shade)=>shade<0?blend(color,palette.fg,-shade):blend(color,palette.bg,shade);
   function addFace(projected,color,id,shade) {
-    const rgb = shade < 0 ? blend(color,palette.fg,-shade) : blend(color,palette.bg,shade);
+    const rgb=faceTint(color,shade);
     for (let i=1; i<projected.length-1; i++) {
       const a = projected[0], b = projected[i], c = projected[i+1];
       positions.push(...a,...rgb,...b,...rgb,...c,...rgb);
@@ -1051,12 +1056,27 @@ h3 { font-size: 13px; font-weight: 650; }
   function contourRim(points,color) {
     contourLoop(points.map(projectVertex),color);
   }
-  function box(x,y,z,w,h,d,color,id=noHit,transform=identity) {
+  const boxSides=[
+    [[0,1,2,3],-.19,'x','y'],[[4,5,6,7],0,'x','y'],
+    [[0,4,7,3],-.14,'z','y'],[[1,5,6,2],-.20,'z','y'],
+    [[3,7,6,2],.30,'z','x'],[[0,4,5,1],-.26,'z','x']
+  ];
+  function box(x,y,z,w,h,d,color,id=noHit,transform=identity,grainAxis) {
     const p = [[x,y,z],[x+w,y,z],[x+w,y+h,z],[x,y+h,z],
       [x,y,z+d],[x+w,y,z+d],[x+w,y+h,z+d],[x,y+h,z+d]].map(point=>projectVertex(transform(point)));
-    const sides = [[0,1,2,3,-.19],[4,5,6,7,0],[0,4,7,3,-.14],[1,5,6,2,-.20],
-      [3,7,6,2,.30],[0,4,5,1,-.26]];
-    sides.forEach(([a,b,c,e,shade]) => addFace([p[a],p[b],p[c],p[e]],color,id,shade));
+    const size=grainAxis?{x:w,y:h,z:d}:null;
+    const seed=x*.181+y*.073+z*.121;
+    for(const [corners,shade,axisU,axisV] of boxSides){
+      const projected=corners.map(index=>p[index]);
+      if(!size){
+        addFace(projected,color,id,shade);
+        continue;
+      }
+      const u=size[axisU], v=size[axisV];
+      const alongV=grainAxis===axisV || (grainAxis!==axisU && v>u);
+      const grain=alongV?[[0,0],[0,u],[v,u],[v,0]]:[[0,0],[u,0],[u,v],[0,v]];
+      addWoodFace(pinePositions,projected,grain,faceTint(color,shade),seed,id);
+    }
     if(id!==backgroundHit && Math.max(w,h,d)>.85){
       const tint=contourTint(color);
       for(let i=0;i<4;i++){
@@ -1066,6 +1086,9 @@ h3 { font-size: 13px; font-weight: 650; }
         contourEdge(p[i],p[i+4],tint);
       }
     }
+  }
+  function pineBox(x,y,z,w,h,d,color,grainAxis,id=noHit,transform=identity) {
+    box(x,y,z,w,h,d,color,id,transform,grainAxis);
   }
   function roundedHardware(x,y,z,w,h,d,r,color,id,transform) {
     const corners=[[w-r,h-r],[r,h-r],[r,r],[w-r,r]];
@@ -1468,30 +1491,18 @@ h3 { font-size: 13px; font-weight: 650; }
       product.draw(toPanel,1000+placement.id,selectedAccessory===placement.id,product);
     });
   }
-  function woodGrain(length, breadth, color, point, seed) {
-    const count=Math.ceil(breadth/2.6);
-    const lineWidth=.065;
-    for(let i=1;i<count;i++){
-      const phase=i*2.39+seed;
-      const center=breadth*i/count+Math.sin(phase)*.34;
-      const wave=u=>clamp(center+Math.sin(u*.11+phase)*.19+Math.sin(u*.035+phase)*.34,0,breadth-lineWidth);
-      const tint=blend(color,i%4===0?palette.bg:palette.fg,.025+(i%4)*.024);
-      for(let u=0;u<length;u+=13){
-        const v=Math.min(u+13,length);
-        face([point(u,wave(u)),point(v,wave(v)),point(v,wave(v)+lineWidth),point(u,wave(u)+lineWidth)],tint,noHit);
-      }
-    }
-  }
-
-  function boardSurface(length,breadth,point,color,seed,id=noHit){
-    const corners=[[0,0],[length,0],[length,breadth],[0,breadth]];
-    const projected=corners.map(([u,v])=>projectVertex(point(u,v)));
+  function addWoodFace(mesh,projected,grain,color,seed,id) {
     for(const indices of [[0,1,2],[0,2,3]]){
       for(const index of indices){
-        woodPositions.push(...projected[index],...color,...corners[index],seed);
+        mesh.push(...projected[index],...color,...grain[index],seed);
       }
       hitTriangles.push([...indices.map(index=>projected[index]),id]);
     }
+  }
+  function boardSurface(length,breadth,point,color,seed,id=noHit){
+    const corners=[[0,0],[length,0],[length,breadth],[0,breadth]];
+    const projected=corners.map(([u,v])=>projectVertex(point(u,v)));
+    addWoodFace(woodPositions,projected,corners,color,seed,id);
     contourLoop(projected,color);
   }
 
@@ -1613,9 +1624,9 @@ h3 { font-size: 13px; font-weight: 650; }
     if((bay===2 && tray.row===2) || (bay===1 && tray.row===1)){
       const [insideW,insideD]=rotated?[inside[1],inside[0]]:inside;
       const ix=x-insideW/2+2, iz=z-insideD/2+2;
-      box(ix,y+.79,iz,(insideW-4)*.53,.55,insideD-4,p.work,id);
-      box(ix,y+1.31,iz,.65,4,insideD-4,p.work,id);
-      box(ix,y+1.31,iz+d*.38,(insideW-4)*.53,4,.65,p.work,id);
+      pineBox(ix,y+.79,iz,(insideW-4)*.53,.55,insideD-4,p.work,'z',id);
+      pineBox(ix,y+1.31,iz,.65,4,insideD-4,p.work,'z',id);
+      pineBox(ix,y+1.31,iz+d*.38,(insideW-4)*.53,4,.65,p.work,'x',id);
     }
   }
   function renderTrayCatalog() {
@@ -1711,9 +1722,9 @@ h3 { font-size: 13px; font-weight: 650; }
     for(const tray of levelsByBay[bay]){
       const seat=tray.top-flange.seat;
       for(const [x,wallX] of [[left,left],[right,right+guideWidth-wallWidth]]){
-        box(x,seat-seatThickness,railBack,guideWidth,seatThickness,length,p.rail);
-        box(wallX,seat,railBack,wallWidth,channelHeight,length,p.liner);
-        box(x,seat+channelHeight,railBack,guideWidth,capThickness,length,p.rail);
+        pineBox(x,seat-seatThickness,railBack,guideWidth,seatThickness,length,p.rail,'z');
+        pineBox(wallX,seat,railBack,wallWidth,channelHeight,length,p.liner,'z');
+        pineBox(x,seat+channelHeight,railBack,guideWidth,capThickness,length,p.rail,'z');
       }
     }
   }
@@ -1748,13 +1759,13 @@ h3 { font-size: 13px; font-weight: 650; }
 
     geometryOffsetY=bodyOffsetY;
     if(spec.centerBench){
-      box(left,18,rear,cabinetWidth,182,1.9,p.panel);
+      pineBox(left,18,rear,cabinetWidth,182,1.9,p.panel,'y');
     } else {
-      box(left,18,rear,edges[2]-left,182,1.9,p.panel);
-      box(edges[2],18,rear,-left-edges[2],182,1.9,blend(p.panel,p.warmLight,.22));
+      pineBox(left,18,rear,edges[2]-left,182,1.9,p.panel,'y');
+      pineBox(edges[2],18,rear,-left-edges[2],182,1.9,blend(p.panel,p.warmLight,.22),'y');
     }
-    box(left+.025,18,rear,cabinetWidth-.05,3.5,body,p.frame);
-    box(left+.025,197,rear,cabinetWidth-.05,2.975,body,p.frame);
+    pineBox(left+.025,18,rear,cabinetWidth-.05,3.5,body,p.frame,'x');
+    pineBox(left+.025,197,rear,cabinetWidth-.05,2.975,body,p.frame,'x');
     const skin=1.8;
     plankedSurface(cabinetWidth,-rear,(u,v,lift=0)=>[left+u,199.985+lift,rear+v],65);
     const frameBack=-3.05, frameFront=.28;
@@ -1768,26 +1779,26 @@ h3 { font-size: 13px; font-weight: 650; }
         (u,v)=>[x+v,21.5+u,frameFront+.012],p.facadeTrim,x);
     }
     const interiorDepth=interiorFront-back;
-    box(left+.025,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23));
-    box(-left-skin,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23));
+    pineBox(left+.025,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23),'y');
+    pineBox(-left-skin,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23),'y');
     cladSides(left,rear);
-    box(left+skin,21.5,back,4.5-skin,175.5,interiorDepth,p.frame);
-    box(-left-4.5,21.5,back,4.5-skin,175.5,interiorDepth,p.frame);
-    box(edges[0]+span,21.5,back,2.5,benchBottom-21.5,interiorDepth,p.frame);
-    box(edges[0]+span,benchUpperBase,back,2.5,197-benchUpperBase,interiorDepth,p.frame);
+    pineBox(left+skin,21.5,back,4.5-skin,175.5,interiorDepth,p.frame,'y');
+    pineBox(-left-4.5,21.5,back,4.5-skin,175.5,interiorDepth,p.frame,'y');
+    pineBox(edges[0]+span,21.5,back,2.5,benchBottom-21.5,interiorDepth,p.frame,'y');
+    pineBox(edges[0]+span,benchUpperBase,back,2.5,197-benchUpperBase,interiorDepth,p.frame,'y');
     if(spec.centerBench){
       for(const [from,to] of [[edges[2]+span,edges[0]],[edges[1]+span,edges[3]]]){
         for(const [z,postDepth] of spec.postBands){
-          box(from,21.5,z,to-from,175.5,postDepth,p.frame);
+          pineBox(from,21.5,z,to-from,175.5,postDepth,p.frame,'y');
         }
       }
     } else {
       for(const [z,postDepth] of spec.postBands){
-        box(edges[2]+span,21.5,z,2.5,175.5,postDepth,p.frame);
+        pineBox(edges[2]+span,21.5,z,2.5,175.5,postDepth,p.frame,'y');
       }
-      box(-7,21.5,back,14,175.5,interiorDepth-3,p.frame);
-      box(-2.1,21.5,interiorFront-3,4.2,175.5,1.5-interiorFront,p.frame);
-      box(-2.52,21.5,-1.5,5.04,175.5,1.1,p.frame);
+      pineBox(-7,21.5,back,14,175.5,interiorDepth-3,p.frame,'y');
+      pineBox(-2.1,21.5,interiorFront-3,4.2,175.5,1.5-interiorFront,p.frame,'y');
+      pineBox(-2.52,21.5,-1.5,5.04,175.5,1.1,p.frame,'y');
     }
 
     const lightZ=(spec.railBack+spec.railFront)/2;
@@ -1798,16 +1809,12 @@ h3 { font-size: 13px; font-weight: 650; }
     }
 
     const tableX=edges[0], tableWidth=spec.tableWidth;
-    box(tableX,benchBottom,back,tableWidth,2.8,interiorDepth-.35,p.work);
-    box(tableX,benchUpperBase-3,back,tableWidth,3,interiorDepth,p.frame);
+    pineBox(tableX,benchBottom,back,tableWidth,2.8,interiorDepth-.35,p.work,'x');
+    pineBox(tableX,benchUpperBase-3,back,tableWidth,3,interiorDepth,p.frame,'x');
     pegboard(tableX+2,benchHeight+4,back+1.1,tableWidth-4,147-benchHeight-4,1,0,identity,0);
     const lampZ=interiorFront-interiorDepth*.47;
     box(tableX+5,149.9,lampZ,tableWidth-10,1.1,3,p.steel);
     box(tableX+6,149.5,lampZ+.35,tableWidth-12,.45,2.3,p.led);
-    box(tableX+2,benchHeight+.005,back+2,tableWidth-4,.015,interiorDepth-4,blend(p.work,p.led,.34));
-
-    woodGrain(tableWidth-1.4,interiorDepth-1.5,p.work,
-      (u,v)=>[tableX+.7+u,benchHeight+.028,back+.65+v],2);
     for(let bay=0;bay<4;bay++) traySupports(bay,spec);
     for(const bay of gardenBays) if(gardenOccupies(bay)) drawGardenTools(bay,spec);
     trays.forEach((tray,index) => {
@@ -1822,7 +1829,7 @@ h3 { font-size: 13px; font-weight: 650; }
       const y=18.35, height=181.3;
       const middle=y+height/2;
       const plankFace=.64, panelBack=-.93, grooveDepth=.35;
-      box(local,y,panelBack,leaf,height,plankFace-grooveDepth-panelBack,blend(p.door,p.fg,.17),id,t);
+      pineBox(local,y,panelBack,leaf,height,plankFace-grooveDepth-panelBack,blend(p.door,p.fg,.17),'y',id,t);
       plankedSurface(height,leaf,(u,v,lift=0)=>t([local+v,y+u,plankFace+lift]),41+i*13,id,grooveDepth);
       const railBase=plankFace-.02;
       // The two meeting stiles and the closing gap read as one full-width stile.
@@ -1934,6 +1941,7 @@ h3 { font-size: 13px; font-weight: 650; }
     readPalette();
     positions=[];
     woodPositions=[];
+    pinePositions=[];
     contourPositions=[];
     // Lift the strokes just enough to stay legible against the surfaces they describe.
     contourViewport={width,height,bias:clamp(.27/(scale*260),.000065,.00044)};
@@ -1946,7 +1954,10 @@ h3 { font-size: 13px; font-weight: 650; }
     gl.useProgram(woodProgram);
     gl.uniform1f(woodDetail,clamp((scale*ratio-1.4)/3,0,1));
     gl.enableVertexAttribArray(2);
+    gl.uniform1f(woodClearPine,0);
     drawMesh(woodPositions,woodBuffer,9);
+    gl.uniform1f(woodClearPine,1);
+    drawMesh(pinePositions,woodBuffer,9);
     gl.disableVertexAttribArray(2);
     gl.useProgram(program);
     gl.depthMask(false);
