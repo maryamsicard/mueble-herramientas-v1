@@ -360,6 +360,7 @@ h3 { font-size: 13px; font-weight: 650; }
               <label for="floor-tool-bay">Módulo</label>
               <select id="floor-tool-bay" name="bay"></select>
             </div>
+            <p class="text-small text-muted" data-floor-tool-shared hidden>La base compartida une la parte baja de los módulos 1 y 2. Al quitar la herramienta se reponen el divisor y las charolas.</p>
             <p class="text-small text-muted" data-floor-tool-space></p>
             <div class="actions">
               <button type="submit" class="btn-primary">Probar encaje</button>
@@ -601,6 +602,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const floorToolBay=get('#floor-tool-bay');
   const floorToolResult=get('[data-floor-tool-result]');
   const floorToolRemove=get('[data-floor-tool-remove]');
+  const floorToolSharedNote=get('[data-floor-tool-shared]');
   const storedFloorTools=[];
   let selectedFloorProduct=floorToolCatalog[0];
   let floorToolPreview=null;
@@ -875,7 +877,10 @@ h3 { font-size: 13px; font-weight: 650; }
   const doorForBay=(bay,index=version)=>doorCountFor(index)===2?bay%2:bay;
   const removedFronts = new Set();
   const gardenOccupies=bay=>gardenLayouts[version].some(item=>item.bay===bay);
-  const floorToolAt=bay=>storedFloorTools.find(tool=>tool.bay===bay);
+  const floorToolCovers=(tool,bay)=>tool.bay===bay || (tool.shared && bay===1);
+  const floorToolAt=bay=>storedFloorTools.find(tool=>floorToolCovers(tool,bay));
+  const floorToolBays=tool=>tool.shared?[0,1]:[tool.bay];
+  const sharedBaseHeight=size=>gardenBase+size.height+gardenTrayGap+plywoodThickness;
   function toolTrayFloor(bay,index=version) {
     let floor=null;
     for(const item of gardenLayouts[index]){
@@ -884,7 +889,9 @@ h3 { font-size: 13px; font-weight: 650; }
       floor=Math.max(floor??0,gardenBottom(product)+product.height+gardenTrayGap);
     }
     const floorTool=index===version?floorToolAt(bay):null;
-    if(floorTool) floor=gardenBase+floorTool.size.height+gardenTrayGap;
+    if(floorTool){
+      floor=floorTool.shared?sharedBaseHeight(floorTool.size)+1.5:gardenBase+floorTool.size.height+gardenTrayGap;
+    }
     return floor;
   }
   function fitsAboveTools(tray,height) {
@@ -1423,8 +1430,8 @@ h3 { font-size: 13px; font-weight: 650; }
       slot.product.draw(([x,y,z])=>[slot.x+x,slot.y+y,slot.z+z],id);
     }
   }
-  function drawFloorTool({product,bay,size,fits,rotated},spec) {
-    const x=spec.bayCenters[bay];
+  function drawFloorTool({product,bay,shared,size,fits,rotated},spec) {
+    const x=shared?(trayBayFace(spec,0,-1)+trayBayFace(spec,1,1))/2:spec.bayCenters[bay];
     const y=fits?gardenBase+bodyOffsetY:0;
     const depth=rotated?size.width:size.depth;
     const z=fits?spec.railFront-.5-depth/2:
@@ -1984,9 +1991,15 @@ h3 { font-size: 13px; font-weight: 650; }
 
   function trayPanels(spec,back,skin) {
     const front=spec.panelFront;
+    const shared=storedFloorTools.find(tool=>tool.shared);
+    const bridgeTop=shared?sharedBaseHeight(shared.size):null;
+    const middleBands=shared?[[bridgeTop,benchBottom],benchPanelBands[1]]:benchPanelBands;
     for(let bay=0;bay<4;bay++){
       for(const side of [-1,1]){
-        for(const [start,end] of benchBay(bay)?benchPanelBands:[fullPanelBand]){
+        const sharedSide=(bay===0 && side===1) || (bay===1 && side===-1);
+        const bands=sharedSide?middleBands:benchBay(bay)?benchPanelBands:[fullPanelBand];
+        for(const [start,end] of bands){
+          if(end<=start) continue;
           groovedPlywood(trayBayFace(spec,bay,side),side,start,end,back,front,spec.grooveDepth,levelsByBay[bay]);
         }
       }
@@ -1995,13 +2008,18 @@ h3 { font-size: 13px; font-weight: 650; }
     for(const {from,to,byBench,niche,before,after} of trayPanelDividers(spec)){
       const left=from+(before===undefined?skin:plywoodThickness);
       const right=to-(after===null?skin:plywoodThickness);
-      for(const [start,end] of byBench?benchPanelBands:[fullPanelBand]){
-        if(right-left>.001) pineBox(left,start,back,right-left,end-start,front-back,palette.frame,'y');
+      const bands=before===0 && after===1?middleBands:byBench?benchPanelBands:[fullPanelBand];
+      for(const [start,end] of bands){
+        if(right-left>.001 && end>start) pineBox(left,start,back,right-left,end-start,front-back,palette.frame,'y');
       }
       if(!byBench || !niche) continue;
       const nicheLeft=benchBay(before)?niche[0]:left;
       const nicheRight=benchBay(after)?niche[1]:right;
       pineBox(nicheLeft,benchBottom,back,nicheRight-nicheLeft,benchUpperBase-benchBottom,front-back,palette.frame,'y');
+    }
+    if(shared){
+      const left=trayBayFace(spec,0,-1), right=trayBayFace(spec,1,1);
+      pineBox(left,bridgeTop-plywoodThickness,back,right-left,plywoodThickness,spec.trayFront-back,palette.frame,'x');
     }
   }
   function doorLayout(i,spec) {
@@ -2337,19 +2355,33 @@ h3 { font-size: 13px; font-weight: 650; }
     }));
   }
   renderProductMeasurements();
-  function floorToolSpace(bay,spec) {
-    return {width:spec.opening,height:(bay<2?benchBottom:gardenCeiling)-gardenBase,
+  function floorToolSpace(bay,spec,shared=false) {
+    const width=shared?trayBayFace(spec,1,1)-trayBayFace(spec,0,-1):spec.opening;
+    const height=(bay<2?benchBottom:gardenCeiling)-gardenBase-(shared?gardenTrayGap+plywoodThickness:0);
+    return {width,height,
       depth:spec.railFront-(spec.rear+1.9)};
   }
-  function planFloorTool(product,bay,size,spec) {
+  function planFloorTool(product,bay,size,spec,shared=false) {
     if(!product || !Number.isInteger(bay) || !levelsByBay[bay] || !size ||
+       (shared && bay!==0) ||
        !Object.keys(product.size).every(key=>Number.isFinite(size[key]) && size[key]>=1 && size[key]<=200)) return null;
-    const room=floorToolSpace(bay,spec);
+    const room=floorToolSpace(bay,spec,shared);
     const clears=(width,depth)=>width+1<=room.width && depth+1<=room.depth && size.height+.5<=room.height;
     const rotated=!clears(size.width,size.depth) && clears(size.depth,size.width);
     const fitsInRoom=rotated || clears(size.width,size.depth);
-    const occupiedBy=gardenOccupies(bay)?'herramientas de jardín':floorToolAt(bay)?.product.name;
-    return {product,bay,size,rotated,fitsInRoom,occupiedBy,fits:fitsInRoom && !occupiedBy};
+    const bays=floorToolBays({bay,shared});
+    const occupiedBy=bays.some(gardenOccupies)?'herramientas de jardín':
+      bays.map(floorToolAt).find(Boolean)?.product.name;
+    return {product,bay,shared,size,rotated,fitsInRoom,occupiedBy,fits:fitsInRoom && !occupiedBy};
+  }
+  const sharedBaseValue='shared';
+  const floorLocation=()=>floorToolBay.value===sharedBaseValue?{bay:0,shared:true}:{bay:Number(floorToolBay.value),shared:false};
+  const floorLocationLabel=({bay,shared})=>shared?'base compartida de los módulos 1 y 2':'módulo '+(bay+1);
+  function floorToolDraft() {
+    const product=selectedFloorProduct;
+    const size=Object.fromEntries(Object.keys(product.size).map(key=>[key,floorToolForm.elements.namedItem(key).valueAsNumber]));
+    const {bay,shared}=floorLocation();
+    return planFloorTool(product,bay,size,dimensions(),shared);
   }
   function bayTraysStowed(bay) {
     return (active<0 || trays[active].bay!==bay) &&
@@ -2370,7 +2402,7 @@ h3 { font-size: 13px; font-weight: 650; }
     if(widthOver>0){
       const fit=document.createElement('span');
       fit.className='text-small text-muted';
-      fit.textContent='Excede el paso entre paneles por '+formatCm(widthOver)+' cm';
+      fit.textContent='Requiere la base compartida con estas medidas';
       button.append(fit);
     }
     button.addEventListener('click',()=>{
@@ -2378,11 +2410,11 @@ h3 { font-size: 13px; font-weight: 650; }
     });
     return button;
   });
-  function fillFloorToolForm(product,size,bay) {
+  function fillFloorToolForm(product,size,location) {
     selectedFloorProduct=product;
     floorToolButtons.forEach((button,index)=>button.setAttribute('aria-pressed',floorToolCatalog[index]===product));
     for(const key of Object.keys(product.size)) floorToolForm.elements.namedItem(key).value=size[key];
-    floorToolBay.value=bay;
+    floorToolBay.value=location;
     get('[data-floor-tool-description]').textContent=product.description;
     get('[data-floor-tool-amazon]').href=product.amazon;
     get('[data-floor-tool-source]').href=product.source;
@@ -2394,53 +2426,64 @@ h3 { font-size: 13px; font-weight: 650; }
     floorToolPreview=null;
     floorToolResult.textContent='';
     const stored=storedFloorTools.find(tool=>tool.product===product);
-    fillFloorToolForm(product,stored?.size??product.size,stored?.bay??Number(floorToolBay.value));
+    fillFloorToolForm(product,stored?.size??product.size,stored?(stored.shared?sharedBaseValue:stored.bay):floorToolBay.value);
     updateFloorToolUi();
     schedule();
   }
-  function revealFloorTool({bay,fits}) {
-    doorOpen[doorForBay(bay)]=true;
+  function revealFloorTool(plan) {
+    const {bay,fits}=plan;
+    floorToolBays(plan).forEach(module=>{doorOpen[doorForBay(module)]=true;});
     setView('angle');
     yaw=bay<2?-.23:.23;
     pitch=.19;
     if(!fits) zoom=.76;
   }
   function updateFloorToolUi() {
-    const spec=dimensions(), room=floorToolSpace(Number(floorToolBay.value),spec);
-    get('[data-floor-tool-space]').textContent='Espacio útil entre paneles · '+
-      [room.width,room.height,room.depth].map(formatCm).join(' × ')+' cm (ancho × alto × fondo). La prueba deja 5 mm por lado.';
+    const spec=dimensions(), {bay,shared}=floorLocation();
+    const room=floorToolSpace(bay,spec,shared);
+    floorToolSharedNote.hidden=!shared;
+    get('[data-floor-tool-space]').textContent='Espacio útil · '+
+      [room.width,room.height,room.depth].map(formatCm).join(' × ')+' cm (ancho × alto × fondo).';
     const stored=selectedStoredFloorTool();
+    const draft=stored??floorToolDraft();
     floorToolForm.querySelectorAll('input, [name="bay"]').forEach(control=>{control.disabled=Boolean(stored);});
-    floorToolForm.querySelector('button[type="submit"]').textContent=stored?'Ver módulo':'Probar encaje';
-    const plan=stored??floorToolPreview;
-    floorToolRemove.hidden=!plan;
-    if(!plan) return;
-    const {bay,size,fits,fitsInRoom,rotated,occupiedBy}=plan;
-    if(fits){
-      const count=levelsByBay[bay].filter(trayAvailable).length*spec.count;
-      floorToolResult.textContent='En la base del módulo '+(bay+1)+(rotated?' · giro de 90°':'')+
-        ' · '+count+(count===1?' charola disponible arriba.':' charolas disponibles arriba.');
+    floorToolForm.querySelector('button[type="submit"]').textContent=stored?'Ver módulo':draft?.fits?'Colocar en la base':'Ver a escala';
+    floorToolRemove.hidden=!stored && !floorToolPreview;
+    if(!draft){
+      floorToolResult.textContent='Ingresa el ancho, alto y fondo de la herramienta.';
+      return;
+    }
+    const {size,fits,fitsInRoom,rotated,occupiedBy}=draft;
+    const location=floorLocationLabel(draft);
+    const turn=rotated?' con un giro de 90°':'';
+    if(stored){
+      const count=floorToolBays(stored).reduce((total,module)=>total+levelsByBay[module].filter(trayAvailable).length,0)*spec.count;
+      floorToolResult.textContent='Colocada en '+location+turn+' · '+count+
+        (count===1?' charola disponible arriba.':' charolas disponibles arriba.');
+    } else if(fits){
+      floorToolResult.textContent='Cabe en '+location+turn+'. Al colocarla, las charolas que interfieren se retiran.';
     } else {
       const width=Math.min(size.width,size.depth);
       const reason=fitsInRoom?'El módulo está ocupado por '+occupiedBy+'.':
         width>room.width?'La herramienta mide '+formatCm(width)+' cm en su lado más estrecho y el paso mide '+formatCm(room.width)+' cm.':
         'La herramienta supera el espacio útil con la holgura del modelo.';
-      floorToolResult.textContent=reason+' Se muestra delante del módulo '+(bay+1)+' para comparar.';
+      floorToolResult.textContent=reason+(floorToolPreview?' Se muestra delante para comparar.':'');
     }
   }
   function restoreFloorTools(saved) {
     for(const item of saved){
       const product=floorToolCatalog.find(entry=>entry.id===item?.id);
       if(!product || storedFloorTools.some(tool=>tool.product===product)) continue;
-      const plan=planFloorTool(product,item.bay,item.size,dimensions());
+      const plan=planFloorTool(product,item.bay,item.size,dimensions(),item.shared===true);
       if(plan?.fits) storedFloorTools.push(plan);
     }
     const first=storedFloorTools[0];
-    if(first) fillFloorToolForm(first.product,first.size,first.bay);
+    if(first) fillFloorToolForm(first.product,first.size,first.shared?sharedBaseValue:first.bay);
   }
-  floorToolBay.replaceChildren(...levelsByBay.map((_,bay)=>option(bay,'Módulo '+(bay+1))));
+  floorToolBay.replaceChildren(option(sharedBaseValue,'Base compartida · módulos 1 y 2'),
+    ...levelsByBay.map((_,bay)=>option(bay,'Módulo '+(bay+1))));
   get('.floor-tool-catalog').replaceChildren(...floorToolButtons);
-  fillFloorToolForm(floorToolCatalog[0],floorToolCatalog[0].size,2);
+  fillFloorToolForm(floorToolCatalog[0],floorToolCatalog[0].size,sharedBaseValue);
   floorToolForm.addEventListener('input',()=>{
     if(selectedStoredFloorTool()) return;
     floorToolPreview=null;
@@ -2456,11 +2499,9 @@ h3 { font-size: 13px; font-weight: 650; }
       change();
       return;
     }
-    const product=selectedFloorProduct;
-    const size=Object.fromEntries(Object.keys(product.size).map(key=>[key,floorToolForm.elements.namedItem(key).valueAsNumber]));
-    const plan=planFloorTool(product,Number(floorToolBay.value),size,dimensions());
+    const plan=floorToolDraft();
     if(!plan) return;
-    if(plan.fits && !bayTraysStowed(plan.bay)){
+    if(plan.fits && !floorToolBays(plan).every(bayTraysStowed)){
       floorToolResult.textContent='Guarda las charolas del módulo antes de colocar la herramienta.';
       return;
     }
@@ -2473,19 +2514,18 @@ h3 { font-size: 13px; font-weight: 650; }
   });
   floorToolRemove.addEventListener('click',()=>{
     const stored=selectedStoredFloorTool();
-    if(stored && !bayTraysStowed(stored.bay)){
+    if(stored && !floorToolBays(stored).every(bayTraysStowed)){
       floorToolResult.textContent='Guarda las charolas del módulo antes de retirar la herramienta.';
       return;
     }
     floorToolPreview=null;
     if(stored){
       storedFloorTools.splice(storedFloorTools.indexOf(stored),1);
-      upperToolTrays[version][stored.bay]=null;
+      floorToolBays(stored).forEach(bay=>{upperToolTrays[version][bay]=null;});
     }
-    floorToolResult.textContent=stored?'Herramienta retirada. Charolas repuestas.':'Vista de la herramienta retirada.';
     refreshTrays();
     syncEditorToTray();
-    change();
+    change(stored?'Herramienta retirada. Charolas repuestas.':'Vista de la herramienta retirada.');
   });
   function gardenPlan(items,bay,spec) {
     const products=items.map(item=>gardenCatalog.find(product=>product.id===item.id));
@@ -3278,7 +3318,7 @@ h3 { font-size: 13px; font-weight: 650; }
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
         doors:doorOpen,doorLayoutRevision:4,extendedMiddleDoor,selected,active,extraction,removedFronts:[...removedFronts],
         accessoryLayouts,accessoryLayoutRevision:5,gardenLayouts,gardenLayoutRevision:1,gardenUpperTrays:upperToolTrays,
-        floorTools:storedFloorTools.map(({product,bay,size})=>({id:product.id,bay,size})),
+        floorTools:storedFloorTools.map(({product,bay,shared,size})=>({id:product.id,bay,shared,size})),
         accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
         accessoryQuantity:Number(accessoryCount.value),
         accessorySurface:(movingAccessory?.surface??accessorySurface.value)===''?null:
