@@ -397,7 +397,6 @@ h3 { font-size: 13px; font-weight: 650; }
         <button type="button" data-zoom="out" aria-label="Alejar" title="Alejar">−</button>
         <button type="button" data-zoom="in" aria-label="Acercar" title="Acercar">+</button>
         <button type="button" data-center>Centrar</button>
-        <button type="button" data-contours aria-pressed="true">Contornos</button>
         <button type="button" data-expand aria-pressed="false">Ampliar visor</button>
       </div>
       <div class="scene-viewport">
@@ -446,7 +445,6 @@ h3 { font-size: 13px; font-weight: 650; }
   const siteHeader = get('.site-header');
   const splitter = get('.scene-resize');
   const expandButton = get('[data-expand]');
-  const contourButton = get('[data-contours]');
   const compactLayout = matchMedia('(max-width: 860px) and (min-height: 500px), (max-width: 580px), (max-width: 1024px) and (pointer: coarse)');
   const columnPicker = get('#tl-column');
   const levelPicker = get('#tl-level');
@@ -1014,7 +1012,6 @@ h3 { font-size: 13px; font-weight: 650; }
   let woodPositions=[];
   let contourPositions=[];
   let contourViewport;
-  let showContours=true;
   let hitTriangles = [];
   let geometryOffsetY = 0;
   let project;
@@ -1048,12 +1045,11 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   const contourTint=color=>color.map(channel=>channel*.74);
   function contourLoop(projected,color) {
-    if(!showContours) return;
     const tint=contourTint(color);
     for(let i=0;i<projected.length;i++) contourEdge(projected[i],projected[(i+1)%projected.length],tint);
   }
   function contourRim(points,color) {
-    if(showContours) contourLoop(points.map(projectVertex),color);
+    contourLoop(points.map(projectVertex),color);
   }
   function box(x,y,z,w,h,d,color,id=noHit,transform=identity) {
     const p = [[x,y,z],[x+w,y,z],[x+w,y+h,z],[x,y+h,z],
@@ -1061,7 +1057,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const sides = [[0,1,2,3,-.19],[4,5,6,7,0],[0,4,7,3,-.14],[1,5,6,2,-.20],
       [3,7,6,2,.30],[0,4,5,1,-.26]];
     sides.forEach(([a,b,c,e,shade]) => addFace([p[a],p[b],p[c],p[e]],color,id,shade));
-    if(showContours && id!==backgroundHit && Math.max(w,h,d)>.85){
+    if(id!==backgroundHit && Math.max(w,h,d)>.85){
       const tint=contourTint(color);
       for(let i=0;i<4;i++){
         const next=(i+1)%4;
@@ -1952,12 +1948,10 @@ h3 { font-size: 13px; font-weight: 650; }
     gl.enableVertexAttribArray(2);
     drawMesh(woodPositions,woodBuffer,9);
     gl.disableVertexAttribArray(2);
-    if(showContours){
-      gl.useProgram(program);
-      gl.depthMask(false);
-      drawMesh(contourPositions,contourBuffer,6);
-      gl.depthMask(true);
-    }
+    gl.useProgram(program);
+    gl.depthMask(false);
+    drawMesh(contourPositions,contourBuffer,6);
+    gl.depthMask(true);
     if(!animating) updateRestoreButton();
     if(animating) schedule();
     else previous=0;
@@ -2993,11 +2987,6 @@ h3 { font-size: 13px; font-weight: 650; }
   root.querySelectorAll('[data-zoom]').forEach(button=>button.addEventListener('click',()=>{
     zoomView(button.dataset.zoom==='in'?1.25:1/1.25);
   }));
-  contourButton.addEventListener('click',()=>{
-    showContours=!showContours;
-    contourButton.setAttribute('aria-pressed',showContours);
-    schedule();
-  });
   get('[data-center]').addEventListener('click',()=>{
     setView('angle');
     update('Vista del mueble centrada.');
