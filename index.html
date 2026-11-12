@@ -516,7 +516,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const variants = [
     {w:42, d:30, depth:50, count:1, frontRecess:14.3},
     {w:30, d:42, depth:60, count:1, frontRecess:12.4, doorCount:2, centerBench:true},
-    {w:42, d:30, depth:80, count:2, frontRecess:13.9, flushBench:true}
+    {w:42, d:30, depth:80, count:2, frontRecess:13.9, benchToPegboard:true}
   ];
   const doorCountFor=index=>variants[index].doorCount??4;
   const gardenCatalog=[
@@ -747,7 +747,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const benchHeight=92;
   const benchBottom=benchHeight-2.8;
   const benchSideWidth=2.7;
-  const benchDoorOpening=[benchBottom-.5,benchHeight+.5];
+  const benchAccessoryBand=[benchBottom-.5,benchHeight+.5];
   const benchUpperBase=154;
   const benchLowerCount=5;
   const benchLevels=[...levels.slice(0,benchLowerCount),...levels.slice(-3)];
@@ -793,6 +793,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const doorOpening=(index,count)=>exteriorDoor(index,count)?exteriorDoorOpening:interiorDoorOpening;
   const frameSideWidth=3;
   const pegboardThickness=.5;
+  const pegboardHoleRelief=.015;
   const closedPegboardFace=doorOriginZ+doorPegboardZ-pegboardThickness/2;
   const version = 2;
   const doorForBay=(bay,index=version)=>doorCountFor(index)===2?bay%2:bay;
@@ -851,7 +852,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const leftBenchEdges=(left,span)=>[left+4.5,left+7+span,7,9.5+span];
   const dimensions = (variantIndex=version) => {
-    const {w,d,depth,count,frontRecess,centerBench=false,flushBench=false} = variants[variantIndex];
+    const {w,d,depth,count,frontRecess,centerBench=false,benchToPegboard=false} = variants[variantIndex];
     const span = w + 2;
     const cabinetWidth=4*span+28;
     const left=-cabinetWidth/2;
@@ -868,8 +869,9 @@ h3 { font-size: 13px; font-weight: 650; }
     const doorFront=doorOriginZ+doorRailFace;
     const rear=doorFront-depth;
     const doorClearance=Math.floor(closedPegboardFace-interiorFront);
-    return {w,d,count,doorCount:doorCountFor(variantIndex),centerBench,flushBench,laneSpacing,rackDepth,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
-      doorClearance,interiorFront,trayFront,tableWidth:2*span+2.5,tableFront:flushBench?frameFront:interiorFront-.35,railBack,railFront,postBands};
+    const tableFront=benchToPegboard?closedPegboardFace-pegboardHoleRelief:interiorFront-.35;
+    return {w,d,count,doorCount:doorCountFor(variantIndex),centerBench,benchToPegboard,laneSpacing,rackDepth,span,width,cabinetWidth,left,outerLeft,edges,opening,channel,depth,rear,doorFront,
+      doorClearance,interiorFront,trayFront,tableWidth:2*span+2.5,tableFront,railBack,railFront,postBands};
   };
   accessoryLayouts[1]=accessoryLayouts[1].map(item=>mergeDoubleDoorPegboards(item,dimensions(1)));
   const trayTravel=(tray,spec)=>spec.depth-(spec.count-1-tray.lane)*spec.laneSpacing;
@@ -1171,29 +1173,20 @@ h3 { font-size: 13px; font-weight: 650; }
       for(const z of [rear+baseTubeSize,front-baseTubeSize]) wheel(x,z);
     }
   }
-  const doorBenchGap=(surface,spec)=>spec.flushBench && (surface===1 || surface===2)?benchDoorOpening:null;
-  function verticalSections(y,h,gap) {
-    return gap?[[y,gap[0]-y],[gap[1],y+h-gap[1]]]:[[y,h]];
-  }
-  function pegboard(x,y,z,w,h,direction,id,transform=identity,surfaceIndex=-1,{gap=null,left=0,right=0}={}) {
+  function pegboard(x,y,z,w,h,direction,id,transform=identity,surfaceIndex=-1) {
     const p = palette;
     const half=pegboardThickness/2;
+    box(x,y,z-half,w,h,pegboardThickness,p.peg,id,transform);
     const faceZ=z+half*direction;
-    const leftEdge=x+left, rightEdge=x+w-right;
-    for(const [bottom,height] of verticalSections(y,h,gap)){
-      box(leftEdge,bottom,z-half,rightEdge-leftEdge,height,pegboardThickness,p.peg,id,transform);
-      const finishZ=faceZ+.007*direction;
-      const top=bottom+height;
-      face([[leftEdge,bottom,finishZ],[rightEdge,bottom,finishZ],[rightEdge,top,finishZ],[leftEdge,top,finishZ]].map(transform),p.peg,id,.03);
-    }
-    const plane=faceZ+.015*direction;
+    const finishZ=faceZ+.007*direction;
+    face([[x,y,finishZ],[x+w,y,finishZ],[x+w,y+h,finishZ],[x,y+h,finishZ]].map(transform),p.peg,id,.03);
+    const plane=faceZ+pegboardHoleRelief*direction;
     const columns = Math.floor((w-3)/pegboardPitch);
     const rows = Math.floor((h-4)/pegboardPitch);
     for(let i=0;i<=columns;i++) for(let j=0;j<=rows;j++){
       const a=x+(w-columns*pegboardPitch)/2+i*pegboardPitch;
       const b=y+(h-rows*pegboardPitch)/2+j*pegboardPitch;
       const r=.26;
-      if(a-r<leftEdge || a+r>rightEdge || (gap && b+r>gap[0] && b-r<gap[1])) continue;
       face([[a-r,b,plane],[a,b+r,plane],[a+r,b,plane],[a,b-r,plane]].map(transform),p.hole,id);
     }
     if(surfaceIndex>=0){
@@ -1751,16 +1744,6 @@ h3 { font-size: 13px; font-weight: 650; }
     const boardX=local+(sign>0?hingeInset:meetingInset);
     return {sign,pivot,meeting,leaf,local,boardX,boardWidth:leaf-hingeInset-meetingInset};
   }
-  function pegboardSideInsets(surface,spec,door) {
-    if(!doorBenchGap(surface,spec)) return {left:0,right:0};
-    const {pivot,boardX,boardWidth}=door;
-    const clearance=.4;
-    const benchLeft=spec.edges[0], benchRight=benchLeft+spec.tableWidth;
-    // Leave the original pegboard grid and accessory origin in place when trimming its edge.
-    return surface===1?
-      {left:Math.max(0,benchLeft+clearance-(pivot+boardX)),right:0}:
-      {left:0,right:Math.max(0,pivot+boardX+boardWidth-(benchRight-clearance))};
-  }
   function mergeDoubleDoorPegboards(item,spec) {
     if(!Number.isInteger(item?.surface) || item.surface<1 || item.surface>4) return item;
     const surface=Math.ceil(item.surface/2);
@@ -1806,7 +1789,7 @@ h3 { font-size: 13px; font-weight: 650; }
     pineBox(left+.025,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23),'y');
     pineBox(-left-skin,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23),'y');
     cladSides(left,rear);
-    pineBox(left+skin,21.5,back,4.5-skin,175.5,spec.flushBench?tableDepth:interiorDepth,p.frame,'y');
+    pineBox(left+skin,21.5,back,4.5-skin,175.5,spec.benchToPegboard?tableDepth:interiorDepth,p.frame,'y');
     pineBox(-left-4.5,21.5,back,4.5-skin,175.5,interiorDepth,p.frame,'y');
     pineBox(edges[0]+span,21.5,back,2.5,benchBottom-21.5,interiorDepth,p.frame,'y');
     pineBox(edges[0]+span,benchUpperBase,back,2.5,197-benchUpperBase,interiorDepth,p.frame,'y');
@@ -1820,7 +1803,7 @@ h3 { font-size: 13px; font-weight: 650; }
       for(const [z,postDepth] of spec.postBands){
         pineBox(edges[2]+span,21.5,z,2.5,175.5,postDepth,p.frame,'y');
       }
-      const benchSide=spec.flushBench?benchSideWidth:0;
+      const benchSide=spec.benchToPegboard?benchSideWidth:0;
       const dividerX=tableX+tableWidth;
       if(benchSide) pineBox(dividerX,21.5,back,benchSide,175.5,tableDepth,p.frame,'y');
       pineBox(dividerX+benchSide,21.5,back,14-benchSide,175.5,interiorDepth-3,p.frame,'y');
@@ -1840,8 +1823,7 @@ h3 { font-size: 13px; font-weight: 650; }
       if(trayAvailable(tray) && !removedFronts.has(index) && viewMode!=='posts') drawTray(tray,index,spec);
     });
     for(let i=0;i<spec.doorCount;i++){
-      const door=doorLayout(i,spec);
-      const {sign,pivot,meeting,leaf,local,boardX,boardWidth}=door;
+      const {sign,pivot,meeting,leaf,local,boardX,boardWidth}=doorLayout(i,spec);
       const theta=sign*doorAngle[i]*doorOpening(i,spec.doorCount)*Math.PI/180;
       const co=Math.cos(theta), si=Math.sin(theta);
       const t=([x,y,z]) => [pivot+x*co-z*si,y,doorOriginZ+x*si+z*co];
@@ -1849,15 +1831,8 @@ h3 { font-size: 13px; font-weight: 650; }
       const y=18.35, height=181.3;
       const middle=y+height/2;
       const plankFace=.64, panelBack=-.93, grooveDepth=.35;
-      const gap=doorBenchGap(id,spec);
-      const recessedBack=panelBack+(gap ? .3 : 0);
       const doorWood=blend(p.door,p.fg,.17);
-      pineBox(local,y,recessedBack,leaf,height,plankFace-grooveDepth-recessedBack,doorWood,'y',id,t);
-      if(gap){
-        for(const [bottom,sectionHeight] of verticalSections(y,height,gap)){
-          pineBox(local,bottom,panelBack,leaf,sectionHeight,recessedBack-panelBack,doorWood,'y',id,t);
-        }
-      }
+      pineBox(local,y,panelBack,leaf,height,plankFace-grooveDepth-panelBack,doorWood,'y',id,t);
       plankedSurface(height,leaf,(u,v,lift=0)=>t([local+v,y+u,plankFace+lift]),41+i*13,id,grooveDepth);
       const railBase=plankFace-.02;
       // The two meeting stiles and the closing gap read as one full-width stile.
@@ -1885,11 +1860,8 @@ h3 { font-size: 13px; font-weight: 650; }
       drawCombinationLock(sign,meeting-pivot,middle,Math.floor(i/2),t);
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
       const spacerBack=doorPegboardZ+.35;
-      const insets=pegboardSideInsets(id,spec,door);
-      for(const [bottom,sectionHeight] of verticalSections(doorPegboardBottom,doorPegboardHeight,gap)){
-        box(boardX+insets.left,bottom,spacerBack,boardWidth-insets.left-insets.right,sectionHeight,panelBack-spacerBack,p.steel,id,t);
-      }
-      pegboard(boardX,doorPegboardBottom,doorPegboardZ,boardWidth,doorPegboardHeight,-1,id,t,id,{gap,...insets});
+      box(boardX,doorPegboardBottom,spacerBack,boardWidth,doorPegboardHeight,panelBack-spacerBack,p.steel,id,t);
+      pegboard(boardX,doorPegboardBottom,doorPegboardZ,boardWidth,doorPegboardHeight,-1,id,t,id);
     }
     geometryOffsetY=0;
   }
@@ -2391,19 +2363,22 @@ h3 { font-size: 13px; font-weight: 650; }
       x+footprint.width+gap<=item.x || x>=item.x+item.width+gap ||
       y+footprint.height+gap<=item.y || y>=item.y+item.height+gap);
   }
+  const doorFacesBench=(surface,spec)=>spec.benchToPegboard && (surface===1 || surface===2);
   function benchAccessoryObstacle(surface,spec) {
-    const gap=doorBenchGap(surface,spec);
-    if(!gap) return null;
-    return {x:0,y:gap[0]-doorPegboardBottom,width:accessoryPanelSize(surface,spec).width,height:gap[1]-gap[0]};
+    if(!doorFacesBench(surface,spec)) return null;
+    const [bottom,top]=benchAccessoryBand;
+    return {x:0,y:bottom-doorPegboardBottom,width:accessoryPanelSize(surface,spec).width,height:top-bottom};
   }
   function pegboardSideObstacle(surface,spec) {
-    if(!doorBenchGap(surface,spec)) return null;
-    const door=doorLayout(surface-1,spec);
-    const {left,right}=pegboardSideInsets(surface,spec,door);
-    const width=left+right;
+    if(!doorFacesBench(surface,spec)) return null;
+    const {pivot,boardX,boardWidth}=doorLayout(surface-1,spec);
+    const clearance=.4;
+    const boardLeft=pivot+boardX;
+    const benchLeft=spec.edges[0], benchRight=benchLeft+spec.tableWidth;
+    const width=Math.max(0,surface===1?benchLeft+clearance-boardLeft:boardLeft+boardWidth-(benchRight-clearance));
     if(!width) return null;
     // Accessories are measured from the right edge of the closed door panel.
-    return {x:right?0:door.boardWidth-left,y:0,width,height:doorPegboardHeight};
+    return {x:surface===1?boardWidth-width:0,y:0,width,height:doorPegboardHeight};
   }
   function accessoryObstacles(surface,excludedId,spec,layout) {
     const occupied=accessoryOccupants(surface,excludedId,layout);
@@ -2452,7 +2427,7 @@ h3 { font-size: 13px; font-weight: 650; }
     return {changes,distance};
   }
   function alignDoorAccessories(layout,spec) {
-    if(!spec.flushBench) return layout;
+    if(!spec.benchToPegboard) return layout;
     const placed=[];
     const blocked=[];
     for(const item of layout){
@@ -2727,7 +2702,7 @@ h3 { font-size: 13px; font-weight: 650; }
       '2 · una detrás de otra · holguras menores de 0.5 cm':'1';
     get('.tl-double-depth').hidden=spec.count!==2;
     get('.tl-table').textContent=spec.tableWidth+' cm de ancho · '+formatCm(benchHeight+bodyOffsetY)+' cm del piso'+
-      (spec.flushBench?' · al ras del marco frontal':'');
+      (spec.benchToPegboard?' · hasta el pegboard cerrado':'');
     get('.tl-body-height').textContent=formatCm(bodyHeight)+' cm';
     get('.tl-base-profile').textContent=formatCm(baseTubeSize)+' × '+formatCm(baseTubeSize)+' cm';
     get('.tl-caster-height').textContent=formatCm(casterHeight)+' cm';
