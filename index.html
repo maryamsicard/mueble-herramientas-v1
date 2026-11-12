@@ -746,6 +746,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const levels = Array.from({length:13},(_,i)=>36+i*pitchStep);
   const benchHeight=92;
   const benchBottom=benchHeight-2.8;
+  const benchSideWidth=2.7;
   const benchDoorOpening=[benchBottom-.5,benchHeight+.5];
   const benchUpperBase=154;
   const benchLowerCount=5;
@@ -1175,15 +1176,16 @@ h3 { font-size: 13px; font-weight: 650; }
   function verticalSections(y,h,gap) {
     return gap?[[y,gap[0]-y],[gap[1],y+h-gap[1]]]:[[y,h]];
   }
-  function pegboard(x,y,z,w,h,direction,id,transform=identity,surfaceIndex=-1,gap=null) {
+  function pegboard(x,y,z,w,h,direction,id,transform=identity,surfaceIndex=-1,{gap=null,left=0,right=0}={}) {
     const p = palette;
     const half=pegboardThickness/2;
     const faceZ=z+half*direction;
+    const leftEdge=x+left, rightEdge=x+w-right;
     for(const [bottom,height] of verticalSections(y,h,gap)){
-      box(x,bottom,z-half,w,height,pegboardThickness,p.peg,id,transform);
+      box(leftEdge,bottom,z-half,rightEdge-leftEdge,height,pegboardThickness,p.peg,id,transform);
       const finishZ=faceZ+.007*direction;
       const top=bottom+height;
-      face([[x,bottom,finishZ],[x+w,bottom,finishZ],[x+w,top,finishZ],[x,top,finishZ]].map(transform),p.peg,id,.03);
+      face([[leftEdge,bottom,finishZ],[rightEdge,bottom,finishZ],[rightEdge,top,finishZ],[leftEdge,top,finishZ]].map(transform),p.peg,id,.03);
     }
     const plane=faceZ+.015*direction;
     const columns = Math.floor((w-3)/pegboardPitch);
@@ -1192,7 +1194,7 @@ h3 { font-size: 13px; font-weight: 650; }
       const a=x+(w-columns*pegboardPitch)/2+i*pegboardPitch;
       const b=y+(h-rows*pegboardPitch)/2+j*pegboardPitch;
       const r=.26;
-      if(gap && b+r>gap[0] && b-r<gap[1]) continue;
+      if(a-r<leftEdge || a+r>rightEdge || (gap && b+r>gap[0] && b-r<gap[1])) continue;
       face([[a-r,b,plane],[a,b+r,plane],[a+r,b,plane],[a,b-r,plane]].map(transform),p.hole,id);
     }
     if(surfaceIndex>=0){
@@ -1750,6 +1752,16 @@ h3 { font-size: 13px; font-weight: 650; }
     const boardX=local+(sign>0?hingeInset:meetingInset);
     return {sign,pivot,meeting,leaf,local,boardX,boardWidth:leaf-hingeInset-meetingInset};
   }
+  function pegboardSideInsets(surface,spec,door) {
+    if(!doorBenchGap(surface,spec)) return {left:0,right:0};
+    const {pivot,boardX,boardWidth}=door;
+    const clearance=.4;
+    const benchLeft=spec.edges[0], benchRight=benchLeft+spec.tableWidth;
+    // Leave the original pegboard grid and accessory origin in place when trimming its edge.
+    return surface===1?
+      {left:Math.max(0,benchLeft+clearance-(pivot+boardX)),right:0}:
+      {left:0,right:Math.max(0,pivot+boardX+boardWidth-(benchRight-clearance))};
+  }
   function mergeDoubleDoorPegboards(item,spec) {
     if(!Number.isInteger(item?.surface) || item.surface<1 || item.surface>4) return item;
     const surface=Math.ceil(item.surface/2);
@@ -1790,10 +1802,12 @@ h3 { font-size: 13px; font-weight: 650; }
         (u,v)=>[x+v,21.5+u,frameFront+.012],p.facadeTrim,x);
     }
     const interiorDepth=interiorFront-back;
+    const tableX=edges[0], tableWidth=spec.tableWidth;
+    const tableDepth=spec.tableFront-back;
     pineBox(left+.025,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23),'y');
     pineBox(-left-skin,21.5,rear,skin-.025,175.5,-rear,blend(p.exterior,p.fg,.23),'y');
     cladSides(left,rear);
-    pineBox(left+skin,21.5,back,4.5-skin,175.5,interiorDepth,p.frame,'y');
+    pineBox(left+skin,21.5,back,4.5-skin,175.5,spec.flushBench?tableDepth:interiorDepth,p.frame,'y');
     pineBox(-left-4.5,21.5,back,4.5-skin,175.5,interiorDepth,p.frame,'y');
     pineBox(edges[0]+span,21.5,back,2.5,benchBottom-21.5,interiorDepth,p.frame,'y');
     pineBox(edges[0]+span,benchUpperBase,back,2.5,197-benchUpperBase,interiorDepth,p.frame,'y');
@@ -1807,7 +1821,10 @@ h3 { font-size: 13px; font-weight: 650; }
       for(const [z,postDepth] of spec.postBands){
         pineBox(edges[2]+span,21.5,z,2.5,175.5,postDepth,p.frame,'y');
       }
-      pineBox(-7,21.5,back,14,175.5,interiorDepth-3,p.frame,'y');
+      const benchSide=spec.flushBench?benchSideWidth:0;
+      const dividerX=tableX+tableWidth;
+      if(benchSide) pineBox(dividerX,21.5,back,benchSide,175.5,tableDepth,p.frame,'y');
+      pineBox(dividerX+benchSide,21.5,back,14-benchSide,175.5,interiorDepth-3,p.frame,'y');
       pineBox(-2.1,21.5,interiorFront-3,4.2,175.5,1.5-interiorFront,p.frame,'y');
       pineBox(-2.52,21.5,-1.5,5.04,175.5,1.1,p.frame,'y');
     }
@@ -1819,8 +1836,7 @@ h3 { font-size: 13px; font-weight: 650; }
       box(lensX,28,lightZ-.85,.014,162,1.7,p.diffuser);
     }
 
-    const tableX=edges[0], tableWidth=spec.tableWidth;
-    pineBox(tableX,benchBottom,back,tableWidth,benchHeight-benchBottom,spec.tableFront-back,p.work,'x');
+    pineBox(tableX,benchBottom,back,tableWidth,benchHeight-benchBottom,tableDepth,p.work,'x');
     pineBox(tableX,benchUpperBase-3,back,tableWidth,3,interiorDepth,p.frame,'x');
     pegboard(tableX+2,benchHeight+4,back+1.1,tableWidth-4,147-benchHeight-4,1,0,identity,0);
     const lampZ=interiorFront-interiorDepth*.47;
@@ -1832,7 +1848,8 @@ h3 { font-size: 13px; font-weight: 650; }
       if(trayAvailable(tray) && !removedFronts.has(index) && viewMode!=='posts') drawTray(tray,index,spec);
     });
     for(let i=0;i<spec.doorCount;i++){
-      const {sign,pivot,meeting,leaf,local,boardX,boardWidth}=doorLayout(i,spec);
+      const door=doorLayout(i,spec);
+      const {sign,pivot,meeting,leaf,local,boardX,boardWidth}=door;
       const theta=sign*doorAngle[i]*doorOpening(i,spec.doorCount)*Math.PI/180;
       const co=Math.cos(theta), si=Math.sin(theta);
       const t=([x,y,z]) => [pivot+x*co-z*si,y,doorOriginZ+x*si+z*co];
@@ -1876,10 +1893,11 @@ h3 { font-size: 13px; font-weight: 650; }
       drawCombinationLock(sign,meeting-pivot,middle,Math.floor(i/2),t);
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
       const spacerBack=doorPegboardZ+.35;
+      const insets=pegboardSideInsets(id,spec,door);
       for(const [bottom,sectionHeight] of verticalSections(doorPegboardBottom,doorPegboardHeight,gap)){
-        box(boardX,bottom,spacerBack,boardWidth,sectionHeight,panelBack-spacerBack,p.steel,id,t);
+        box(boardX+insets.left,bottom,spacerBack,boardWidth-insets.left-insets.right,sectionHeight,panelBack-spacerBack,p.steel,id,t);
       }
-      pegboard(boardX,doorPegboardBottom,doorPegboardZ,boardWidth,doorPegboardHeight,-1,id,t,id,gap);
+      pegboard(boardX,doorPegboardBottom,doorPegboardZ,boardWidth,doorPegboardHeight,-1,id,t,id,{gap,...insets});
     }
     geometryOffsetY=0;
   }
@@ -2386,11 +2404,34 @@ h3 { font-size: 13px; font-weight: 650; }
     if(!gap) return null;
     return {x:0,y:gap[0]-doorPegboardBottom,width:accessoryPanelSize(surface,spec).width,height:gap[1]-gap[0]};
   }
+  function pegboardSideObstacle(surface,spec) {
+    if(!doorBenchGap(surface,spec)) return null;
+    const door=doorLayout(surface-1,spec);
+    const {left,right}=pegboardSideInsets(surface,spec,door);
+    const width=left+right;
+    if(!width) return null;
+    // Accessories are measured from the right edge of the closed door panel.
+    return {x:right?0:door.boardWidth-left,y:0,width,height:doorPegboardHeight};
+  }
   function accessoryObstacles(surface,excludedId,spec,layout) {
     const occupied=accessoryOccupants(surface,excludedId,layout);
     const bench=benchAccessoryObstacle(surface,spec);
+    const side=pegboardSideObstacle(surface,spec);
     if(bench) occupied.push(bench);
+    if(side) occupied.push(side);
     return occupied;
+  }
+  function nearestAccessoryPosition(axis,item,footprint,panel,occupied) {
+    const size=axis==='x'?'width':'height';
+    const max=panel[size]-footprint[size];
+    const candidates=[0,max,...occupied.flatMap(other=>[
+      other[axis]+other[size]+accessoryGap,other[axis]-footprint[size]-accessoryGap
+    ])].sort((a,b)=>Math.abs(a-item[axis])-Math.abs(b-item[axis]));
+    return candidates.find(value=>{
+      if(value<0 || value>max) return false;
+      const {x,y}={...item,[axis]:value};
+      return clearOfAccessories(footprint,x,y,occupied);
+    });
   }
   function shiftBenchSide(item,footprint,layout,panel,bench,above) {
     const items=layout.filter(other=>other.surface===item.surface && (above?other.y>bench.y:other.y<bench.y))
@@ -2418,7 +2459,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     return {changes,distance};
   }
-  function alignBenchAccessories(layout,spec) {
+  function alignDoorAccessories(layout,spec) {
     if(!spec.flushBench) return layout;
     const placed=[];
     const blocked=[];
@@ -2432,11 +2473,7 @@ h3 { font-size: 13px; font-weight: 650; }
     for(const {item,bench,product,footprint} of blocked){
       const panel=accessoryPanelSize(item.surface,spec);
       const occupied=accessoryObstacles(item.surface,item.id,spec,placed);
-      const maxY=panel.height-footprint.height;
-      const options=[0,maxY,...occupied.flatMap(other=>[
-        other.y+other.height+accessoryGap,other.y-footprint.height-accessoryGap
-      ])].sort((a,b)=>Math.abs(a-item.y)-Math.abs(b-item.y));
-      const y=options.find(y=>y>=0 && y<=maxY && clearOfAccessories(footprint,item.x,y,occupied));
+      const y=nearestAccessoryPosition('y',item,footprint,panel,occupied);
       if(y!==undefined){
         placed.push({...item,y});
         continue;
@@ -2451,6 +2488,21 @@ h3 { font-size: 13px; font-weight: 650; }
       }
       const [slot]=findAccessorySlots(item.surface,product,1,item.id,spec,placed);
       placed.push(slot?{...item,...slot}:{...item,surface:null});
+    }
+    for(const item of placed){
+      const side=pegboardSideObstacle(item.surface,spec);
+      if(!side) continue;
+      const product=accessoryCatalog.find(product=>product.id===item.productId);
+      const footprint=accessoryFootprint(product);
+      if(clearOfAccessories(footprint,item.x,item.y,[side])) continue;
+      const panel=accessoryPanelSize(item.surface,spec);
+      const occupied=accessoryObstacles(item.surface,item.id,spec,placed);
+      const x=nearestAccessoryPosition('x',item,footprint,panel,occupied);
+      if(x!==undefined) item.x=x;
+      else {
+        const [slot]=findAccessorySlots(item.surface,product,1,item.id,spec,placed);
+        Object.assign(item,slot??{surface:null});
+      }
     }
     const byId=new Map(placed.map(item=>[item.id,item]));
     return layout.map(item=>byId.get(item.id));
@@ -2615,7 +2667,7 @@ h3 { font-size: 13px; font-weight: 650; }
           nextAccessoryId=Math.max(nextAccessoryId,item.id+1);
           return true;
         });
-        accessoryLayouts[index]=alignBenchAccessories(shouldSplit?splitDoubleDoorPegboards(valid,spec):valid,spec);
+        accessoryLayouts[index]=alignDoorAccessories(shouldSplit?splitDoubleDoorPegboards(valid,spec):valid,spec);
       });
     }
     if(snapshot.version!==version) return;
@@ -2630,7 +2682,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
   }
   populateAccessoryPicker();
-  accessoryLayouts[version]=alignBenchAccessories(accessoryLayouts[version],dimensions());
+  accessoryLayouts[version]=alignDoorAccessories(accessoryLayouts[version],dimensions());
   [accessoryPicker,accessoryCount,accessorySurface].forEach(control=>control.addEventListener('change',()=>{
     accessoryFeedback.textContent='';
     change();
