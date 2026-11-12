@@ -111,6 +111,8 @@ h3 { font-size: 13px; font-weight: 650; }
 .layout-editor summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
 .layout-editor .control-group { margin-top: 8px; }
 #floor-tools, #garden-tools { margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.floor-tool-catalog { display: grid; gap: 6px; margin: 5px 0 12px; }
+.floor-tool-catalog button { display: grid; gap: 2px; text-align: left; }
 .floor-tool-size { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
 .floor-tool-size label { display: grid; gap: 3px; }
 .floor-tool-size input { width: 100%; }
@@ -339,11 +341,11 @@ h3 { font-size: 13px; font-weight: 650; }
       </section>
 
       <section class="control-panel" id="panel-herramientas" role="tabpanel" aria-labelledby="tab-herramientas" tabindex="0" hidden>
-        <details class="layout-editor" id="floor-tools">
+        <details class="layout-editor" id="floor-tools" open>
           <summary>Herramientas en la base</summary>
+          <p class="text-small text-muted">Medidas publicadas · ancho × alto × fondo</p>
+          <div class="floor-tool-catalog" role="group" aria-label="Catálogo de herramientas en la base"></div>
           <form class="control-group" id="floor-tool-form">
-            <label for="floor-tool-product">Herramienta</label>
-            <select id="floor-tool-product"></select>
             <p class="text-small text-muted" data-floor-tool-description></p>
             <div class="floor-tool-size" role="group" aria-label="Dimensiones de la herramienta en centímetros">
               <label>Ancho (cm)<input type="number" min="1" max="200" step="any" name="width" required></label>
@@ -573,7 +575,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const gardenBottom=product=>gardenSupportY-product.hold;
   const floorToolCatalog=[
     {id:'dw714-b3',name:'Ingletadora DEWALT DW714-B3',hit:350,size:{width:50,height:41,depth:61},draw:drawMiterSaw,
-      description:'Medidas de referencia de la sierra ensamblada. Puedes ingresar las de tu sierra con el cabezal abajo y los accesorios que dejes montados.',
+      description:'Referencia de la sierra ensamblada publicada por Walmart México. Para probarla con el cabezal abajo, ingresa las medidas de tu unidad en esa posición.',
       amazon:'https://www.amazon.com.mx/dp/B0759XTMRG',
       source:'https://www.dewalt.com.mx/es-mx/producto/dw714-b3/sierra-ingletadora-compuesta-de-10-254mm-con-cable',
       measurements:'https://www.walmart.com.mx/ip/sierra-de-inglete-dewalt-5000-rpm-1600-w-dewalt-dw714/00088591148146'},
@@ -583,11 +585,11 @@ h3 { font-size: 13px; font-weight: 650; }
       source:'https://www.dewalt.com.mx/es-mx/producto/dwfp55126/compresor-de-aire-de-165-psi-de-6-gal-con-cable'}
   ];
   const floorToolForm=get('#floor-tool-form');
-  const floorToolPicker=get('#floor-tool-product');
   const floorToolBay=get('#floor-tool-bay');
   const floorToolResult=get('[data-floor-tool-result]');
   const floorToolRemove=get('[data-floor-tool-remove]');
   const storedFloorTools=[];
+  let selectedFloorProduct=floorToolCatalog[0];
   let floorToolPreview=null;
   const gardenProductPicker=get('#garden-product');
   const gardenBayPicker=get('#garden-bay');
@@ -2207,10 +2209,31 @@ h3 { font-size: 13px; font-weight: 650; }
       ![...removedFronts].some(index=>trays[index].bay===bay) &&
       trays.every(tray=>tray.bay!==bay || tray.offset<=.01);
   }
-  const selectedFloorProduct=()=>floorToolCatalog.find(product=>product.id===floorToolPicker.value);
-  const selectedStoredFloorTool=()=>storedFloorTools.find(tool=>tool.product.id===floorToolPicker.value);
+  const selectedStoredFloorTool=()=>storedFloorTools.find(tool=>tool.product===selectedFloorProduct);
+  const floorToolButtons=floorToolCatalog.map(product=>{
+    const button=document.createElement('button');
+    button.type='button';
+    const name=document.createElement('strong');
+    name.textContent=product.name;
+    const size=document.createElement('span');
+    size.className='text-small tabular-nums';
+    size.textContent=[product.size.width,product.size.height,product.size.depth].map(formatCm).join(' × ')+' cm';
+    const widthOver=Math.min(product.size.width,product.size.depth)-dimensions().opening;
+    button.append(name,size);
+    if(widthOver>0){
+      const fit=document.createElement('span');
+      fit.className='text-small text-muted';
+      fit.textContent='Excede el paso entre guías por '+formatCm(widthOver)+' cm';
+      button.append(fit);
+    }
+    button.addEventListener('click',()=>{
+      if(product!==selectedFloorProduct) selectFloorTool(product);
+    });
+    return button;
+  });
   function fillFloorToolForm(product,size,bay) {
-    floorToolPicker.value=product.id;
+    selectedFloorProduct=product;
+    floorToolButtons.forEach((button,index)=>button.setAttribute('aria-pressed',floorToolCatalog[index]===product));
     for(const key of Object.keys(product.size)) floorToolForm.elements.namedItem(key).value=size[key];
     floorToolBay.value=bay;
     get('[data-floor-tool-description]').textContent=product.description;
@@ -2269,11 +2292,10 @@ h3 { font-size: 13px; font-weight: 650; }
     if(first) fillFloorToolForm(first.product,first.size,first.bay);
   }
   floorToolBay.replaceChildren(...levelsByBay.map((_,bay)=>option(bay,'Módulo '+(bay+1))));
-  floorToolPicker.replaceChildren(...floorToolCatalog.map(product=>option(product.id,product.name)));
+  get('.floor-tool-catalog').replaceChildren(...floorToolButtons);
   fillFloorToolForm(floorToolCatalog[0],floorToolCatalog[0].size,2);
-  floorToolPicker.addEventListener('change',()=>selectFloorTool(selectedFloorProduct()));
-  floorToolForm.addEventListener('input',event=>{
-    if(event.target===floorToolPicker || selectedStoredFloorTool()) return;
+  floorToolForm.addEventListener('input',()=>{
+    if(selectedStoredFloorTool()) return;
     floorToolPreview=null;
     floorToolResult.textContent='';
     updateFloorToolUi();
@@ -2287,7 +2309,7 @@ h3 { font-size: 13px; font-weight: 650; }
       change();
       return;
     }
-    const product=selectedFloorProduct();
+    const product=selectedFloorProduct;
     const size=Object.fromEntries(Object.keys(product.size).map(key=>[key,floorToolForm.elements.namedItem(key).valueAsNumber]));
     const plan=planFloorTool(product,Number(floorToolBay.value),size,dimensions());
     if(!plan) return;
@@ -3540,7 +3562,7 @@ h3 { font-size: 13px; font-weight: 650; }
     } else if(floorProduct){
       selectTab('tab-herramientas');
       get('#floor-tools').open=true;
-      if(floorToolPicker.value!==floorProduct.id) selectFloorTool(floorProduct);
+      if(selectedFloorProduct!==floorProduct) selectFloorTool(floorProduct);
       update();
     } else if(gardenBays.some(bay=>hit===300+bay)){
       selectTab('tab-herramientas');
