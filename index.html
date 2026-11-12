@@ -145,27 +145,35 @@ h3 { font-size: 13px; font-weight: 650; }
 .scene-extra p { margin-top: 5px; }
 .scene-extra .actions { margin-top: 6px; }
 
-@media (max-width: 860px) and (min-height: 500px), (max-width: 580px) {
+@media (max-height: 499px) and (min-width: 581px) {
+  .simulator-main { grid-template-columns: var(--sidebar-width,305px) 8px minmax(0, 1fr); }
+  .site-header { padding: 6px 12px; }
+  .control-tabs { padding: 6px; }
+}
+@media (max-width: 860px) and (min-height: 500px), (max-width: 580px), (max-width: 1024px) and (pointer: coarse) {
+  .simulator:not(.viewer-expanded) { height: auto; min-height: 100dvh; }
   .site-header { align-items: stretch; flex-direction: column; padding: 7px 10px; gap: 6px; }
   .site-title h1 { font-size: 15px; }
   .view-heading { padding: 6px 0 0; border-left: 0; border-top: 1px solid var(--border); display: block; }
   .view-heading .tl-dims { display: none; }
   .simulator-main {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(150px,var(--scene-height,68%)) 10px minmax(0, 1fr);
+    grid-template-rows: auto 10px 1fr;
     grid-template-areas: "scene" "resize" "controls";
   }
+  .simulator:not(.viewer-expanded) .tl-scene {
+    grid-template-rows: auto max(150px, var(--scene-height,52svh)) auto;
+    overflow: clip;
+  }
+  .simulator:not(.viewer-expanded) .scene-viewport { overflow: clip; }
+  .simulator:not(.viewer-expanded) .tl-canvas { touch-action: pan-y; }
+  .simulator:not(.viewer-expanded) .scene-extra[open] { max-height: none; overflow: visible; }
   .scene-resize { cursor: row-resize; }
   .scene-resize::after { width: 46px; height: 3px; }
-  .sidebar { border-right: 0; border-top: 1px solid var(--border); }
+  .sidebar { grid-template-rows: auto auto auto; align-content: start; border-right: 0; border-top: 1px solid var(--border); }
   .control-tabs { padding: 6px; }
-  .control-panel { padding: 9px 12px 14px; }
+  .control-panel { padding: 9px 12px 14px; overflow: visible; overscroll-behavior: auto; }
   .scene-footer { padding: 11px 10px 8px; }
-}
-@media (max-height: 499px) and (min-width: 581px) {
-  .simulator-main { grid-template-columns: var(--sidebar-width,305px) 8px minmax(0, 1fr); }
-  .site-header { padding: 6px 12px; }
-  .control-tabs { padding: 6px; }
 }
 .viewer-expanded { grid-template-rows: minmax(0,1fr); }
 .viewer-expanded .site-header, .viewer-expanded .sidebar, .viewer-expanded .scene-resize { display: none; }
@@ -428,7 +436,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const splitter = get('.scene-resize');
   const expandButton = get('[data-expand]');
   const navigationButtons = [...root.querySelectorAll('[data-navigation]')];
-  const compactLayout = matchMedia('(max-width: 860px) and (min-height: 500px), (max-width: 580px)');
+  const compactLayout = matchMedia('(max-width: 860px) and (min-height: 500px), (max-width: 580px), (max-width: 1024px) and (pointer: coarse)');
   const columnPicker = get('#tl-column');
   const levelPicker = get('#tl-level');
   const heightPicker = get('#tl-height');
@@ -806,7 +814,7 @@ h3 { font-size: 13px; font-weight: 650; }
   let panX = 0;
   let panY = 0;
   let navigationMode = 'rotate';
-  let scenePercent = 68;
+  let scenePercent = 52;
   let sidebarWidth = 320;
   let viewMode = 'angle';
   const doorOpen = [true,true,true,true];
@@ -2130,8 +2138,16 @@ h3 { font-size: 13px; font-weight: 650; }
       placement.x+footprint.width<=panel.width+.0001 &&
       placement.y+footprint.height<=panel.height+.0001 && footprint.depth<=panel.depth;
   }
+  function pageScrolls() {
+    return compactLayout.matches && !root.classList.contains('viewer-expanded');
+  }
   function updateNavigationHelp() {
-    get('#navigation-help').textContent=currentTab==='tab-herramientas'?
+    const note=get('#navigation-help');
+    if(pageScrolls()){
+      note.textContent='Desliza en vertical para recorrer la página · amplía el visor para mover el modelo libremente.';
+      return;
+    }
+    note.textContent=currentTab==='tab-herramientas'?
       'Arrastra un accesorio para ajustarlo · arrastra el fondo para mover la vista.':
       'Toca una charola para sacarla o guardarla · arrastra para girar o mover.';
   }
@@ -2919,6 +2935,7 @@ h3 { font-size: 13px; font-weight: 650; }
     root.classList.toggle('viewer-expanded',expanded);
     expandButton.setAttribute('aria-pressed',expanded);
     expandButton.textContent=expanded?'Volver a controles':'Ampliar visor';
+    updateNavigationHelp();
     schedule();
   }
   expandButton.addEventListener('click',()=>expandViewer(!root.classList.contains('viewer-expanded')));
@@ -2964,8 +2981,10 @@ h3 { font-size: 13px; font-weight: 650; }
   canvas.addEventListener('contextmenu',event=>event.preventDefault());
   canvas.addEventListener('pointerdown',event=>{
     if(event.button>2 || pointers.size>=2) return;
-    event.preventDefault();
-    canvas.focus({preventScroll:true});
+    if(event.pointerType!=='touch' || !pageScrolls()){
+      event.preventDefault();
+      canvas.focus({preventScroll:true});
+    }
     pointers.set(event.pointerId,event);
     if(pointers.size===1) startDrag(event);
     else {
@@ -2992,7 +3011,12 @@ h3 { font-size: 13px; font-weight: 650; }
     const dx=event.clientX-drag.startX, dy=event.clientY-drag.startY;
     if(!drag.moved && Math.hypot(dx,dy)<5) return;
     const starting=!drag.moved;
+    if(starting && event.pointerType==='touch' && pageScrolls() && Math.abs(dy)>=Math.abs(dx)){
+      drag.scrolling=true;
+      drag.adjustment=null;
+    }
     drag.moved=true;
+    if(drag.scrolling) return;
     const adjustment=drag.adjustment;
     if(adjustment){
       if(version!==adjustment.version) return;
@@ -3050,6 +3074,7 @@ h3 { font-size: 13px; font-weight: 650; }
   canvas.addEventListener('pointercancel',event=>finishPointer(event,false));
   canvas.addEventListener('lostpointercapture',event=>finishPointer(event,false));
   canvas.addEventListener('wheel',event=>{
+    if(pageScrolls()) return;
     event.preventDefault();
     if(drag?.adjustment) return;
     const units=event.deltaMode===1?16:event.deltaMode===2?canvas.clientHeight:1;
@@ -3098,7 +3123,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const maxWidth=Math.min(520,simulatorMain.clientWidth-210);
     sidebarWidth=clamp(sidebarWidth,240,Math.max(240,maxWidth));
     root.style.setProperty('--sidebar-width',sidebarWidth+'px');
-    root.style.setProperty('--scene-height',scenePercent+'%');
+    root.style.setProperty('--scene-height',scenePercent+'svh');
     splitter.setAttribute('aria-orientation',compact?'horizontal':'vertical');
     splitter.setAttribute('aria-valuemin',compact?35:240);
     splitter.setAttribute('aria-valuemax',compact?80:Math.max(240,maxWidth));
@@ -3106,22 +3131,21 @@ h3 { font-size: 13px; font-weight: 650; }
     splitter.setAttribute('aria-valuetext',compact?Math.round(scenePercent)+'% de altura para el visor':
       Math.round(sidebarWidth)+' píxeles de ancho para los controles');
   }
-  let resizePointer;
+  let resizeDrag;
   splitter.addEventListener('pointerdown',event=>{
     if(event.button!==0) return;
-    resizePointer=event.pointerId;
+    resizeDrag={id:event.pointerId,y:event.clientY,scenePercent};
     splitter.setPointerCapture(event.pointerId);
     event.preventDefault();
     splitter.focus({preventScroll:true});
   });
   splitter.addEventListener('pointermove',event=>{
-    if(event.pointerId!==resizePointer) return;
-    const rect=simulatorMain.getBoundingClientRect();
-    if(compactLayout.matches) scenePercent=clamp(100*(event.clientY-rect.top)/rect.height,35,80);
-    else sidebarWidth=event.clientX-rect.left;
+    if(event.pointerId!==resizeDrag?.id) return;
+    if(compactLayout.matches) scenePercent=clamp(resizeDrag.scenePercent+100*(event.clientY-resizeDrag.y)/innerHeight,35,80);
+    else sidebarWidth=event.clientX-simulatorMain.getBoundingClientRect().left;
     updateSplitter();
   });
-  splitter.addEventListener('lostpointercapture',()=>{resizePointer=undefined;});
+  splitter.addEventListener('lostpointercapture',()=>{resizeDrag=undefined;});
   splitter.addEventListener('keydown',event=>{
     const compact=compactLayout.matches;
     const step=compact?5:20;
@@ -3137,7 +3161,10 @@ h3 { font-size: 13px; font-weight: 650; }
     else sidebarWidth=next;
     updateSplitter();
   });
-  compactLayout.addEventListener('change',updateSplitter);
+  compactLayout.addEventListener('change',()=>{
+    updateSplitter();
+    updateNavigationHelp();
+  });
   new ResizeObserver(updateSplitter).observe(simulatorMain);
   updateSplitter();
 
@@ -3145,6 +3172,7 @@ h3 { font-size: 13px; font-weight: 650; }
   new MutationObserver(schedule).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change',schedule);
   renderTrayCatalog();
+  updateNavigationHelp();
   update('Toca una charola del modelo para sacarla o guardarla.');
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey)??localStorage.getItem(previousStorageKey));
