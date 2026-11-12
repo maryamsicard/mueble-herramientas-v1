@@ -774,7 +774,10 @@ h3 { font-size: 13px; font-weight: 650; }
   const doorMeetingGap=.48;
   const exteriorDoorOpening=125;
   const interiorDoorOpening=90;
+  const middleDoorExtension=exteriorDoorOpening/interiorDoorOpening;
   const exteriorDoor=(index,count)=>index===0 || index===count-1;
+  const isMiddleDoor=(index,count)=>count===4 && (index===1 || index===2);
+  const middleDoorNeighbor=index=>3-index;
   const doorOpening=(index,count)=>exteriorDoor(index,count)?exteriorDoorOpening:interiorDoorOpening;
   const frameSideWidth=3;
   const pegboardThickness=.5;
@@ -819,6 +822,10 @@ h3 { font-size: 13px; font-weight: 650; }
   const doorOpen = [true,true,true,true];
   const doorAngle = doorOpen.map(() => 1);
   const haspFold = [1,1];
+  let extendedMiddleDoor=null;
+  function canExtendMiddleDoor(index) {
+    return isMiddleDoor(index,doorCountFor(version)) && doorOpen[index] && !doorOpen[middleDoorNeighbor(index)];
+  }
   function doorStatesFor(count,previousCount,states) {
     if(count===previousCount) return states.slice();
     return count===2?[states[0]||states[1],states[2]||states[3]]:
@@ -1826,7 +1833,21 @@ h3 { font-size: 13px; font-weight: 650; }
       haspFold[pair]=toward(haspFold[pair],Number(fold),.007);
       if(haspFold[pair]===1){
         for(const i of doors){
-          if(doorOpen[i]) doorAngle[i]=toward(doorAngle[i],1,.0038);
+          if(!doorOpen[i]) continue;
+          let target=1;
+          if(isMiddleDoor(i,spec.doorCount)){
+            const neighbor=middleDoorNeighbor(i);
+            // Retract the extended leaf before the neighboring leaf can swing into its path.
+            if(doorAngle[neighbor]>1){
+              animating=true;
+              continue;
+            }
+            if(i===extendedMiddleDoor){
+              if(doorAngle[neighbor]===0) target=middleDoorExtension;
+              else animating=true;
+            }
+          }
+          doorAngle[i]=toward(doorAngle[i],target,.0038);
         }
       }
     }
@@ -2481,6 +2502,7 @@ h3 { font-size: 13px; font-weight: 650; }
   };
   function update(message) {
     const spec=dimensions();
+    if(!canExtendMiddleDoor(extendedMiddleDoor)) extendedMiddleDoor=null;
     const size=spec.width+' × '+spec.depth+' × '+formatCm(totalHeight)+' cm';
     get('.tl-dims').textContent=size;
     get('.tl-size').textContent=size;
@@ -2511,7 +2533,8 @@ h3 { font-size: 13px; font-weight: 650; }
     });
     get('[data-door-description]').textContent=spec.doorCount===2?
       'Puerta 1 a la izquierda y puerta 2 a la derecha. Ambas abren hasta '+exteriorDoorOpening+'°.':
-      'De izquierda a derecha, las puertas 1 y 4 abren hasta '+exteriorDoorOpening+'°. Las puertas 2 y 3 abren a '+interiorDoorOpening+'°.';
+      'Las puertas 1 y 4 abren a '+exteriorDoorOpening+'° y las centrales a '+interiorDoorOpening+
+      '°. Con las cuatro abiertas, cierra una central para que la otra se abra a '+exteriorDoorOpening+'°.';
     get('[data-lock-count]').textContent=spec.doorCount===2?
       'Una chapa en la unión de las dos hojas.':'Dos chapas, una por cada par de puertas.';
     doorButtons.forEach((button,index)=>{
@@ -2585,7 +2608,7 @@ h3 { font-size: 13px; font-weight: 650; }
     try {
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
-        doors:doorOpen,doorLayoutRevision:4,selected,active,extraction,removedFronts:[...removedFronts],
+        doors:doorOpen,doorLayoutRevision:4,extendedMiddleDoor,selected,active,extraction,removedFronts:[...removedFronts],
         accessoryLayouts,accessoryLayoutRevision:5,gardenLayouts,gardenLayoutRevision:1,gardenUpperTrays,
         accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
         accessoryQuantity:Number(accessoryCount.value),
@@ -2612,6 +2635,10 @@ h3 { font-size: 13px; font-weight: 650; }
     const legacyB=version===1 && states.length===4 && (snapshot.doorLayoutRevision??0)<2;
     restoreDoorStates(legacyB?[states[0]||states[2],states[1]||states[3]]:
       doorStatesFor(doorCountFor(version),version===1?2:states.length,states));
+    if(canExtendMiddleDoor(snapshot.extendedMiddleDoor)){
+      extendedMiddleDoor=snapshot.extendedMiddleDoor;
+      doorAngle[extendedMiddleDoor]=middleDoorExtension;
+    }
     if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
     dimensionsToggle.checked=snapshot.cotas!==false;
     // Older snapshots stored nine trays in the two bench columns.
@@ -2650,14 +2677,21 @@ h3 { font-size: 13px; font-weight: 650; }
     save();
   }
   function toggleDoor(i) {
-    if(i<0 || i>=doorCountFor(version)) return;
+    const count=doorCountFor(version);
+    if(i<0 || i>=count) return;
     if(doorOpen[i] && ((active>=0 && doorForBay(trays[active].bay)===i) ||
         trays.some(tray=>doorForBay(tray.bay)===i && tray.offset>.01))){
       update('Guarda la charola antes de cerrar esa puerta.');
       return;
     }
+    const extendNeighbor=isMiddleDoor(i,count) && doorOpen.every(Boolean);
     doorOpen[i]=!doorOpen[i];
-    change('Puerta '+(i+1)+(doorOpen[i]?' abierta.':' cerrada.'));
+    if(extendNeighbor){
+      extendedMiddleDoor=middleDoorNeighbor(i);
+      change('Puerta '+(i+1)+' cerrada. La puerta '+(extendedMiddleDoor+1)+' se abre a '+exteriorDoorOpening+'°.');
+    } else {
+      change('Puerta '+(i+1)+(doorOpen[i]?' abierta.':' cerrada.'));
+    }
   }
   function toggleTray(index) {
     setTrayExtraction(index,active===index || removedFronts.has(index)?0:1);
@@ -2712,7 +2746,8 @@ h3 { font-size: 13px; font-weight: 650; }
     const previousCount=doorCountFor(version);
     version=index;
     const nextCount=doorCountFor(version);
-    if(previousCount!==nextCount) restoreDoorStates(doorStatesFor(nextCount,previousCount,doorOpen));
+    extendedMiddleDoor=null;
+    restoreDoorStates(doorStatesFor(nextCount,previousCount,doorOpen));
     selectedAccessory=null;
     accessoryFeedback.textContent='';
     gardenFeedback.textContent='';
@@ -2875,10 +2910,13 @@ h3 { font-size: 13px; font-weight: 650; }
       const spec=dimensions();
       const centerZ=viewMode==='posts'?(spec.railBack+spec.railFront)/2:spec.count===2?spec.rear/2:0;
       const cosYaw=Math.cos(yaw),sinYaw=Math.sin(yaw);
-      for(const index of [0,spec.doorCount-1]){
+      for(let index=0;index<spec.doorCount;index++){
         if(!doorOpen[index] && doorAngle[index]===0) continue;
         const {leaf,pivot,sign}=doorLayout(index,spec);
-        const theta=sign*exteriorDoorOpening*Math.PI/180;
+        const baseOpening=doorOpening(index,spec.doorCount);
+        const opening=Math.max(baseOpening*doorAngle[index],
+          index===extendedMiddleDoor?exteriorDoorOpening:baseOpening);
+        const theta=sign*opening*Math.PI/180;
         const co=Math.cos(theta),si=Math.sin(theta);
         for(const x of [0,sign*leaf]){
           for(const z of [spec.interiorFront-doorOriginZ,doorRailFace+1.65]){
