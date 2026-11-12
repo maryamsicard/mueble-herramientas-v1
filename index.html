@@ -211,19 +211,8 @@ h3 { font-size: 13px; font-weight: 650; }
       </section>
 
       <section class="control-panel" id="panel-medidas" role="tabpanel" aria-labelledby="tab-medidas" tabindex="0" hidden>
-        <div class="panel-intro">
-          <h2>Medidas del mueble</h2>
-          <p class="text-small text-muted">Elige por qué lado entran las charolas para comparar el ancho y el fondo.</p>
-        </div>
-        <div class="control-group">
-          <div class="actions" role="group" aria-label="Orientación de las charolas">
-            <button type="button" data-version="0" aria-pressed="true">A · Frente de 42 cm</button>
-            <button type="button" data-version="1" aria-pressed="false">B · Frente de 30 cm</button>
-            <button type="button" data-version="2" aria-pressed="false">C · Doble fondo · frente de 42 cm</button>
-          </div>
-        </div>
         <section class="summary-card" aria-labelledby="summary-title">
-          <h2 id="summary-title">Medidas actuales del mueble</h2>
+          <h2 id="summary-title">Medidas del mueble</h2>
           <dl class="summary-metrics">
             <div><dt>Ancho total</dt><dd data-summary="width"></dd></div>
             <div><dt>Fondo total</dt><dd data-summary="depth"></dd></div>
@@ -421,7 +410,7 @@ h3 { font-size: 13px; font-weight: 650; }
           <summary>Detalle de la charola seleccionada</summary>
           <p class="tl-tray-size"></p>
           <p class="tl-gap" hidden></p>
-          <p class="tl-double-depth" hidden>Modelo C · dos charolas de la misma altura por nivel. Retira la delantera para acceder a la trasera. Guarda la trasera antes de reponer la delantera.</p>
+          <p class="tl-double-depth" hidden>Dos charolas de la misma altura por nivel. Retira la delantera para acceder a la trasera. Guarda la trasera antes de reponer la delantera.</p>
           <div class="actions"><button type="button" data-tray-action>Retirar por completo</button></div>
         </details>
         <p class="scene-note" id="navigation-help">Toca una charola para sacarla o guardarla · arrastra para girar o mover.</p>
@@ -447,7 +436,9 @@ h3 { font-size: 13px; font-weight: 650; }
   const layoutFeedback = get('.tl-layout-feedback');
   const status = get('.tl-status');
   const tabs = [...root.querySelectorAll('[role="tab"]')];
-  const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([location.pathname,location.search])}`;
+  // Keep the original simulator's saved state available if its archived models return.
+  const previousStorageKey = `codex:visualization-widget-state-v2:${JSON.stringify([location.pathname,location.search])}`;
+  const storageKey = previousStorageKey+':double-depth';
   let currentTab = 'tab-charolas';
   const extractionSliders = [...root.querySelectorAll('[data-extraction]')];
   const dimensionsToggle = get('[data-cotas]');
@@ -488,7 +479,6 @@ h3 { font-size: 13px; font-weight: 650; }
   });
   const gapReadout = get('.tl-gap');
   const doorButtons = [...root.querySelectorAll('[data-door]')];
-  const versions = [...root.querySelectorAll('[data-version]')];
   const viewButtons = [...root.querySelectorAll('[data-view]')];
   const trayButton = get('[data-tray-action]');
   const restoreFrontButton = get('[data-restore-front]');
@@ -782,7 +772,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const frameSideWidth=3;
   const pegboardThickness=.5;
   const closedPegboardFace=doorOriginZ+doorPegboardZ-pegboardThickness/2;
-  let version = 0;
+  const version = 2;
   const doorForBay=(bay,index=version)=>doorCountFor(index)===2?bay%2:bay;
   const removedFronts = new Set();
   const gardenOccupies=bay=>gardenLayouts[version].some(item=>item.bay===bay);
@@ -810,9 +800,9 @@ h3 { font-size: 13px; font-weight: 650; }
   let selected = mixedExample;
   let active = -1;
   let extraction = 0;
-  let yaw = .22;
-  let pitch = .15;
-  let zoom = 1;
+  let yaw = .55;
+  let pitch = .52;
+  let zoom = .8;
   let panX = 0;
   let panY = 0;
   let navigationMode = 'rotate';
@@ -825,11 +815,6 @@ h3 { font-size: 13px; font-weight: 650; }
   let extendedMiddleDoor=null;
   function canExtendMiddleDoor(index) {
     return isMiddleDoor(index,doorCountFor(version)) && doorOpen[index] && !doorOpen[middleDoorNeighbor(index)];
-  }
-  function doorStatesFor(count,previousCount,states) {
-    if(count===previousCount) return states.slice();
-    return count===2?[states[0]||states[1],states[2]||states[3]]:
-      [states[0],states[0],states[1],states[1]];
   }
   function restoreDoorStates(states) {
     doorOpen.forEach((_,index)=>{
@@ -2446,14 +2431,14 @@ h3 { font-size: 13px; font-weight: 650; }
         accessoryLayouts[index]=shouldSplit?splitDoubleDoorPegboards(valid,spec):valid;
       });
     }
+    if(snapshot.version!==version) return;
     populateAccessoryPicker(snapshot.accessoryProductId);
     if(Number.isInteger(snapshot.accessoryQuantity)){
       accessoryCount.value=clamp(snapshot.accessoryQuantity,1,100);
     }
     if(Number.isInteger(snapshot.accessorySurface) && accessorySurfaceNames[snapshot.accessorySurface]){
       let surface=snapshot.accessorySurface;
-      if(version===1 && oldDoorPanels) surface=Math.ceil(surface/2);
-      if(version!==1 && splitPanels && surface>0) surface=surface*2-1;
+      if(splitPanels && surface>0) surface=surface*2-1;
       accessorySurface.value=surface;
     }
   }
@@ -2523,7 +2508,6 @@ h3 { font-size: 13px; font-weight: 650; }
     get('[data-summary="height"]').textContent=formatCm(totalHeight)+' cm';
     get('.view-title').textContent=viewCopy[viewMode][0];
     get('.view-copy').textContent=viewCopy[viewMode][1];
-    versions.forEach((button,index)=>button.setAttribute('aria-pressed',index===version));
     layoutButtons.forEach(button=>{
       const applied=frontTrays.every(tray=>{
         const height=presetTrayHeight(tray,button.dataset.layout);
@@ -2598,7 +2582,7 @@ h3 { font-size: 13px; font-weight: 650; }
     get('.tl-layout-current').textContent=heightPicker.disabled?
       'Módulo '+(editorTray.bay+1)+' · nivel reservado para herramientas de jardín.':
       'Módulo '+(editorTray.bay+1)+' · '+levelLabel(editorTray)+' · actualmente '+currentSize+
-      (spec.count===2?'. En C, el tamaño se aplica a la delantera y a la trasera.':'.')+
+      '. El tamaño se aplica a la delantera y a la trasera.'+
       (!traysStowed()?' Guarda las charolas para poder cambiar el tamaño.':'');
     if(message) status.textContent=message;
     updateAccessoryUi();
@@ -2624,7 +2608,6 @@ h3 { font-size: 13px; font-weight: 650; }
   function restore(snapshot) {
     if(!snapshot || !variants[snapshot.version] ||
       !Array.isArray(snapshot.doors) || ![2,4].includes(snapshot.doors.length)) return;
-    version=snapshot.version;
     restoreGarden(snapshot.gardenLayouts,snapshot.gardenLayoutRevision);
     if(Array.isArray(snapshot.layout)) snapshot.layout.forEach((heights,i)=>{
       const column=levelsByBay[i+(snapshot.trayLayoutRevision===3?0:2)];
@@ -2632,23 +2615,27 @@ h3 { font-size: 13px; font-weight: 650; }
     });
     restoreGardenTrays(snapshot.gardenUpperTrays);
     refreshTrays();
+    if(snapshot.version===version) restoreModelState(snapshot);
+    if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
+    dimensionsToggle.checked=snapshot.cotas!==false;
+    restoreAccessories(snapshot);
+    syncEditorToTray();
+    update();
+  }
+  function restoreModelState(snapshot) {
     const states=snapshot.doors;
-    const legacyB=version===1 && states.length===4 && (snapshot.doorLayoutRevision??0)<2;
-    restoreDoorStates(legacyB?[states[0]||states[2],states[1]||states[3]]:
-      doorStatesFor(doorCountFor(version),version===1?2:states.length,states));
+    restoreDoorStates(states.length===2?[states[0],states[0],states[1],states[1]]:states);
     if(canExtendMiddleDoor(snapshot.extendedMiddleDoor)){
       extendedMiddleDoor=snapshot.extendedMiddleDoor;
       doorAngle[extendedMiddleDoor]=middleDoorExtension;
     }
-    if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
-    dimensionsToggle.checked=snapshot.cotas!==false;
     // Older snapshots stored nine trays in the two bench columns.
     const previousBenchCount=9;
     const restoreIndex=index=>snapshot.trayLayoutRevision>=2?index:
       index>=previousBenchCount?index+2*benchLevels.length-previousBenchCount:-1;
     const savedSelection=restoreIndex(snapshot.selected), savedActive=restoreIndex(snapshot.active);
     selected=trayAvailable(trays[savedSelection])?savedSelection:selected;
-    if(version===2 && Array.isArray(snapshot.removedFronts)){
+    if(Array.isArray(snapshot.removedFronts)){
       snapshot.removedFronts.forEach(index=>{
         if(Number.isInteger(index) && index>=0 && index<frontTrays.length && trayAvailable(frontTrays[index])){
           removedFronts.add(index);
@@ -2663,15 +2650,11 @@ h3 { font-size: 13px; font-weight: 650; }
       else if(snapshot.stage===2) extraction=1;
       else if(snapshot.stage===1){
         const spec=dimensions(), product=products[traySize(trays[active])];
-        const trayDepth=version===1?product.length:product.depth;
-        const previousSlide=Math.min(spec.d*.61,trayDepth/2+.7);
+        const previousSlide=Math.min(spec.d*.61,product.depth/2+.7);
         extraction=previousSlide/spec.depth;
       }
     }
     if(extraction===0) active=-1;
-    restoreAccessories(snapshot);
-    syncEditorToTray();
-    update();
   }
   function change(message) {
     update(message);
@@ -2744,33 +2727,6 @@ h3 { font-size: 13px; font-weight: 650; }
     trays.forEach(tray=>{tray.offset=0;});
     if(selected>=frontTrays.length) selected-=frontTrays.length;
   }
-  versions.forEach((button,index)=>button.addEventListener('click',()=>{
-    if(version===index) return;
-    cancelAccessoryMove();
-    const previousCount=doorCountFor(version);
-    version=index;
-    const nextCount=doorCountFor(version);
-    extendedMiddleDoor=null;
-    restoreDoorStates(doorStatesFor(nextCount,previousCount,doorOpen));
-    selectedAccessory=null;
-    accessoryFeedback.textContent='';
-    gardenFeedback.textContent='';
-    resetTrayExtraction();
-    refreshTrays();
-    syncEditorToTray();
-    setView('angle');
-    if(index===2){
-      yaw=.55;
-      pitch=.52;
-      zoom=.8;
-    }
-    const messages=[
-      'Versión A · reborde de 42 cm en las ranuras.',
-      'Versión B · mesa central, dos puertas y reborde de 30 cm en las ranuras.',
-      'Versión C · dos charolas de frente de 42 cm por nivel · fondo total de '+variants[2].depth+' cm.'
-    ];
-    change(messages[index]);
-  }));
   function validColumn(column,heights,floor=null) {
     if(!Array.isArray(heights) || heights.length!==column.length) return false;
     let occupiedUntil=floor===null?21.5:floor-1.5;
@@ -3191,7 +3147,7 @@ h3 { font-size: 13px; font-weight: 650; }
   renderTrayCatalog();
   update('Toca una charola del modelo para sacarla o guardarla.');
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey));
+    const saved = JSON.parse(localStorage.getItem(storageKey)??localStorage.getItem(previousStorageKey));
     restore(saved?.privateContent);
   } catch {
     // Start with defaults if the saved setup is unavailable.
