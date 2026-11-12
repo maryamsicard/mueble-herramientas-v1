@@ -1011,8 +1011,7 @@ h3 { font-size: 13px; font-weight: 650; }
       facadePlank:blend([.91,.79,.615],bg,.045),
       facadeTrim:blend([.805,.641,.463],bg,.045),
       facadeCrossbar:blend([.793,.619,.438],bg,.045),
-      facadeGroove:[.622,.475,.329],
-      warmLight:blend([1,.88,.62],bg,.12), diffuser:blend([1,.95,.78],bg,.10)
+      facadeGroove:[.622,.475,.329]
     };
   }
 
@@ -1578,7 +1577,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const id=10+index;
     const x=edges[bay]+span/2;
     const z=spec.trayFront-lane*spec.laneSpacing+offset-d/2;
-    const color=bay>=2?blend(p.tray,p.warmLight,.16):p.tray;
+    const color=p.tray;
     const cap=blend(color,p.bg,index===selected?.23:.12);
     const fromOriginal=(u,v,height)=>rotated?[x-v,height,z+u]:[x+u,height,z+v];
     const ring=(width,depth,height,radius)=>{
@@ -1785,7 +1784,7 @@ h3 { font-size: 13px; font-weight: 650; }
       pineBox(left,18,rear,cabinetWidth,182,1.9,p.panel,'y');
     } else {
       pineBox(left,18,rear,edges[2]-left,182,1.9,p.panel,'y');
-      pineBox(edges[2],18,rear,-left-edges[2],182,1.9,blend(p.panel,p.warmLight,.22),'y');
+      pineBox(edges[2],18,rear,-left-edges[2],182,1.9,p.panel,'y');
     }
     pineBox(left+.025,18,rear,cabinetWidth-.05,3.5,body,p.frame,'x');
     pineBox(left+.025,197,rear,cabinetWidth-.05,2.975,body,p.frame,'x');
@@ -1827,13 +1826,6 @@ h3 { font-size: 13px; font-weight: 650; }
       pineBox(dividerX+benchSide,21.5,back,14-benchSide,175.5,interiorDepth-3,p.frame,'y');
       pineBox(-2.1,21.5,interiorFront-3,4.2,175.5,1.5-interiorFront,p.frame,'y');
       pineBox(-2.52,21.5,-1.5,5.04,175.5,1.1,p.frame,'y');
-    }
-
-    const lightZ=(spec.railBack+spec.railFront)/2;
-    for(const x of [edges[2],edges[3]+span-.08]){
-      box(x,27,lightZ-1.3,.08,164,2.6,p.steel);
-      const lensX=x===edges[2]?x+.08:x-.014;
-      box(lensX,28,lightZ-.85,.014,162,1.7,p.diffuser);
     }
 
     pineBox(tableX,benchBottom,back,tableWidth,benchHeight-benchBottom,tableDepth,p.work,'x');
