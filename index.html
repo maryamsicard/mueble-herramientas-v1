@@ -399,7 +399,7 @@ h3 { font-size: 13px; font-weight: 650; }
         </details>
         <details class="layout-editor" id="charging">
           <summary>Contactos y cargador RYOBI</summary>
-          <p class="text-small">Dos contactos dobles · nicho de la mesa y módulo 3.</p>
+          <p class="text-small">Tres contactos dobles. Uno en el nicho y dos en la pared del fondo de los módulos 3 y 4, a la altura de la cuarta ranura. Retira las charolas de ese nivel para conectar un cargador.</p>
           <p class="text-small text-muted">La desbrozadora P20014 y el cortasetos P2609 comparten baterías RYOBI ONE+ de 18 V de ion de litio. En el nicho se muestra un cargador PCG002 de un puerto con una batería de 2 Ah de ejemplo. El cargador se representa con geometría aproximada.</p>
           <div class="actions">
             <button type="button" data-view="charger">Ver cargador</button>
@@ -1377,10 +1377,12 @@ h3 { font-size: 13px; font-weight: 650; }
     const outletY=benchHeight+16;
     const nicheOutlet=([u,v,w])=>[wall-w,outletY+v,outletZ+u];
     drawDuplexOutlet(nicheOutlet);
-    // Place the module 3 plate between the rims at the fourth and fifth levels.
-    const outletBottom=levels[3]+.2;
-    const moduleWall=trayBayFace(spec,2,-1);
-    drawDuplexOutlet(([u,v,w])=>[moduleWall+w,outletBottom+v,spec.railFront+1.8+u]);
+    const outletBottom=levels[3]-5.7;
+    const back=spec.rear+1.9;
+    for(const bay of [2,3]){
+      // Recess the rear outlets so the plates clear the rear trays.
+      drawDuplexOutlet(([u,v,w])=>[spec.bayCenters[bay]-3.5+u,outletBottom+v,back+w*.5]);
+    }
 
     const onBench=([u,v,w])=>[x+u,y+v,z+w];
     const green=[.73,.81,.13], black=[.105,.105,.11];
