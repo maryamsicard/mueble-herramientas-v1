@@ -234,6 +234,7 @@ h3 { font-size: 13px; font-weight: 650; }
             <button type="button" data-view="angle" aria-pressed="true">Perspectiva</button>
             <button type="button" data-view="detail">Detalle del apoyo</button>
             <button type="button" data-view="grooves">Ver paneles ranurados</button>
+            <button type="button" data-view="base">Ver base metálica</button>
           </div>
         </div>
       </section>
@@ -258,6 +259,7 @@ h3 { font-size: 13px; font-weight: 650; }
             <div><dt>Charolas respecto al frente de los costados</dt><dd class="tl-rail-alignment tabular-nums"></dd></div>
             <div><dt>Cuerpo de madera · altura</dt><dd class="tl-body-height tabular-nums"></dd></div>
             <div><dt>Bastidor negro · tubo cuadrado</dt><dd class="tl-base-profile tabular-nums"></dd></div>
+            <div><dt>Refuerzos de la base</dt><dd>Tres travesaños bajo las divisiones y un larguero intermedio</dd></div>
             <div><dt>Ruedas con soporte · altura</dt><dd class="tl-caster-height tabular-nums"></dd></div>
             <div><dt>Base metálica y ruedas · altura conjunta</dt><dd class="tl-base-height tabular-nums"></dd></div>
             <div><dt>Cubierta del banco · ancho y altura de trabajo</dt><dd class="tl-table tabular-nums"></dd></div>
@@ -730,6 +732,8 @@ h3 { font-size: 13px; font-weight: 650; }
       depth:product.depth+(product.extraDepth??0),below};
   }
   const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
+  const nicheDrillRack=['pokipo-drills',42.5,.5];
+  const accessoryLayoutRevision=6;
   const accessoryPanelNumber=surface=>surface||doorCountFor(version)+1;
   const accessorySurfaceLabel=surface=>accessoryPanelNumber(surface)+' · '+accessorySurfaceNames[surface];
   // Keep the positions the user chose and recognize copies of this older preset on reload.
@@ -820,7 +824,7 @@ h3 { font-size: 13px; font-weight: 650; }
         ['klkcms-cable-ties',4,40],...hardwareBins(41,21.2,32.4),...hardwareBins(50,21.2,32.4),
         ...hardwareBins(12,5,16.7,28.4),...hardwareBins(22,5,16.7,28.4)
       ]),
-      ...onPegboard(0,[['pokipo-drills',42.5,.5]])
+      ...onPegboard(0,[nicheDrillRack])
     ]
   ].map((layout,index)=>[
     ...(index===0?previousDefaultA.map(item=>({...item})):[]),
@@ -1318,15 +1322,22 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function metalBase(spec) {
     const {outerLeft,width,rear}=spec;
-    const front=.28;
+    const front=frameFront;
     const depth=front-rear;
     const color=palette.chassis;
     for(const z of [rear,front-baseTubeSize]){
       box(outerLeft,casterHeight,z,width,baseTubeSize,baseTubeSize,color);
     }
-    for(const x of [outerLeft,-outerLeft-baseTubeSize]){
+    const dividers=trayPanelDividers(spec).slice(1,-1).map(({from,to})=>(from+to-baseTubeSize)/2);
+    const members=[outerLeft,...dividers,-outerLeft-baseTubeSize];
+    for(const x of members){
       box(x,casterHeight,rear+baseTubeSize,baseTubeSize,baseTubeSize,depth-2*baseTubeSize,color);
     }
+    const spineZ=(rear+front-baseTubeSize)/2;
+    members.slice(1).forEach((right,index)=>{
+      const left=members[index]+baseTubeSize;
+      box(left,casterHeight,spineZ,right-left,baseTubeSize,baseTubeSize,color);
+    });
     for(const x of [outerLeft+baseTubeSize,0,-outerLeft-baseTubeSize]){
       for(const z of [rear+baseTubeSize,front-baseTubeSize]) wheel(x,z);
     }
@@ -2180,6 +2191,10 @@ h3 { font-size: 13px; font-weight: 650; }
     const back=rear+1.9;
     const body=0-rear;
     geometryOffsetY=0;
+    if(viewMode==='base'){
+      metalBase(spec);
+      return;
+    }
     for(let x=-120;x<=120;x+=15) box(x,-.08,-69,.19,.08,135,p.grid,backgroundHit);
     for(let z=-65;z<=65;z+=15) box(-129,-.075,z,258,.075,.19,p.grid,backgroundHit);
     metalBase(spec);
@@ -2356,8 +2371,8 @@ h3 { font-size: 13px; font-weight: 650; }
     const charger=viewMode==='charger'?chargerPosition(spec):null;
     const rotary=viewMode==='rotary-hammer'?rotaryHammerPosition(spec):null;
     const centerX=rotary?rotary[0]+rotaryHammerSize.width/2:charger?charger[0]+5:focus?spec.bayCenters[focus.bay]:0;
-    const centerY=rotary?rotary[1]+rotaryHammerSize.height/2+bodyOffsetY:charger?charger[1]+9+bodyOffsetY:focus?(focus.top+trayBottom(focus))/2+bodyOffsetY:totalHeight/2;
-    const centerZ=rotary?rotary[2]+rotaryHammerSpace.depth/2:charger?charger[2]+10:viewMode==='grooves'?(spec.railBack+spec.railFront)/2:
+    const centerY=viewMode==='base'?baseHeight/2:rotary?rotary[1]+rotaryHammerSize.height/2+bodyOffsetY:charger?charger[1]+9+bodyOffsetY:focus?(focus.top+trayBottom(focus))/2+bodyOffsetY:totalHeight/2;
+    const centerZ=viewMode==='base'?(spec.rear+frameFront)/2:rotary?rotary[2]+rotaryHammerSpace.depth/2:charger?charger[2]+10:viewMode==='grooves'?(spec.railBack+spec.railFront)/2:
       focus?spec.trayFront-focus.lane*spec.laneSpacing+focus.offset:
       spec.count===2?spec.rear/2:0;
     const cy=Math.cos(yaw), sy=Math.sin(yaw);
@@ -3420,7 +3435,8 @@ h3 { font-size: 13px; font-weight: 650; }
     angle:['Perspectiva','Gira o mueve el mueble con los controles del visor.'],
     front:['Vista frontal','Compara el banco de trabajo y las dos columnas de charolas.'],
     detail:['Detalle del apoyo','Acércate al reborde y al apoyo de la charola seleccionada.'],
-    grooves:['Paneles ranurados','Inspecciona el triplay ranurado bajo el banco, arriba del nicho y en las columnas altas.']
+    grooves:['Paneles ranurados','Inspecciona el triplay ranurado bajo el banco, arriba del nicho y en las columnas altas.'],
+    base:['Base metálica','Bastidor con tres travesaños, larguero intermedio y seis ruedas.']
   };
   function update(message) {
     const spec=dimensions();
@@ -3541,7 +3557,7 @@ h3 { font-size: 13px; font-weight: 650; }
       localStorage.setItem(storageKey, JSON.stringify({privateContent:{
         version,layout:levelsByBay.map(column=>column.map(tray=>tray.h)),
         doors:doorOpen,doorLayoutRevision:4,extendedMiddleDoor,selected,active,extraction,removedFronts:[...removedFronts],
-        accessoryLayouts,accessoryLayoutRevision:5,gardenLayouts,gardenLayoutRevision:1,gardenUpperTrays:upperToolTrays,
+        accessoryLayouts,accessoryLayoutRevision,gardenLayouts,gardenLayoutRevision:1,gardenUpperTrays:upperToolTrays,
         floorTools:storedFloorTools.map(({product,bay,shared,upper,size})=>({id:product.id,bay,shared,upper,size})),
         floorToolLayoutRevision:3,rotaryHammer:rotaryHammerToggle.checked,
         accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
@@ -3580,7 +3596,21 @@ h3 { font-size: 13px; font-weight: 650; }
     dimensionsToggle.checked=snapshot.cotas!==false;
     rotaryHammerToggle.checked=snapshot.rotaryHammer!==false;
     restoreAccessories(snapshot);
-    accessoryLayouts[version]=makeRoomForRotaryHammer(accessoryLayouts[version],dimensions());
+    const spec=dimensions();
+    const layout=makeRoomForRotaryHammer(accessoryLayouts[version],spec);
+    accessoryLayouts[version]=layout;
+    if((snapshot.accessoryLayoutRevision??0)<accessoryLayoutRevision){
+      const [productId,x,y]=nicheDrillRack;
+      if(!layout.some(item=>item.productId===productId)){
+        const product=accessoryCatalog.find(item=>item.id===productId);
+        const footprint=accessoryFootprint(product);
+        const preferred={productId,x,y,surface:0};
+        const occupied=accessoryObstacles(0,null,spec,footprint,layout);
+        const placement=accessoryFits(preferred,product,spec) && clearOfAccessories(footprint,x,y,occupied)?
+          preferred:findAccessorySlots(0,product,1,null,spec,layout)[0];
+        layout.push({...(placement??{...preferred,surface:null}),id:nextAccessoryId++});
+      }
+    }
     syncEditorToTray();
     update();
   }
@@ -3677,7 +3707,7 @@ h3 { font-size: 13px; font-weight: 650; }
       tray.offset=trayTravel(tray,dimensions());
     }
     doorOpen[doorForBay(tray.bay)]=true;
-    if(viewMode==='grooves') setView('detail');
+    if(viewMode==='grooves' || viewMode==='base') setView('detail');
     extraction=clamp(value,0,1);
     active=extraction>0?index:-1;
     update('Charola de '+traySize(tray)+' cm del módulo '+(tray.bay+1)+' · extracción '+formatCm(extraction*100)+'%.');
@@ -3816,6 +3846,10 @@ h3 { font-size: 13px; font-weight: 650; }
       yaw=.14;
       pitch=.19;
       zoom=3.9;
+    } else if(view==='base'){
+      yaw=.43;
+      pitch=.62;
+      zoom=1;
     } else {
       yaw=view==='front'?0:.35;
       pitch=view==='front'?0:.24;
@@ -3848,15 +3882,18 @@ h3 { font-size: 13px; font-weight: 650; }
       setAllDoors(true);
       setView(view);
       change('Columnas despejadas para inspeccionar el triplay ranurado.');
+    } else if(view==='base' && viewMode!=='base'){
+      setView(view);
+      update('Vista de la base metálica y sus seis ruedas.');
     } else {
-      setView(view==='grooves'?'angle':view);
+      setView(view==='grooves' || view==='base'?'angle':view);
       update('Vista general del mueble.');
     }
   }));
   function cameraScale() {
     const cotas=dimensionsToggle.checked && (viewMode==='angle' || viewMode==='front');
     let sceneWidth=cotas?268:239;
-    if(viewMode!=='detail' && viewMode!=='charger' && viewMode!=='rotary-hammer'){
+    if(viewMode!=='detail' && viewMode!=='charger' && viewMode!=='rotary-hammer' && viewMode!=='base'){
       const spec=dimensions();
       const centerZ=viewMode==='grooves'?(spec.railBack+spec.railFront)/2:spec.count===2?spec.rear/2:0;
       const cosYaw=Math.cos(yaw),sinYaw=Math.sin(yaw);
@@ -3898,8 +3935,9 @@ h3 { font-size: 13px; font-weight: 650; }
     zoomView(button.dataset.zoom==='in'?1.25:1/1.25);
   }));
   get('[data-center]').addEventListener('click',()=>{
-    setView('angle');
-    update('Vista del mueble centrada.');
+    const base=viewMode==='base';
+    setView(base?'base':'angle');
+    update(base?'Vista de la base centrada.':'Vista del mueble centrada.');
   });
   let scrollBeforeExpand=0;
   function expandViewer(expanded) {
