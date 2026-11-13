@@ -599,12 +599,14 @@ h3 { font-size: 13px; font-weight: 650; }
   const floorToolCatalog=[
     {id:'dw714-b3',name:'Ingletadora DEWALT DW714-B3',hit:350,size:{width:50,height:41,depth:61},draw:drawMiterSaw,
       measuredSize:{width:40,height:40,depth:54},
+      defaultUpperBay:0,
       description:'Tu ingletadora mide 40 × 40 × 54 cm. La DW714-B3 es una referencia visual. El modelo exacto de tu unidad queda por confirmar.',
       amazon:'https://www.amazon.com.mx/dp/B0759XTMRG',
       source:'https://www.dewalt.com.mx/es-mx/producto/dw714-b3/sierra-ingletadora-compuesta-de-10-254mm-con-cable',
       measurements:'https://www.walmart.com.mx/ip/sierra-de-inglete-dewalt-5000-rpm-1600-w-dewalt-dw714/00088591148146'},
     {id:'dwfp55126',name:'Compresor DEWALT DWFP55126',hit:351,size:{width:42.16,height:51.05,depth:43.69},draw:drawPancakeCompressor,
       measuredSize:{width:40,height:45,depth:40},
+      defaultUpperBay:1,
       description:'Tu compresora mide 40 × 45 × 40 cm. La DWFP55126 es una referencia visual. El modelo exacto de tu unidad queda por confirmar.',
       amazon:'https://www.amazon.com.mx/dp/B00K34UZBW',
       source:'https://www.dewalt.com.mx/es-mx/producto/dwfp55126/compresor-de-aire-de-165-psi-de-6-gal-con-cable'}
@@ -2564,24 +2566,23 @@ h3 { font-size: 13px; font-weight: 650; }
       const plan=planFloorTool(product,item.bay,item.size,dimensions(),item.shared===true,item.upper===true);
       if(plan?.fits) storedFloorTools.push(plan);
     }
-    const first=storedFloorTools[0];
-    if(first) fillFloorToolForm(first.product,first.size,floorLocationValue(first));
   }
-  function placeDefaultSaw() {
-    const saw=floorToolCatalog[0];
-    if(storedFloorTools.some(tool=>tool.product===saw)) return;
-    const plan=planFloorTool(saw,0,saw.measuredSize,dimensions(),false,true);
-    if(plan?.fits){
-      storedFloorTools.push(plan);
-      fillFloorToolForm(saw,plan.size,floorLocationValue(plan));
-    }
+  function placeDefaultFloorTool(product) {
+    if(storedFloorTools.some(tool=>tool.product===product)) return;
+    const plan=planFloorTool(product,product.defaultUpperBay,product.measuredSize,dimensions(),false,true);
+    if(plan?.fits) storedFloorTools.push(plan);
+  }
+  function syncFloorToolForm() {
+    const first=storedFloorTools[0];
+    const product=first?.product??floorToolCatalog[0];
+    fillFloorToolForm(product,first?.size??product.measuredSize,first?floorLocationValue(first):'');
   }
   floorToolBay.replaceChildren(option('','Elige una ubicación'),...levelsByBay.flatMap((_,bay)=>benchBay(bay)?
     [option(upperLocation(bay),'Módulo '+(bay+1)+' arriba'),option(bay,'Módulo '+(bay+1)+' abajo')]:
     [option(bay,'Módulo '+(bay+1))]),option(sharedBaseValue,'Base compartida · módulos 1 y 2'));
   get('.floor-tool-catalog').replaceChildren(...floorToolButtons);
-  fillFloorToolForm(floorToolCatalog[0],floorToolCatalog[0].measuredSize,'');
-  placeDefaultSaw();
+  floorToolCatalog.forEach(placeDefaultFloorTool);
+  syncFloorToolForm();
   floorToolForm.addEventListener('input',()=>{
     if(selectedStoredFloorTool()) return;
     floorToolPreview=null;
@@ -3415,7 +3416,7 @@ h3 { font-size: 13px; font-weight: 650; }
         doors:doorOpen,doorLayoutRevision:4,extendedMiddleDoor,selected,active,extraction,removedFronts:[...removedFronts],
         accessoryLayouts,accessoryLayoutRevision:5,gardenLayouts,gardenLayoutRevision:1,gardenUpperTrays:upperToolTrays,
         floorTools:storedFloorTools.map(({product,bay,shared,upper,size})=>({id:product.id,bay,shared,upper,size})),
-        floorToolLayoutRevision:2,
+        floorToolLayoutRevision:3,
         accessoryProductId:movingAccessory?.productId??accessoryPicker.value,
         accessoryQuantity:Number(accessoryCount.value),
         accessorySurface:(movingAccessory?.surface??accessorySurface.value)===''?null:
@@ -3440,7 +3441,10 @@ h3 { font-size: 13px; font-weight: 650; }
       const saved=Array.isArray(snapshot.floorTools)?snapshot.floorTools:
         snapshot.floorSaw?[{...snapshot.floorSaw,id:'dw714-b3'}]:[];
       restoreFloorTools(saved);
-      if(snapshot.floorToolLayoutRevision!==2) placeDefaultSaw();
+      const revision=snapshot.floorToolLayoutRevision??0;
+      if(revision<2) placeDefaultFloorTool(floorToolCatalog[0]);
+      if(revision<3) placeDefaultFloorTool(floorToolCatalog[1]);
+      syncFloorToolForm();
     }
     restoreUpperToolTrays(snapshot.gardenUpperTrays);
     refreshTrays();
