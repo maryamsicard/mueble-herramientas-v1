@@ -347,7 +347,7 @@ h3 { font-size: 13px; font-weight: 650; }
       <section class="control-panel" id="panel-herramientas" role="tabpanel" aria-labelledby="tab-herramientas" tabindex="0" hidden>
         <details class="layout-editor" id="floor-tools" open>
           <summary>Herramientas en la base</summary>
-          <p class="text-small text-muted">Medidas publicadas · ancho × alto × fondo</p>
+          <p class="text-small text-muted">Medidas de tus herramientas · ancho × alto × fondo</p>
           <div class="floor-tool-catalog" role="group" aria-label="Catálogo de herramientas en la base"></div>
           <form class="control-group" id="floor-tool-form">
             <p class="text-small text-muted" data-floor-tool-description></p>
@@ -589,12 +589,14 @@ h3 { font-size: 13px; font-weight: 650; }
   const gardenBottom=product=>gardenSupportY-product.hold;
   const floorToolCatalog=[
     {id:'dw714-b3',name:'Ingletadora DEWALT DW714-B3',hit:350,size:{width:50,height:41,depth:61},draw:drawMiterSaw,
-      description:'Referencia de la sierra ensamblada publicada por Walmart México. Para probarla con el cabezal abajo, ingresa las medidas de tu unidad en esa posición.',
+      measuredSize:{width:40,height:40,depth:54},
+      description:'Tu ingletadora mide 40 × 40 × 54 cm. La DW714-B3 es una referencia visual. El modelo exacto de tu unidad queda por confirmar.',
       amazon:'https://www.amazon.com.mx/dp/B0759XTMRG',
       source:'https://www.dewalt.com.mx/es-mx/producto/dw714-b3/sierra-ingletadora-compuesta-de-10-254mm-con-cable',
       measurements:'https://www.walmart.com.mx/ip/sierra-de-inglete-dewalt-5000-rpm-1600-w-dewalt-dw714/00088591148146'},
     {id:'dwfp55126',name:'Compresor DEWALT DWFP55126',hit:351,size:{width:42.16,height:51.05,depth:43.69},draw:drawPancakeCompressor,
-      description:'Medidas del compresor de 6 galones ensamblado, según DEWALT México. Puedes ingresar las medidas de tu unidad.',
+      measuredSize:{width:40,height:45,depth:40},
+      description:'Tu compresora mide 40 × 45 × 40 cm. La DWFP55126 es una referencia visual. El modelo exacto de tu unidad queda por confirmar.',
       amazon:'https://www.amazon.com.mx/dp/B00K34UZBW',
       source:'https://www.dewalt.com.mx/es-mx/producto/dwfp55126/compresor-de-aire-de-165-psi-de-6-gal-con-cable'}
   ];
@@ -826,11 +828,17 @@ h3 { font-size: 13px; font-weight: 650; }
   const benchUpperBase=154;
   const benchLowerCount=5;
   const benchLevels=[...levels.slice(0,benchLowerCount),...levels.slice(-3)];
-  const mixed = [
+  const previousMixed = [
     [0,0,36,10,10,10,0,23],
     [10,0,23,10,10,0,0,36],
     [0,0,36,0,23,10,0,23,0,23,10,0,23],
     [10,0,23,0,0,36,10,0,23,10,0,23,10]
+  ];
+  const mixed = [
+    [10,0,23,10,10,10,0,23],
+    [10,0,23,10,10,10,0,23],
+    [10,0,23,0,23,10,0,23,0,23,10,0,23],
+    [10,0,23,10,0,23,10,0,23,10,0,23,10]
   ];
   const levelsByBay=mixed.map((column,bay)=>column.map((h,row)=>({
     bay,top:(bay<2?benchLevels:levels)[row],h,row,lane:0,offset:0
@@ -905,7 +913,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   const presetTrayHeight=(tray,preset)=>preset==='small'?10:mixed[tray.bay][tray.row];
   const trayAvailable=tray=>Boolean(traySize(tray) && tray.lane<variants[version].count);
-  const mixedExample = trays.findIndex(tray=>tray.bay===3 && tray.h===36);
+  const mixedExample = trays.findIndex(tray=>tray.bay===2 && tray.h===23);
   let selected = mixedExample;
   let active = -1;
   let extraction = 0;
@@ -2328,7 +2336,8 @@ h3 { font-size: 13px; font-weight: 650; }
   function renderProductMeasurements() {
     const entries=[
       ...gardenCatalog.map(product=>({...product,size:product,source:product.measurements??product.source})),
-      ...floorToolCatalog.map(product=>({...product,note:product.description,source:product.measurements??product.source})),
+      ...floorToolCatalog.map(product=>({...product,note:'Medida publicada de referencia. '+product.description,
+        source:product.measurements??product.source})),
       ...accessoryCatalog.filter(product=>!product.legacy).map(product=>({
         ...product,size:product,
         note:product.bin?'Medida calculada del set. Cada contenedor mide '+formatToolSize(product.bin)+'.':
@@ -2366,7 +2375,7 @@ h3 { font-size: 13px; font-weight: 650; }
        (shared && bay!==0) ||
        !Object.keys(product.size).every(key=>Number.isFinite(size[key]) && size[key]>=1 && size[key]<=200)) return null;
     const room=floorToolSpace(bay,spec,shared);
-    const clears=(width,depth)=>width+1<=room.width && depth+1<=room.depth && size.height+.5<=room.height;
+    const clears=(width,depth)=>width<room.width && depth+1<=room.depth && size.height+.5<=room.height;
     const rotated=!clears(size.width,size.depth) && clears(size.depth,size.width);
     const fitsInRoom=rotated || clears(size.width,size.depth);
     const bays=floorToolBays({bay,shared});
@@ -2393,18 +2402,11 @@ h3 { font-size: 13px; font-weight: 650; }
     const button=document.createElement('button');
     button.type='button';
     const name=document.createElement('strong');
-    name.textContent=product.name;
+    name.textContent=product===floorToolCatalog[0]?'Tu ingletadora':'Tu compresora';
     const size=document.createElement('span');
     size.className='text-small tabular-nums';
-    size.textContent=formatToolSize(product.size);
-    const widthOver=Math.min(product.size.width,product.size.depth)-dimensions().opening;
+    size.textContent=formatToolSize(product.measuredSize);
     button.append(name,size);
-    if(widthOver>0){
-      const fit=document.createElement('span');
-      fit.className='text-small text-muted';
-      fit.textContent='Requiere la base compartida con estas medidas';
-      button.append(fit);
-    }
     button.addEventListener('click',()=>{
       if(product!==selectedFloorProduct) selectFloorTool(product);
     });
@@ -2426,7 +2428,11 @@ h3 { font-size: 13px; font-weight: 650; }
     floorToolPreview=null;
     floorToolResult.textContent='';
     const stored=storedFloorTools.find(tool=>tool.product===product);
-    fillFloorToolForm(product,stored?.size??product.size,stored?(stored.shared?sharedBaseValue:stored.bay):floorToolBay.value);
+    const size=stored?.size??product.measuredSize;
+    const spec=dimensions();
+    const available=levelsByBay.findIndex((_,bay)=>planFloorTool(product,bay,size,spec)?.fits);
+    const location=stored?(stored.shared?sharedBaseValue:stored.bay):available>=0?available:sharedBaseValue;
+    fillFloorToolForm(product,size,location);
     updateFloorToolUi();
     schedule();
   }
@@ -2456,12 +2462,14 @@ h3 { font-size: 13px; font-weight: 650; }
     const {size,fits,fitsInRoom,rotated,occupiedBy}=draft;
     const location=floorLocationLabel(draft);
     const turn=rotated?' con un giro de 90°':'';
+    const widthClearance=room.width-(rotated?size.depth:size.width);
+    const fitNote=widthClearance<1?' Holgura lateral total de '+formatCm(widthClearance*10)+' mm.':'';
     if(stored){
       const count=floorToolBays(stored).reduce((total,module)=>total+levelsByBay[module].filter(trayAvailable).length,0)*spec.count;
       floorToolResult.textContent='Colocada en '+location+turn+' · '+count+
-        (count===1?' charola disponible arriba.':' charolas disponibles arriba.');
+        (count===1?' charola disponible arriba.':' charolas disponibles arriba.')+fitNote;
     } else if(fits){
-      floorToolResult.textContent='Cabe en '+location+turn+'. Al colocarla, las charolas que interfieren se retiran.';
+      floorToolResult.textContent='Cabe en '+location+turn+'.'+fitNote+' Al colocarla, las charolas que interfieren se retiran.';
     } else {
       const width=Math.min(size.width,size.depth);
       const reason=fitsInRoom?'El módulo está ocupado por '+occupiedBy+'.':
@@ -2483,7 +2491,7 @@ h3 { font-size: 13px; font-weight: 650; }
   floorToolBay.replaceChildren(option(sharedBaseValue,'Base compartida · módulos 1 y 2'),
     ...levelsByBay.map((_,bay)=>option(bay,'Módulo '+(bay+1))));
   get('.floor-tool-catalog').replaceChildren(...floorToolButtons);
-  fillFloorToolForm(floorToolCatalog[0],floorToolCatalog[0].size,sharedBaseValue);
+  fillFloorToolForm(floorToolCatalog[0],floorToolCatalog[0].measuredSize,0);
   floorToolForm.addEventListener('input',()=>{
     if(selectedStoredFloorTool()) return;
     floorToolPreview=null;
@@ -3333,7 +3341,9 @@ h3 { font-size: 13px; font-weight: 650; }
     if(!snapshot || !variants[snapshot.version] ||
       !Array.isArray(snapshot.doors) || ![2,4].includes(snapshot.doors.length)) return;
     restoreGarden(snapshot.gardenLayouts,snapshot.gardenLayoutRevision);
-    if(Array.isArray(snapshot.layout)) snapshot.layout.forEach((heights,i)=>{
+    const wasMixed=snapshot.trayLayoutRevision===3 && Array.isArray(snapshot.layout) &&
+      previousMixed.every((column,bay)=>column.every((height,row)=>snapshot.layout[bay]?.[row]===height));
+    if(Array.isArray(snapshot.layout)) (wasMixed?mixed:snapshot.layout).forEach((heights,i)=>{
       const column=levelsByBay[i+(snapshot.trayLayoutRevision===3?0:2)];
       if(column && validColumn(column,heights)) heights.forEach((h,j)=>{column[j].h=h;});
     });
@@ -3484,7 +3494,7 @@ h3 { font-size: 13px; font-weight: 650; }
     setAllDoors(true);
     setView('front');
     const message=preset==='small'?
-      trays.filter(trayAvailable).length+' charolas de 10 cm.':'Distribución combinada de 10, 23 y 36 cm.';
+      trays.filter(trayAvailable).length+' charolas de 10 cm.':'Distribución combinada de 10 y 23 cm.';
     change(message+((gardenLayouts[version].length || storedFloorTools.length)?' Se conserva el espacio de las herramientas guardadas.':''));
   }));
   function previewEditorLevel() {
