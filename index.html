@@ -1369,19 +1369,19 @@ h3 { font-size: 13px; font-weight: 650; }
   const toolBlue=[.15,.34,.65];
   const toolOrange=[.88,.39,.13];
   const toolBlack=[.14,.14,.15];
-  const chargerPosition=spec=>[spec.edges[0]+spec.tableWidth-15.5,benchHeight+7,spec.railFront-25.4];
+  const chargerPosition=spec=>[spec.edges[0]+spec.tableWidth-15.5,benchHeight,spec.railFront-25.4];
   function drawChargingStation(spec) {
     const wall=spec.edges[0]+spec.tableWidth;
     const [x,y,z]=chargerPosition(spec);
     const outletZ=spec.railFront-32;
-    const nicheOutlet=([u,v,w])=>[wall-w,y+5+v,outletZ+u];
+    const outletY=benchHeight+16;
+    const nicheOutlet=([u,v,w])=>[wall-w,outletY+v,outletZ+u];
     drawDuplexOutlet(nicheOutlet);
     // Place the module 3 plate between the rims at the fourth and fifth levels.
     const outletBottom=levels[3]+.2;
     const moduleWall=trayBayFace(spec,2,-1);
     drawDuplexOutlet(([u,v,w])=>[moduleWall+w,outletBottom+v,spec.railFront+1.8+u]);
 
-    pineBox(x-1.5,y-1.8,z-3,wall-x+1.5,1.8,24,palette.work,'z');
     const onBench=([u,v,w])=>[x+u,y+v,z+w];
     const green=[.73,.81,.13], black=[.105,.105,.11];
     // The case follows the product photos. Keep the published footprint for placement.
@@ -1399,8 +1399,8 @@ h3 { font-size: 13px; font-weight: 650; }
     for(let i=0;i<4;i++) box(2.24+i*.81,8.94,12.85,.44,.36,.04,[.62,.81,.23],noHit,onBench);
 
     roundedHardware(1.53,1.05,.46,3.94,4.6,2.5,.52,black,noHit,nicheOutlet);
-    const cable=[[wall-3,y+6.15,outletZ+3.5],[wall-4.1,y+4.4,outletZ+2.2],
-      [wall-5.5,y+.32,outletZ+1.7],[wall-8.8,y+.32,outletZ+1.3],
+    const cable=[[wall-2.8,outletY+1.15,outletZ+3.5],[wall-3.4,outletY-1.3,outletZ+2.4],
+      [wall-3.9,y+3,outletZ+1.55],[wall-5.5,y+.32,outletZ+1.7],[wall-8.8,y+.32,outletZ+1.3],
       [x+4.9,y+.35,z-2.8],[x+4.9,y+1.5,z]];
     cable.slice(1).forEach((point,i)=>gardenRod(cable[i],point,.14,black,noHit));
   }
