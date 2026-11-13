@@ -208,7 +208,7 @@ h3 { font-size: 13px; font-weight: 650; }
       <p class="text-small text-muted">Modelo conceptual editable · unidades en cm</p>
     </div>
     <div class="view-heading">
-      <p><strong class="view-title">Perspectiva</strong><span class="view-copy">Gira o mueve el mueble con los controles del visor.</span></p>
+      <p><strong class="view-title">Vista frontal</strong><span class="view-copy">Compara el banco de trabajo y las dos columnas de charolas.</span></p>
       <p class="tl-dims tabular-nums" aria-label="Dimensiones del mueble cerrado"></p>
     </div>
   </header>
@@ -230,8 +230,8 @@ h3 { font-size: 13px; font-weight: 650; }
         <div class="control-group">
           <div class="actions" role="group" aria-label="Vista del mueble">
             <button type="button" data-facade>Ver fachada</button>
-            <button type="button" data-view="front">Frente</button>
-            <button type="button" data-view="angle" aria-pressed="true">Perspectiva</button>
+            <button type="button" data-view="front" aria-pressed="true">Frente</button>
+            <button type="button" data-view="angle">Perspectiva</button>
             <button type="button" data-view="detail">Detalle del apoyo</button>
             <button type="button" data-view="grooves">Ver paneles ranurados</button>
             <button type="button" data-view="base">Ver base metálica</button>
@@ -948,14 +948,14 @@ h3 { font-size: 13px; font-weight: 650; }
   let selected = mixedExample;
   let active = -1;
   let extraction = 0;
-  let yaw = .55;
-  let pitch = .52;
-  let zoom = .8;
+  let yaw = 0;
+  let pitch = 0;
+  let zoom = 1;
   let panX = 0;
   let panY = 0;
   let scenePercent = 52;
   let sidebarWidth = 320;
-  let viewMode = 'angle';
+  let viewMode = 'front';
   const doorOpen = [true,true,true,true];
   const doorAngle = doorOpen.map(() => 1);
   const haspFold = [1,1];
