@@ -789,11 +789,11 @@ h3 { font-size: 13px; font-weight: 650; }
       ]),
       {productId:'nihome-hammers',surface:null,x:39.5,y:1.5},
       ...onPegboard(1,[
-        ['workpro-rail',4.8,125],['ares-62008',9.6,96],['nihome-drivers',4.1,66],
+        ['workpro-rail',4.8,125],['ares-62008',9.6,91.55],['nihome-drivers',4.1,64.5],
         ['nihome-wrenches',4.1,36],['ares-62008',9.6,7]
       ]),
       ...onPegboard(2,[
-        ['casoman-pliers-14',5.8,133],['casoman-magnetic-10',5.18,100],['nihome-pliers',3.5,74],
+        ['casoman-pliers-14',5.8,96],['casoman-magnetic-10',5.18,132.8],['nihome-pliers',3.5,74],
         ['casoman-pliers-14',5.8,50],['klkcms-cable-ties',4,21],
         ...hardwareBins(24,23),...hardwareBins(34,23),...hardwareBins(7,4,16,28)
       ]),
@@ -2155,7 +2155,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
 
     pineBox(tableX,benchBottom,back,tableWidth,benchHeight-benchBottom,tableDepth,p.work,'x');
-    pineBox(tableX,nichePegboardTop,back,tableWidth,3,interiorDepth,p.frame,'x');
+    pineBox(tableX,nichePegboardTop,back,tableWidth,3,spec.benchToPegboard?tableDepth:interiorDepth,p.frame,'x');
     pegboard(tableX+2,benchHeight+4,back+1.1,tableWidth-4,nichePegboardTop-benchHeight-4,1,0,identity,0);
     const lampZ=interiorFront-interiorDepth*.47;
     box(tableX+5,benchUpperBase-4.1,lampZ,tableWidth-10,1.1,3,p.steel);
@@ -2947,11 +2947,11 @@ h3 { font-size: 13px; font-weight: 650; }
       y+footprint.height+gap<=item.y || y>=item.y+item.height+gap);
   }
   const doorFacesBench=(surface,spec)=>spec.benchToPegboard && (surface===1 || surface===2);
-  function benchAccessoryObstacle(surface,spec) {
+  function benchAccessoryObstacle(surface,spec,[bottom,top]=benchAccessoryBand) {
     if(!doorFacesBench(surface,spec)) return null;
-    const [bottom,top]=benchAccessoryBand;
     return {x:0,y:bottom-doorPegboardBottom,width:accessoryPanelSize(surface,spec).width,height:top-bottom};
   }
+  const upperShelfAccessoryBand=[nichePegboardTop,benchUpperBase];
   function pegboardSideObstacles(surface,spec,footprint) {
     if(!surface || spec.panelFront<=spec.trayFront) return [];
     const {sign,pivot,boardX,boardWidth}=doorLayout(surface-1,spec);
@@ -2981,7 +2981,7 @@ h3 { font-size: 13px; font-weight: 650; }
   function accessoryObstacles(surface,excludedId,spec,footprint,layout) {
     const occupied=accessoryOccupants(surface,excludedId,layout);
     const bench=benchAccessoryObstacle(surface,spec);
-    if(bench) occupied.push(bench);
+    if(bench) occupied.push(bench,benchAccessoryObstacle(surface,spec,upperShelfAccessoryBand));
     occupied.push(...pegboardSideObstacles(surface,spec,footprint));
     return occupied;
   }
@@ -3057,11 +3057,15 @@ h3 { font-size: 13px; font-weight: 650; }
       const product=accessoryCatalog.find(product=>product.id===item.productId);
       const footprint=accessoryFootprint(product);
       const sides=pegboardSideObstacles(item.surface,spec,footprint);
+      const upperShelf=benchAccessoryObstacle(item.surface,spec,upperShelfAccessoryBand);
+      if(upperShelf) sides.push(upperShelf);
       if(clearOfAccessories(footprint,item.x,item.y,sides)) continue;
       const panel=accessoryPanelSize(item.surface,spec);
       const occupied=accessoryObstacles(item.surface,item.id,spec,footprint,placed);
       const x=nearestAccessoryPosition('x',item,footprint,panel,occupied);
+      const y=x===undefined?nearestAccessoryPosition('y',item,footprint,panel,occupied):undefined;
       if(x!==undefined) item.x=x;
+      else if(y!==undefined) item.y=y;
       else {
         // Try the other panels before leaving an accessory unmounted.
         const surfaces=[item.surface,...Array.from({length:spec.doorCount},(_,i)=>i+1)
