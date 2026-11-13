@@ -409,11 +409,12 @@ h3 { font-size: 13px; font-weight: 650; }
         <details class="layout-editor">
           <summary>Rotomartillo CRAFTSMAN CMCH234B</summary>
           <p class="text-small">V20 Brushless RP de 7/8 pulg · SDS-Plus. Cotas de ficha · 40.51 × 25.50 × 10.69 cm (largo × ancho × alto).</p>
-          <p class="text-small text-muted">Acostado en una cuna individual con dos apoyos acolchados. Se muestra con el mango auxiliar, sin batería ni broca.</p>
+          <p class="text-small text-muted">Colgado en el pegboard del fondo con dos apoyos de doble varilla. Se muestra con el mango auxiliar, sin batería ni broca.</p>
           <div class="actions">
-            <label><input type="checkbox" data-rotary-hammer checked> Colocar en el nicho</label>
+            <label><input type="checkbox" data-rotary-hammer checked> Colgar en el pegboard del nicho</label>
             <button type="button" data-view="rotary-hammer">Ver rotomartillo</button>
             <a class="text-small" href="https://www.craftsman.com/en-us/product/cmch234b/v20-brushless-rp-sds-plus-cordless-rotary-hammer-tool-only" target="_blank" rel="noopener noreferrer">Ficha CRAFTSMAN</a>
+            <a class="text-small" href="https://www.tritonproducts.com/double-rod" target="_blank" rel="noopener noreferrer">Referencia de gancho Triton DuraHook</a>
           </div>
         </details>
         <div class="panel-intro">
@@ -1382,21 +1383,32 @@ h3 { font-size: 13px; font-weight: 650; }
   const toolOrange=[.88,.39,.13];
   const toolBlack=[.14,.14,.15];
   const chargerPosition=spec=>[spec.edges[0]+spec.tableWidth-15.5,benchHeight,spec.railFront-25.4];
-  const rotaryHammerSize={width:40.51,height:10.69,depth:25.50};
-  const rotaryHammerPosition=spec=>[spec.edges[0]+8,benchHeight,spec.railFront-33];
+  const rotaryHammerSize={width:40.51,height:25.50,depth:10.69};
+  const rotaryHammerSpace={x:.65,y:1,...rotaryHammerSize,depth:14.6};
+  const nichePegboardOrigin=spec=>[spec.edges[0]+2,benchHeight+4,spec.rear+1.9+1.1];
+  const rotaryHammerPosition=spec=>{
+    const [x,y,z]=nichePegboardOrigin(spec);
+    return [x+rotaryHammerSpace.x,y+rotaryHammerSpace.y,z+pegboardThickness/2];
+  };
   const rotaryHammerToggle=get('[data-rotary-hammer]');
   function drawRotaryHammer(spec) {
     const [x,y,z]=rotaryHammerPosition(spec);
     const {width,height,depth}=rotaryHammerSize;
-    const onBench=([u,v,w])=>[x+u,y+v,z+w];
-    // The tool lies on its side, with the auxiliary handle extending toward the front.
-    const tool=([u,v,w])=>onBench([u*width/40,1.9+w*height/10,depth-v*depth/25]);
+    const tool=([u,v,w])=>[x+u*width/40,y+v*height/25,z+.8+w*depth/10];
     const red=[.78,.075,.095], gray=[.34,.35,.36], pad=[.21,.21,.21];
-    for(const [start,bedDepth] of [[5,11.7],[30,17.7]]){
-      roundedHardware(start,0,-.6,5,1.6,bedDepth,.35,toolBlack,noHit,onBench);
-      box(start+.45,1.6,0,4.1,.3,bedDepth-.7,pad,noHit,onBench);
-      box(start,.95,-.6,5,2,.7,toolBlack,noHit,onBench);
-      box(start,.95,bedDepth-1.1,5,2,.5,toolBlack,noHit,onBench);
+    // One pair supports the metal housing and the other supports the battery shoe.
+    const rodRadius=.32;
+    for(const [u,v] of [[12,13.7],[35,6.25]]){
+      const [mountX,supportY]=tool([u,v,0]);
+      const armY=supportY-rodRadius;
+      roundedHardware(mountX-3,armY-1.4,z,6,4.3,.36,.16,toolSteel,noHit,identity);
+      for(const offset of [-2.54,2.54]){
+        gardenRod([mountX+offset,armY+1.9,z+.35],[mountX+offset,armY+1.9,z+.49],.25,toolBlack,noHit);
+      }
+      for(const armX of [mountX-2.38,mountX+2.38]){
+        gardenRod([armX,armY,z+.34],[armX,armY,z+13.2],rodRadius,toolSteel,noHit);
+        gardenRod([armX,armY,z+13.2],[armX,armY+1.9,z+13.55],rodRadius,toolSteel,noHit);
+      }
     }
 
     gardenRod([0,19.9,5],[4.6,19.9,5],3,toolBlack,noHit,tool);
@@ -2204,7 +2216,7 @@ h3 { font-size: 13px; font-weight: 650; }
 
     pineBox(tableX,benchBottom,back,tableWidth,benchHeight-benchBottom,tableDepth,p.work,'x');
     pineBox(tableX,nichePegboardTop,back,tableWidth,3,spec.benchToPegboard?tableDepth:interiorDepth,p.frame,'x');
-    pegboard(tableX+2,benchHeight+4,back+1.1,tableWidth-4,nichePegboardTop-benchHeight-4,1,0,identity,0);
+    pegboard(...nichePegboardOrigin(spec),tableWidth-4,nichePegboardTop-benchHeight-4,1,0,identity,0);
     const lampZ=interiorFront-interiorDepth*.47;
     box(tableX+5,benchUpperBase-4.1,lampZ,tableWidth-10,1.1,3,p.steel);
     box(tableX+6,benchUpperBase-4.5,lampZ+.35,tableWidth-12,.45,2.3,p.led);
@@ -2326,8 +2338,8 @@ h3 { font-size: 13px; font-weight: 650; }
     const charger=viewMode==='charger'?chargerPosition(spec):null;
     const rotary=viewMode==='rotary-hammer'?rotaryHammerPosition(spec):null;
     const centerX=rotary?rotary[0]+rotaryHammerSize.width/2:charger?charger[0]+5:focus?spec.bayCenters[focus.bay]:0;
-    const centerY=rotary?rotary[1]+7+bodyOffsetY:charger?charger[1]+9+bodyOffsetY:focus?(focus.top+trayBottom(focus))/2+bodyOffsetY:totalHeight/2;
-    const centerZ=rotary?rotary[2]+rotaryHammerSize.depth/2:charger?charger[2]+10:viewMode==='grooves'?(spec.railBack+spec.railFront)/2:
+    const centerY=rotary?rotary[1]+rotaryHammerSize.height/2+bodyOffsetY:charger?charger[1]+9+bodyOffsetY:focus?(focus.top+trayBottom(focus))/2+bodyOffsetY:totalHeight/2;
+    const centerZ=rotary?rotary[2]+rotaryHammerSpace.depth/2:charger?charger[2]+10:viewMode==='grooves'?(spec.railBack+spec.railFront)/2:
       focus?spec.trayFront-focus.lane*spec.laneSpacing+focus.offset:
       spec.count===2?spec.rear/2:0;
     const cy=Math.cos(yaw), sy=Math.sin(yaw);
@@ -2453,7 +2465,7 @@ h3 { font-size: 13px; font-weight: 650; }
       ...floorToolCatalog.map(product=>({...product,note:'Medida publicada de referencia. '+product.description,
         source:product.measurements??product.source})),
       {name:'Rotomartillo CRAFTSMAN CMCH234B',size:rotaryHammerSize,
-        note:'Medidas publicadas, en la orientación acostada del simulador.',
+        note:'Medidas publicadas, en la orientación colgada del simulador.',
         source:'https://www.craftsman.com/en-us/product/cmch234b/v20-brushless-rp-sds-plus-cordless-rotary-hammer-tool-only'},
       ...accessoryCatalog.filter(product=>!product.legacy).map(product=>({
         ...product,size:product,
@@ -2835,7 +2847,7 @@ h3 { font-size: 13px; font-weight: 650; }
   function accessoryPanelSize(surface,spec) {
     if(surface===0) return {
       width:spec.tableWidth-4,height:nichePegboardTop-benchHeight-4,
-      depth:spec.interiorFront-(spec.rear+1.9+1.1+pegboardThickness/2)-.02
+      depth:spec.interiorFront-(nichePegboardOrigin(spec)[2]+pegboardThickness/2)-.02
     };
     return {
       width:doorLayout(surface-1,spec).boardWidth,height:doorPegboardHeight,
@@ -3033,10 +3045,37 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   function accessoryObstacles(surface,excludedId,spec,footprint,layout) {
     const occupied=accessoryOccupants(surface,excludedId,layout);
+    if(surface===0 && rotaryHammerToggle.checked) occupied.push(rotaryHammerSpace);
     const bench=benchAccessoryObstacle(surface,spec);
     if(bench) occupied.push(bench,benchAccessoryObstacle(surface,spec,upperShelfAccessoryBand));
     occupied.push(...pegboardSideObstacles(surface,spec,footprint));
     return occupied;
+  }
+  function makeRoomForRotaryHammer(layout,spec) {
+    if(!rotaryHammerToggle.checked) return layout;
+    const blocked=new Map();
+    const placed=layout.filter(item=>{
+      if(item.surface!==0) return true;
+      const product=accessoryCatalog.find(entry=>entry.id===item.productId);
+      if(clearOfAccessories(accessoryFootprint(product),item.x,item.y,[rotaryHammerSpace])) return true;
+      blocked.set(item.id,product);
+      return false;
+    });
+    const surfaces=Array.from({length:spec.doorCount+1},(_,surface)=>surface);
+    return layout.map(item=>{
+      const product=blocked.get(item.id);
+      if(!product) return item;
+      for(const surface of surfaces){
+        if(!accessoryFits({surface,x:0,y:0},product,spec)) continue;
+        const [slot]=findAccessorySlots(surface,product,1,item.id,spec,placed);
+        if(slot){
+          const moved={...item,...slot};
+          placed.push(moved);
+          return moved;
+        }
+      }
+      return {...item,surface:null};
+    });
   }
   function nearestAccessoryPosition(axis,item,footprint,panel,occupied) {
     const size=axis==='x'?'width':'height';
@@ -3312,6 +3351,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   populateAccessoryPicker();
   accessoryLayouts[version]=alignDoorAccessories(accessoryLayouts[version],dimensions());
+  accessoryLayouts[version]=makeRoomForRotaryHammer(accessoryLayouts[version],dimensions());
   [accessoryPicker,accessoryCount,accessorySurface].forEach(control=>control.addEventListener('change',()=>{
     accessoryFeedback.textContent='';
     change();
@@ -3349,7 +3389,7 @@ h3 { font-size: 13px; font-weight: 650; }
   refreshTrays();
   syncEditorToTray();
   const viewCopy = {
-    'rotary-hammer':['Rotomartillo CRAFTSMAN CMCH234B','Cuna individual sobre la mesa del nicho.'],
+    'rotary-hammer':['Rotomartillo CRAFTSMAN CMCH234B','Dos apoyos de doble varilla en el pegboard del fondo.'],
     charger:['Cargador RYOBI PCG002','Batería ONE+ de 18 V y contacto doble en el nicho.'],
     angle:['Perspectiva','Gira o mueve el mueble con los controles del visor.'],
     front:['Vista frontal','Compara el banco de trabajo y las dos columnas de charolas.'],
@@ -3512,6 +3552,7 @@ h3 { font-size: 13px; font-weight: 650; }
     dimensionsToggle.checked=snapshot.cotas!==false;
     rotaryHammerToggle.checked=snapshot.rotaryHammer!==false;
     restoreAccessories(snapshot);
+    accessoryLayouts[version]=makeRoomForRotaryHammer(accessoryLayouts[version],dimensions());
     syncEditorToTray();
     update();
   }
@@ -3713,6 +3754,7 @@ h3 { font-size: 13px; font-weight: 650; }
   });
   dimensionsToggle.addEventListener('change',()=>change(dimensionsToggle.checked?'Cotas visibles.':'Cotas ocultas.'));
   rotaryHammerToggle.addEventListener('change',()=>{
+    accessoryLayouts[version]=makeRoomForRotaryHammer(accessoryLayouts[version],dimensions());
     if(!rotaryHammerToggle.checked && viewMode==='rotary-hammer') setView('angle');
     change();
   });
@@ -3733,8 +3775,8 @@ h3 { font-size: 13px; font-weight: 650; }
       pitch=.24;
       zoom=4.8;
     } else if(view==='rotary-hammer'){
-      yaw=.10;
-      pitch=.48;
+      yaw=.14;
+      pitch=.19;
       zoom=3.9;
     } else {
       yaw=view==='front'?0:.35;
