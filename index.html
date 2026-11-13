@@ -478,8 +478,10 @@ h3 { font-size: 13px; font-weight: 650; }
       <div class="scene-footer text-small text-muted">
         <div class="actions" role="group" aria-label="Distribuciones de charolas">
           <span>Distribución</span>
-          <button type="button" data-layout="small">Todas de 10 cm</button>
-          <button type="button" data-layout="mixed">Combinadas</button>
+          <button type="button" data-layout="small">Solo chicas</button>
+          <button type="button" data-layout="mixed">Chicas y medianas</button>
+          <button type="button" data-layout="all-sizes">3 tamaños</button>
+          <button type="button" data-layout="tools">Con herramientas</button>
         </div>
         <div class="scene-phase"><strong class="tl-phase">Charola guardada</strong><span class="tl-phase-tray"></span></div>
         <div class="scene-range">
@@ -592,10 +594,11 @@ h3 { font-size: 13px; font-weight: 650; }
       url:'https://www.amazon.com.mx/dp/B097VJG4ZR',source:'https://ryobitools.ca/products/46396036285',
       note:'Reserva provisional con deflector y rueda. El largo total ensamblado, el ancho del deflector y el fondo quedan por medir.',draw:drawStringTrimmer}
   ];
-  const gardenLayouts=variants.map((_,index)=>[
+  const defaultGardenLayout=index=>[
     {id:'ryobi-hedge',bay:index===2?3:2},
     {id:'ryobi-string',bay:3}
-  ]);
+  ];
+  const gardenLayouts=variants.map((_,index)=>defaultGardenLayout(index));
   const upperToolTrays=variants.map(()=>[null,null,null,null]);
   const gardenBays=[2,3];
   const gardenGap=4;
@@ -795,13 +798,13 @@ h3 { font-size: 13px; font-weight: 650; }
     ],[
       ...onPegboard(0,[
         ['klkcms-cable-ties',.5,5],
-        ['wallpeg-7-set-3',1.2,37],['wallpeg-5-set-4',37.85,37],
-        ...hardwareBins(5,17,28.3),...hardwareBins(15,17,28.3),...hardwareBins(25,17,28.3)
+        ['wallpeg-7-set-3',1.2,37],['wallpeg-5-set-4',37.85,37]
       ]),
       {productId:'nihome-hammers',surface:null,x:39.5,y:1.5},
       ...onPegboard(1,[
         ['workpro-rail',4.8,125],['ares-62008',9.6,91.55],['nihome-drivers',4.1,64.5],
-        ['nihome-wrenches',4.1,36],['ares-62008',9.6,7]
+        ['nihome-wrenches',4.1,36],['ares-62008',9.6,7],
+        ...hardwareBins(0,.5,11.7,22.9)
       ]),
       ...onPegboard(2,[
         ['casoman-pliers-14',5.8,96],['casoman-magnetic-10',5.18,132.8],['nihome-pliers',3.5,74],
@@ -851,7 +854,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const nichePegboardTop=benchUpperBase-3;
   const benchLowerCount=5;
   const benchLevels=[...levels.slice(0,benchLowerCount),...levels.slice(-3)];
-  const previousMixed = [
+  const threeSizes = [
     [0,0,36,10,10,10,0,23],
     [10,0,23,10,10,0,0,36],
     [0,0,36,0,23,10,0,23,0,23,10,0,23],
@@ -935,7 +938,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const height=upperToolTrays[version][tray.bay]?.[tray.row]??tray.h;
     return fitsAboveTools(tray,height)?height:0;
   }
-  const presetTrayHeight=(tray,preset)=>preset==='small'?10:mixed[tray.bay][tray.row];
+  const presetTrayHeight=(tray,preset)=>preset==='small'?10:(preset==='all-sizes'?threeSizes:mixed)[tray.bay][tray.row];
   const trayAvailable=tray=>Boolean(traySize(tray) && tray.lane<variants[version].count);
   const mixedExample = trays.findIndex(tray=>tray.bay===2 && tray.h===23);
   let selected = mixedExample;
@@ -2637,6 +2640,14 @@ h3 { font-size: 13px; font-weight: 650; }
     const plan=planFloorTool(product,product.defaultUpperBay,product.measuredSize,dimensions(),false,true);
     if(plan?.fits) storedFloorTools.push(plan);
   }
+  function hasDefaultLargeTools() {
+    const garden=gardenLayouts[version];
+    const defaults=defaultGardenLayout(version);
+    return garden.length===defaults.length && defaults.every(({id,bay})=>garden.some(tool=>tool.id===id && tool.bay===bay)) &&
+      floorToolCatalog.every(product=>storedFloorTools.some(tool=>
+        tool.product===product && tool.upper && tool.bay===product.defaultUpperBay &&
+        Object.keys(product.measuredSize).every(key=>tool.size[key]===product.measuredSize[key])));
+  }
   function syncFloorToolForm() {
     const first=storedFloorTools[0];
     const product=first?.product??floorToolCatalog[0];
@@ -3424,8 +3435,10 @@ h3 { font-size: 13px; font-weight: 650; }
     get('.view-title').textContent=viewCopy[viewMode][0];
     get('.view-copy').textContent=viewCopy[viewMode][1];
     layoutButtons.forEach(button=>{
-      const applied=frontTrays.every(tray=>{
-        const height=presetTrayHeight(tray,button.dataset.layout);
+      const preset=button.dataset.layout;
+      const toolsMatch=preset==='tools'?hasDefaultLargeTools():!gardenLayouts[version].length && !storedFloorTools.length;
+      const applied=!floorToolPreview && toolsMatch && frontTrays.every(tray=>{
+        const height=presetTrayHeight(tray,preset);
         return traySize(tray)===(fitsAboveTools(tray,height)?height:0);
       });
       button.setAttribute('aria-pressed',applied);
@@ -3520,7 +3533,7 @@ h3 { font-size: 13px; font-weight: 650; }
         accessoryQuantity:Number(accessoryCount.value),
         accessorySurface:(movingAccessory?.surface??accessorySurface.value)===''?null:
           Number(movingAccessory?.surface??accessorySurface.value),
-        tab:currentTab,interfaceRevision:2,trayLayoutRevision:3,cotas:dimensionsToggle.checked
+        tab:currentTab,interfaceRevision:2,trayLayoutRevision:4,cotas:dimensionsToggle.checked
       }}));
     } catch {
       // The simulator still works when browser storage is unavailable.
@@ -3531,9 +3544,9 @@ h3 { font-size: 13px; font-weight: 650; }
       !Array.isArray(snapshot.doors) || ![2,4].includes(snapshot.doors.length)) return;
     restoreGarden(snapshot.gardenLayouts,snapshot.gardenLayoutRevision);
     const wasMixed=snapshot.trayLayoutRevision===3 && Array.isArray(snapshot.layout) &&
-      previousMixed.every((column,bay)=>column.every((height,row)=>snapshot.layout[bay]?.[row]===height));
+      threeSizes.every((column,bay)=>column.every((height,row)=>snapshot.layout[bay]?.[row]===height));
     if(Array.isArray(snapshot.layout)) (wasMixed?mixed:snapshot.layout).forEach((heights,i)=>{
-      const column=levelsByBay[i+(snapshot.trayLayoutRevision===3?0:2)];
+      const column=levelsByBay[i+(snapshot.trayLayoutRevision>=3?0:2)];
       if(column && validColumn(column,heights)) heights.forEach((h,j)=>{column[j].h=h;});
     });
     if(snapshot.version===version){
@@ -3679,18 +3692,28 @@ h3 { font-size: 13px; font-weight: 650; }
   layoutButtons.forEach(button=>button.addEventListener('click',()=>{
     resetTrayExtraction();
     const preset=button.dataset.layout;
+    const withTools=preset==='tools';
+    floorToolPreview=null;
+    storedFloorTools.length=0;
+    gardenLayouts[version]=withTools?defaultGardenLayout(version):[];
+    if(withTools) floorToolCatalog.forEach(placeDefaultFloorTool);
+    syncFloorToolForm();
+    gardenFeedback.textContent='';
     frontTrays.forEach(tray=>{tray.h=presetTrayHeight(tray,preset);});
-    // The preset also defines the trays that return when garden tools are removed.
     upperToolTrays[version].fill(null);
-    if(preset==='mixed') selected=mixedExample;
+    if(preset==='mixed' || withTools) selected=mixedExample;
     refreshTrays();
     syncEditorToTray();
     layoutFeedback.textContent='';
     setAllDoors(true);
     setView('front');
-    const message=preset==='small'?
-      trays.filter(trayAvailable).length+' charolas de 10 cm.':'Distribución combinada de 10 y 23 cm.';
-    change(message+((gardenLayouts[version].length || storedFloorTools.length)?' Se conserva el espacio de las herramientas guardadas.':''));
+    const messages={
+      small:trays.filter(trayAvailable).length+' charolas de 10 cm.',
+      mixed:'Charolas chicas y medianas de 10 y 23 cm.',
+      'all-sizes':'Charolas de 10, 23 y 36 cm.',
+      tools:'Ingletadora en el módulo 1 arriba, compresora en el módulo 2 arriba y herramientas de jardín en el módulo 4.'
+    };
+    change(messages[preset]);
   }));
   function previewEditorLevel() {
     const tray=levelsByBay[Number(columnPicker.value)][Number(levelPicker.value)];
