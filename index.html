@@ -397,6 +397,15 @@ h3 { font-size: 13px; font-weight: 650; }
             <ul class="accessory-list" data-garden-list></ul>
           </form>
         </details>
+        <details class="layout-editor" id="charging">
+          <summary>Contactos y cargador RYOBI</summary>
+          <p class="text-small">Tres contactos dobles · nicho de la mesa, módulo 2 y módulo 3.</p>
+          <p class="text-small text-muted">La desbrozadora P20014 y el cortasetos P2609 comparten baterías RYOBI ONE+ de 18 V de ion de litio. En la mesa se muestra un cargador PCG002 de un puerto con una batería de 2 Ah de ejemplo. El cargador se representa con geometría aproximada.</p>
+          <div class="actions">
+            <button type="button" data-view="charger">Ver cargador</button>
+            <a class="text-small" href="https://www.ryobitools.com/en-us/products/33287205264" target="_blank" rel="noopener noreferrer">Ficha RYOBI PCG002</a>
+          </div>
+        </details>
         <div class="panel-intro">
           <h2>Accesorios para pegboard</h2>
           <p class="text-small text-muted">Elige el accesorio, la cantidad y el pegboard. Las piezas se acomodan en los huecos libres, de izquierda a derecha y de abajo hacia arriba.</p>
@@ -1235,6 +1244,17 @@ h3 { font-size: 13px; font-weight: 650; }
       face([back[i],front[i],front[next],back[next]],color,id,-.18);
     }
   }
+  function drawDuplexOutlet(transform) {
+    const white=[.91,.9,.86];
+    roundedHardware(0,0,0,7,11.4,.25,.38,white,noHit,transform);
+    for(const y of [3.2,8.2]){
+      roundedHardware(1.33,y-1.71,.25,4.34,3.42,.19,.87,[.97,.96,.93],noHit,transform);
+      box(2.4,y-.1,.44,.29,1.33,.035,toolBlack,noHit,transform);
+      box(4.32,y+.02,.44,.29,1.1,.035,toolBlack,noHit,transform);
+      roundedHardware(3.21,y-1.15,.44,.58,.68,.035,.28,toolBlack,noHit,transform);
+    }
+    roundedHardware(3.22,5.42,.25,.56,.56,.05,.27,palette.steel,noHit,transform);
+  }
   function drawCombinationLock(sign,seam,y,pair,transform) {
     const id=pair*2+(sign>0?1:2);
     const graphite=[.13,.13,.14], dial=[.22,.22,.23], markings=[.68,.67,.64];
@@ -1349,6 +1369,43 @@ h3 { font-size: 13px; font-weight: 650; }
   const toolBlue=[.15,.34,.65];
   const toolOrange=[.88,.39,.13];
   const toolBlack=[.14,.14,.15];
+  const chargerPosition=spec=>[spec.edges[0]+spec.tableWidth-15.5,benchHeight,spec.railFront-25.4];
+  function drawChargingStation(spec) {
+    const wall=spec.edges[0]+spec.tableWidth;
+    const outletZ=spec.railFront-32;
+    const nicheOutlet=([u,v,w])=>[wall-w,benchHeight+5+v,outletZ+u];
+    drawDuplexOutlet(nicheOutlet);
+    // Place the plates between the rims at the fourth and fifth levels.
+    const outletBottom=levels[3]+.2;
+    for(const [bay,side] of [[1,1],[2,-1]]){
+      const x=trayBayFace(spec,bay,side);
+      const z=spec.railFront+1.8;
+      drawDuplexOutlet(([u,v,w])=>[x-side*w,outletBottom+v,z+u]);
+    }
+
+    const [x,y,z]=chargerPosition(spec);
+    const onBench=([u,v,w])=>[x+u,y+v,z+w];
+    const green=[.73,.81,.13], black=[.105,.105,.11];
+    // The case follows the product photos. Keep the published footprint for placement.
+    roundedHardware(0,0,0,9.8,1.8,19.2,1.12,black,noHit,onBench);
+    roundedHardware(.12,1.8,.15,9.56,3,18.9,.98,green,noHit,onBench);
+    roundedHardware(.65,4.8,.62,8.5,2.35,13.5,1.14,green,noHit,onBench);
+    roundedHardware(1.07,4.8,14.7,7.66,.14,2.9,.38,black,noHit,onBench);
+    for(const [u,color] of [[2.05,[.32,.88,.18]],[3.65,[.36,.36,.33]],[5.25,[.36,.36,.33]]]){
+      box(u,4.94,15.72,.58,.12,.61,color,noHit,onBench);
+    }
+    for(let i=0;i<6;i++) box(.08,2.62,2.15+i*.75,.18,.57,.25,black,noHit,onBench);
+    roundedHardware(.93,7.15,1.25,7.94,4.52,11.55,1.06,black,noHit,onBench);
+    roundedHardware(1.12,10.27,1.5,7.56,1.31,11.1,1.07,green,noHit,onBench);
+    box(1.81,8.54,12.8,6.18,1.33,.04,[.24,.25,.23],noHit,onBench);
+    for(let i=0;i<4;i++) box(2.24+i*.81,8.94,12.85,.44,.36,.04,[.62,.81,.23],noHit,onBench);
+
+    roundedHardware(1.53,1.05,.46,3.94,4.6,2.5,.52,black,noHit,nicheOutlet);
+    const cable=[[wall-3,benchHeight+6.15,outletZ+3.5],[wall-4.1,benchHeight+4.4,outletZ+2.2],
+      [wall-5.5,benchHeight+.32,outletZ+1.7],[wall-8.8,benchHeight+.32,outletZ+1.3],
+      [x+4.9,benchHeight+.35,z-2.8],[x+4.9,benchHeight+1.5,z]];
+    cable.slice(1).forEach((point,i)=>gardenRod(cable[i],point,.14,black,noHit));
+  }
   function toolSegment(a,b,width,thickness,color,id,transform) {
     const dx=b[0]-a[0],dy=b[1]-a[1],dz=b[2]-a[2];
     const length=Math.hypot(dx,dy);
@@ -2101,6 +2158,7 @@ h3 { font-size: 13px; font-weight: 650; }
     const lampZ=interiorFront-interiorDepth*.47;
     box(tableX+5,benchUpperBase-4.1,lampZ,tableWidth-10,1.1,3,p.steel);
     box(tableX+6,benchUpperBase-4.5,lampZ+.35,tableWidth-12,.45,2.3,p.led);
+    drawChargingStation(spec);
     if(viewMode!=='grooves'){
       for(const bay of gardenBays) if(gardenOccupies(bay)) drawGardenTools(bay,spec);
       trays.forEach((tray,index) => {
@@ -2214,9 +2272,10 @@ h3 { font-size: 13px; font-weight: 650; }
     const showCotas=dimensionsToggle.checked && (viewMode==='angle' || viewMode==='front');
     const scale=cameraScale();
     const focus=viewMode==='detail' ? trays[selected] : null;
-    const centerX=focus?spec.bayCenters[focus.bay]:0;
-    const centerY=focus?(focus.top+trayBottom(focus))/2+bodyOffsetY:totalHeight/2;
-    const centerZ=viewMode==='grooves'?(spec.railBack+spec.railFront)/2:
+    const charger=viewMode==='charger'?chargerPosition(spec):null;
+    const centerX=charger?charger[0]+5:focus?spec.bayCenters[focus.bay]:0;
+    const centerY=charger?charger[1]+9+bodyOffsetY:focus?(focus.top+trayBottom(focus))/2+bodyOffsetY:totalHeight/2;
+    const centerZ=charger?charger[2]+10:viewMode==='grooves'?(spec.railBack+spec.railFront)/2:
       focus?spec.trayFront-focus.lane*spec.laneSpacing+focus.offset:
       spec.count===2?spec.rear/2:0;
     const cy=Math.cos(yaw), sy=Math.sin(yaw);
@@ -3232,6 +3291,7 @@ h3 { font-size: 13px; font-weight: 650; }
   refreshTrays();
   syncEditorToTray();
   const viewCopy = {
+    charger:['Cargador RYOBI PCG002','Batería ONE+ de 18 V y contacto doble sobre la mesa.'],
     angle:['Perspectiva','Gira o mueve el mueble con los controles del visor.'],
     front:['Vista frontal','Compara el banco de trabajo y las dos columnas de charolas.'],
     detail:['Detalle del apoyo','Acércate al reborde y al apoyo de la charola seleccionada.'],
@@ -3600,6 +3660,10 @@ h3 { font-size: 13px; font-weight: 650; }
       yaw=.41;
       pitch=.18;
       zoom=1.10;
+    } else if(view==='charger'){
+      yaw=-.19;
+      pitch=.24;
+      zoom=4.8;
     } else {
       yaw=view==='front'?0:.35;
       pitch=view==='front'?0:.24;
@@ -3618,7 +3682,12 @@ h3 { font-size: 13px; font-weight: 650; }
   });
   viewButtons.forEach(button=>button.addEventListener('click',()=>{
     const view=button.dataset.view;
-    if(view==='detail'){
+    if(view==='charger'){
+      doorOpen[doorForBay(0)]=true;
+      doorOpen[doorForBay(1)]=true;
+      setView(view);
+      change('Cargador RYOBI PCG002 en la mesa.');
+    } else if(view==='detail'){
       const {bay}=trays[selected];
       doorOpen[doorForBay(bay)]=true;
       setView(view);
@@ -3635,7 +3704,7 @@ h3 { font-size: 13px; font-weight: 650; }
   function cameraScale() {
     const cotas=dimensionsToggle.checked && (viewMode==='angle' || viewMode==='front');
     let sceneWidth=cotas?268:239;
-    if(viewMode!=='detail'){
+    if(viewMode!=='detail' && viewMode!=='charger'){
       const spec=dimensions();
       const centerZ=viewMode==='grooves'?(spec.railBack+spec.railFront)/2:spec.count===2?spec.rear/2:0;
       const cosYaw=Math.cos(yaw),sinYaw=Math.sin(yaw);
