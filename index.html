@@ -733,7 +733,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
   const nicheDrillRack=['pokipo-drills',42.5,.5];
-  const accessoryLayoutRevision=6;
+  const accessoryLayoutRevision=7;
   const accessoryPanelNumber=surface=>surface||doorCountFor(version)+1;
   const accessorySurfaceLabel=surface=>accessoryPanelNumber(surface)+' · '+accessorySurfaceNames[surface];
   // Keep the positions the user chose and recognize copies of this older preset on reload.
@@ -3092,13 +3092,18 @@ h3 { font-size: 13px; font-weight: 650; }
     occupied.push(...pegboardSideObstacles(surface,spec,footprint));
     return occupied;
   }
-  function makeRoomForRotaryHammer(layout,spec) {
-    if(!rotaryHammerToggle.checked) return layout;
+  function clearNicheMounts(layout,spec,rack=null) {
+    const reserved=rotaryHammerToggle.checked?[rotaryHammerSpace]:[];
+    if(rack){
+      const product=accessoryCatalog.find(entry=>entry.id===rack.productId);
+      reserved.push({...accessoryFootprint(product),x:rack.x,y:rack.y});
+    }
+    if(!reserved.length) return layout;
     const blocked=new Map();
     const placed=layout.filter(item=>{
-      if(item.surface!==0) return true;
+      if(item.surface!==0 || item===rack) return true;
       const product=accessoryCatalog.find(entry=>entry.id===item.productId);
-      if(clearOfAccessories(accessoryFootprint(product),item.x,item.y,[rotaryHammerSpace])) return true;
+      if(clearOfAccessories(accessoryFootprint(product),item.x,item.y,reserved)) return true;
       blocked.set(item.id,product);
       return false;
     });
@@ -3392,7 +3397,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   populateAccessoryPicker();
   accessoryLayouts[version]=alignDoorAccessories(accessoryLayouts[version],dimensions());
-  accessoryLayouts[version]=makeRoomForRotaryHammer(accessoryLayouts[version],dimensions());
+  accessoryLayouts[version]=clearNicheMounts(accessoryLayouts[version],dimensions());
   [accessoryPicker,accessoryCount,accessorySurface].forEach(control=>control.addEventListener('change',()=>{
     accessoryFeedback.textContent='';
     change();
@@ -3596,21 +3601,20 @@ h3 { font-size: 13px; font-weight: 650; }
     dimensionsToggle.checked=snapshot.cotas!==false;
     rotaryHammerToggle.checked=snapshot.rotaryHammer!==false;
     restoreAccessories(snapshot);
-    const spec=dimensions();
-    const layout=makeRoomForRotaryHammer(accessoryLayouts[version],spec);
-    accessoryLayouts[version]=layout;
+    const layout=accessoryLayouts[version];
+    let restoredRack=null;
     if((snapshot.accessoryLayoutRevision??0)<accessoryLayoutRevision){
       const [productId,x,y]=nicheDrillRack;
-      if(!layout.some(item=>item.productId===productId)){
-        const product=accessoryCatalog.find(item=>item.id===productId);
-        const footprint=accessoryFootprint(product);
-        const preferred={productId,x,y,surface:0};
-        const occupied=accessoryObstacles(0,null,spec,footprint,layout);
-        const placement=accessoryFits(preferred,product,spec) && clearOfAccessories(footprint,x,y,occupied)?
-          preferred:findAccessorySlots(0,product,1,null,spec,layout)[0];
-        layout.push({...(placement??{...preferred,surface:null}),id:nextAccessoryId++});
+      if(!layout.some(item=>item.productId===productId && item.surface!==null)){
+        restoredRack=layout.find(item=>item.productId===productId);
+        if(!restoredRack){
+          restoredRack={id:nextAccessoryId++,productId};
+          layout.push(restoredRack);
+        }
+        Object.assign(restoredRack,{surface:0,x,y});
       }
     }
+    accessoryLayouts[version]=clearNicheMounts(layout,dimensions(),restoredRack);
     syncEditorToTray();
     update();
   }
@@ -3822,7 +3826,7 @@ h3 { font-size: 13px; font-weight: 650; }
   });
   dimensionsToggle.addEventListener('change',()=>change(dimensionsToggle.checked?'Cotas visibles.':'Cotas ocultas.'));
   rotaryHammerToggle.addEventListener('change',()=>{
-    accessoryLayouts[version]=makeRoomForRotaryHammer(accessoryLayouts[version],dimensions());
+    accessoryLayouts[version]=clearNicheMounts(accessoryLayouts[version],dimensions());
     if(!rotaryHammerToggle.checked && viewMode==='rotary-hammer') setView('angle');
     change();
   });
