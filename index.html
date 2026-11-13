@@ -2266,6 +2266,21 @@ h3 { font-size: 13px; font-weight: 650; }
       for(const stileY of [y+8,middle+6]){
         drawStile(stileX,stileY,doorStileWidth,stileHeight,i*11+stileY);
       }
+      const hingeEdge=sign>0?stileX+doorStileWidth:stileX;
+      const meetingEdge=sign>0?meetingStileX:meetingStileX+meetingStileWidth;
+      // The two diagonals on each leaf meet the center rail at the latch side.
+      for(const [outerY,innerY] of [[y+8,middle-6],[y+height-8,middle+6]]){
+        const rise=innerY-outerY;
+        const span=Math.abs(meetingEdge-hingeEdge);
+        const cutWidth=doorStileWidth*Math.hypot(span,rise)/Math.abs(rise);
+        const run=meetingEdge-hingeEdge-sign*cutWidth;
+        const length=Math.hypot(run,rise);
+        const startX=hingeEdge+(sign<0?-cutWidth:0);
+        const bracePoint=([along,across,z])=>t([
+          startX+run*along/length+across,outerY+rise*along/length,z
+        ]);
+        pineBox(0,0,railBase,length,cutWidth,doorRailFace-railBase-.02,p.facadeTrim,'x',id,bracePoint);
+      }
       drawCombinationLock(sign,meeting-pivot,middle,Math.floor(i/2),t);
       for(const y of [34,164,188]) box(sign>0?-.5:-1.1,y,-.9,1.6,4,1.4,p.steel,id,t);
       const spacerBack=doorPegboardZ+.35;
