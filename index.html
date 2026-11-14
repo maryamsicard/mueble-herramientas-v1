@@ -646,6 +646,8 @@ h3 { font-size: 13px; font-weight: 650; }
   const casomanSocketRailPitch=5.5;
   const casomanBitHolder={width:17.78,height:2.032,depth:3.048};
   const casomanBitHolderGap=1.2;
+  const casomanAdapterTray={width:23.6,height:6.2,depth:2.49};
+  const casomanAdapterPlate=.18;
   const accessoryCatalog = [{
     id:'klkcms-cable-ties',
     label:'Organizador de cinchos',
@@ -750,6 +752,17 @@ h3 { font-size: 13px; font-weight: 650; }
     mounting:'La simulación usa una repisa de acero atornillada al respaldo del pegboard. Las bases magnéticas se adhieren a la repisa, que se consigue aparte.',
     modelNote:'Un portapuntas rojo y uno azul, con 43 espacios cada uno. Cada pieza mide 17.78 × 2.03 × 3.05 cm (ancho × alto × fondo), según CASOMAN. Las puntas y el montaje se muestran como ejemplo y se consiguen aparte.',
     draw:drawMagneticBitHolders
+  },{
+    id:'casoman-cs358',
+    label:'CASOMAN · Bandeja magnética para puntas y adaptadores',
+    name:'CASOMAN CS358 · Bandeja magnética de 35 espacios',
+    url:'https://www.amazon.com.mx/dp/B0BZ7TYVZJ',
+    source:'https://casoman.com/products/casoman-35-piece-magnetic-socket-accessory-holder-magnetic-tool-organizer-tray-holds-bits-adapters-universal-joints-bit-holders-and-bits',
+    width:casomanAdapterTray.width+2.4,height:casomanAdapterTray.height+1,
+    depth:casomanAdapterTray.depth+casomanAdapterPlate,extraDepth:4.6,estimated:true,
+    mounting:magneticMount,
+    modelNote:'Bandeja de 23.6 × 6.2 × 2.49 cm (ancho × alto × fondo en el pegboard). Tiene 20 espacios para puntas de ¼ pulg y 15 para adaptadores, reductores y juntas universales. Las piezas y la placa del modelo son de ejemplo y se consiguen aparte.',
+    draw:drawMagneticAdapterTray
   }];
   function accessoryFootprint(product) {
     const below=product.below??0;
@@ -1951,6 +1964,46 @@ h3 { font-size: 13px; font-weight: 650; }
         }
       }
     });
+  }
+  function drawMagneticAdapterTray(transform,id,highlight,product) {
+    const {width,height,depth}=casomanAdapterTray;
+    const x0=1.2, y0=.5, base=casomanAdapterPlate;
+    const bracket=highlight?[.35,.31,.27]:[.26,.27,.28];
+    const ink=[.94,.9,.85];
+    box(0,0,0,product.width,product.height,base,bracket,id,transform);
+    for(const x of [.6,product.width-.6]){
+      gardenRod([x,product.height/2,base],[x,product.height/2,base+.12],.19,toolSteel,id,transform);
+    }
+    roundedHardware(x0,y0,base,width,height,.34,.28,toolBlack,id,transform);
+    const faceZ=base+depth-.85, rearRowZ=base+depth-1.08;
+    roundedHardware(x0,y0,base+.34,width,height,faceZ-base-.34,.3,toolRed,id,transform);
+    box(x0+.35,y0+3.25,faceZ,width-.7,height-3.55,.34,toolRed,id,transform);
+    const bitY=y0+2.15;
+    for(let i=0;i<20;i++){
+      const x=x0+5.3+i*.9;
+      const end=faceZ+1.05+(i%4)*.17;
+      const steel=i%3===0?toolSteel:[.26,.27,.28];
+      gardenRod([x,bitY,faceZ],[x,bitY,end-.4],.32,steel,id,transform);
+      box(x-.13,bitY-.11,end-.4,.26,.22,.4,steel,id,transform);
+    }
+    // Three bit holders, nine adapters and reducers, and three universal joints.
+    for(let i=0;i<15;i++){
+      const front=i<3;
+      const x=x0+(front?1+i*1.32:1.05+(i-3)*1.89);
+      const y=front?bitY:y0+4.55;
+      const z=front?faceZ:rearRowZ+.58;
+      const joint=i>=12;
+      const radius=front?.42:joint?.56+(i-12)*.13:.36+(i%3)*.13;
+      const rise=front?3.7+(i%2)*.68:joint?2.3+(i-12)*.87:1.03+(i%4)*.47;
+      const steel=i<6 && i!==1?toolBlack:toolSteel;
+      gardenRod([x,y,z],[x,y,z+rise*.61],radius,steel,id,transform);
+      const head=radius*1.31;
+      roundedHardware(x-head/2,y-head/2,z+rise*.61,head,head,rise*.39,.14,steel,id,transform);
+      if(joint){
+        gardenRod([x,y-radius*.9,z+rise*.55],[x,y+radius*.9,z+rise*.55],.26,toolBlack,id,transform);
+      }
+      box(x-.29,y-.83,z,.58,.12,.02,ink,id,transform);
+    }
   }
   function drawPanelAccessories(surface,x,y,z,width,direction,transform) {
     accessoryLayouts[version].forEach(placement=>{
