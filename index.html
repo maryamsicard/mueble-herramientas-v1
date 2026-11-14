@@ -796,7 +796,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
   const nicheDrillRack=['pokipo-drills',42.5,.5];
-  const accessoryLayoutRevision=8;
+  const accessoryLayoutRevision=9;
   const accessoryPanelNumber=surface=>surface||doorCountFor(version)+1;
   const accessorySurfaceLabel=surface=>accessoryPanelNumber(surface)+' · '+accessorySurfaceNames[surface];
   // Keep the positions the user chose and recognize copies of this older preset on reload.
@@ -813,6 +813,10 @@ h3 { font-size: 13px; font-weight: 650; }
   ];
   const onPegboard=(surface,items)=>items.map(([productId,x,y])=>({productId,surface,x,y}));
   const hardwareBins=(y,...xs)=>xs.map(x=>['foraineam-bin',x,y]);
+  const doorHookPositions=[
+    ...onPegboard(3,[['pegboard-locking-hook-air-hose',6,2]]),
+    ...onPegboard(4,[['pegboard-locking-hook-extension-cord',18.25,17.8]])
+  ];
   const defaultDoorAccessories=[
     ...onPegboard(1,[
       ['casoman-pliers-14',6.4,128],['ninonly-magnetic-bar',6.6,80],['ares-62008',9.6,24],
@@ -824,12 +828,13 @@ h3 { font-size: 13px; font-weight: 650; }
     ]),
     ...onPegboard(3,[
       ['workpro-rail',.5,109],['casoman-cs013',.5,70],['nihome-wrenches',.5,36],
-      ...hardwareBins(10,4,15.4,26.8),...hardwareBins(24,4,15.4,26.8),...hardwareBins(145,4,15.4,26.8)
+      ...hardwareBins(145,4,15.4,26.8)
     ]),
     ...onPegboard(4,[
       ['nihome-drivers',6.2,115],['nihome-pliers',6.2,82],['klkcms-cable-ties',14,48],
-      ...hardwareBins(11,7,18.5,30),...hardwareBins(27,7,18.5,30),...hardwareBins(146,7,18.5,30)
-    ])
+      ...hardwareBins(11,7,18.5,30),...hardwareBins(27,7),...hardwareBins(146,7,18.5,30)
+    ]),
+    ...doorHookPositions
   ];
   let nextAccessoryId=1+Math.max(...previousDefaultA.map(item=>item.id));
   const accessoryLayouts=[
@@ -3537,6 +3542,34 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     return slots;
   }
+  function addDoorHooks(layout,spec) {
+    const bin=accessoryFootprint(accessoryCatalog.find(item=>item.id==='foraineam-bin'));
+    for(const preferred of doorHookPositions){
+      const {productId,surface,x,y}=preferred;
+      const existing=layout.find(item=>item.productId===productId);
+      if(existing && existing.surface!==null) continue;
+      const product=accessoryCatalog.find(item=>item.id===productId);
+      const footprint=accessoryFootprint(product);
+      const bins=layout.filter(item=>item.surface===surface && item.productId==='foraineam-bin' &&
+        !clearOfAccessories(footprint,x,y,[{...bin,x:item.x,y:item.y}]));
+      const cleared=layout.filter(item=>!bins.includes(item));
+      const obstacles=accessoryObstacles(surface,existing?.id,spec,footprint,cleared);
+      let slot;
+      if(accessoryFits(preferred,product,spec) && clearOfAccessories(footprint,x,y,obstacles)){
+        slot=preferred;
+        layout=cleared;
+      } else {
+        for(let door=1;door<=spec.doorCount;door++){
+          if(!accessoryFits({surface:door,x:0,y:0},product,spec)) continue;
+          [slot]=findAccessorySlots(door,product,1,existing?.id,spec,layout);
+          if(slot) break;
+        }
+      }
+      if(existing) Object.assign(existing,slot);
+      else layout.push({...(slot??{...preferred,surface:null}),id:nextAccessoryId++});
+    }
+    return layout;
+  }
   function revealAccessoryPanel(surface,center=false) {
     const viewAngle=surface===0?0:surface%2===1?.52:-.52;
     const doors=surface===0?[doorForBay(0),doorForBay(1)]:[surface-1];
@@ -3868,7 +3901,7 @@ h3 { font-size: 13px; font-weight: 650; }
     if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
     dimensionsToggle.checked=snapshot.cotas!==false;
     rotaryHammerToggle.checked=snapshot.rotaryHammer!==false;
-    const replaceDoors=(snapshot.accessoryLayoutRevision??0)<accessoryLayoutRevision &&
+    const replaceDoors=(snapshot.accessoryLayoutRevision??0)<8 &&
       Array.isArray(snapshot.accessoryLayouts?.[version]);
     restoreAccessories(snapshot,replaceDoors);
     const layout=accessoryLayouts[version];
@@ -3884,11 +3917,16 @@ h3 { font-size: 13px; font-weight: 650; }
         Object.assign(restoredRack,{surface:0,x,y});
       }
     }
-    const placed=replaceDoors && !restoredRack?layout:clearNicheMounts(layout,dimensions(),restoredRack);
-    accessoryLayouts[version]=replaceDoors?[
-      ...placed.filter(item=>item.surface===0 || item.surface===null),
-      ...defaultDoorAccessories.map(item=>({...item,id:nextAccessoryId++}))
-    ]:placed;
+    const spec=dimensions();
+    const placed=replaceDoors && !restoredRack?layout:clearNicheMounts(layout,spec,restoredRack);
+    if(replaceDoors){
+      accessoryLayouts[version]=[
+        ...placed.filter(item=>item.surface===0 || item.surface===null),
+        ...defaultDoorAccessories.map(item=>({...item,id:nextAccessoryId++}))
+      ];
+    } else {
+      accessoryLayouts[version]=(snapshot.accessoryLayoutRevision??0)<accessoryLayoutRevision?addDoorHooks(placed,spec):placed;
+    }
     syncEditorToTray();
     update();
   }
