@@ -773,6 +773,15 @@ h3 { font-size: 13px; font-weight: 650; }
     mounting:'Para el pegboard se simula el montaje con tornillos al respaldo de madera.',
     modelNote:'Se usaron las medidas de la descripción de Amazon México. El cúter con hoja retraída, la segueta compacta y el flexómetro sujeto por su clip son ejemplos. El espacio ocupado con herramientas es aproximado.',
     draw:drawNinonlyMagneticBar
+  },{
+    id:'ninonly-magnetic-bar-workshop',
+    label:'Ninonly · Barra con escuadra, lima y cepillo',
+    name:'Ninonly · Barra magnética con escuadra, lima y cepillo de alambre',
+    url:'https://www.amazon.com.mx/Ninonly-Portacuchillos-Inoxidable-Organizador-Perforaciones/dp/B0861WXG7Z',
+    width:30,height:4,depth:2,above:7.5,below:14,extraDepth:3.5,
+    mounting:'Para el pegboard se simula el montaje con tornillos al respaldo de madera.',
+    modelNote:'Barra de 30 × 4 × 2 cm. La escuadra de acero, la lima plana y el cepillo de alambre con respaldo de acero son ejemplos. El espacio ocupado con herramientas es aproximado.',
+    draw:drawWorkshopMagneticBar
   },...[
     {id:'air-hose',label:'manguera de aire',diameter:27,radius:.51,turns:6,color:[.86,.62,.13]},
     {id:'extension-cord',label:'extensión eléctrica',diameter:24,radius:.4,turns:8,color:[.91,.33,.085]}
@@ -796,7 +805,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
   const nicheDrillRack=['pokipo-drills',42.5,.5];
-  const accessoryLayoutRevision=10;
+  const accessoryLayoutRevision=11;
   const accessoryPanelNumber=surface=>surface||doorCountFor(version)+1;
   const accessorySurfaceLabel=surface=>accessoryPanelNumber(surface)+' · '+accessorySurfaceNames[surface];
   // Keep the positions the user chose and recognize copies of this older preset on reload.
@@ -813,38 +822,31 @@ h3 { font-size: 13px; font-weight: 650; }
   ];
   const onPegboard=(surface,items)=>items.map(([productId,x,y])=>({productId,surface,x,y}));
   const hardwareBins=(y,...xs)=>xs.map(x=>['foraineam-bin',x,y]);
-  const [airHosePosition]=onPegboard(1,[['pegboard-locking-hook-air-hose',7.5,18]]);
-  const [wrenchRackPosition]=onPegboard(3,[['ares-62008',8,7]]);
-  const doorHookPositions=[
-    airHosePosition,
-    ...onPegboard(4,[['pegboard-locking-hook-extension-cord',18.25,17.8]])
-  ];
-  const addedDoorBins=[
-    ...onPegboard(1,[...hardwareBins(53,4,15.4,26.8),...hardwareBins(68,4,15.4,26.8),...hardwareBins(152,4,15.4,26.8)]),
-    ...onPegboard(2,[...hardwareBins(53,5.6,17,28.4),...hardwareBins(69,5.6,17,28.4),...hardwareBins(110,5.6,17,28.4)]),
-    ...onPegboard(3,[...hardwareBins(63,4,15.4,26.8),...hardwareBins(102,4,15.4,26.8)]),
-    ...onPegboard(4,[...hardwareBins(3,7,18.5,30),...hardwareBins(74,7,18.5,30),...hardwareBins(105,7,18.5,30)])
-  ];
   const defaultDoorAccessories=[
     ...onPegboard(1,[
-      ['casoman-pliers-14',6.4,128],['ninonly-magnetic-bar',6.6,80],
-      ...hardwareBins(7,4,15.4,26.8),...hardwareBins(107,4,15.4,26.8)
+      ['pegboard-locking-hook-air-hose',8.08,16],['ninonly-magnetic-bar',6.58,83],['casoman-pliers-14',6.33,129],
+      ...hardwareBins(5,10.58,22.38),...hardwareBins(53,10.58,22.38),
+      ...hardwareBins(69,4.68,16.48,28.28),...hardwareBins(108,4.68,16.48,28.28),
+      ...hardwareBins(121,10.58,22.38),...hardwareBins(152,10.58,22.38)
     ]),
     ...onPegboard(2,[
-      ['casoman-cs325',2,101],['casoman-cs358',8.1,83],['casoman-magnetic-10',5.2,23],
-      ...hardwareBins(8,5.6,17,28.4),...hardwareBins(131,5.6,17,28.4),...hardwareBins(143,5.6,17,28.4)
+      ['ninonly-magnetic-bar-workshop',6.055,18],['casoman-cs358',8.055,81],
+      ['casoman-cs325',1.8,102],['casoman-magnetic-10',5.18,124],
+      ...hardwareBins(6,10.055,21.855),...hardwareBins(50,10.055,21.855),
+      ...hardwareBins(69,4.155,15.955,27.755),...hardwareBins(93,4.155,15.955,27.755),
+      ...hardwareBins(110,4.155,15.955,27.755),...hardwareBins(152,10.055,21.855)
     ]),
     ...onPegboard(3,[
-      ['workpro-rail',.5,109],['casoman-cs013',.5,70],['nihome-wrenches',.5,36],
-      ...hardwareBins(145,4,15.4,26.8)
+      ['ares-62008',9.055,9],['nihome-wrenches',2.16,45],['casoman-cs013',2.16,81],['workpro-rail',3.66,120],
+      ...hardwareBins(2,10.055,21.855),...hardwareBins(36,10.055,21.855),
+      ...hardwareBins(73,10.055,21.855),...hardwareBins(113,10.055,21.855),...hardwareBins(151,10.055,21.855)
     ]),
     ...onPegboard(4,[
-      ['nihome-drivers',6.2,115],['nihome-pliers',6.2,82],['klkcms-cable-ties',14,48],
-      ...hardwareBins(11,7,18.5,30),...hardwareBins(27,7),...hardwareBins(146,7,18.5,30)
-    ]),
-    ...doorHookPositions,
-    wrenchRackPosition,
-    ...addedDoorBins
+      ['pegboard-locking-hook-extension-cord',9.58,14],['klkcms-cable-ties',14.08,52],
+      ['nihome-pliers',6.01,85],['nihome-drivers',6.01,119],
+      ...hardwareBins(5,10.58,22.38),...hardwareBins(45,10.58,22.38),
+      ...hardwareBins(77,10.58,22.38),...hardwareBins(109,10.58,22.38),...hardwareBins(149,10.58,22.38)
+    ])
   ];
   let nextAccessoryId=1+Math.max(...previousDefaultA.map(item=>item.id));
   const accessoryLayouts=[
@@ -2045,13 +2047,16 @@ h3 { font-size: 13px; font-weight: 650; }
       box(x-.29,y-.83,z,.58,.12,.02,ink,id,transform);
     }
   }
-  function drawNinonlyMagneticBar(transform,id,highlight,{width,height,depth}) {
+  function drawNinonlyRail(transform,id,highlight,{width,height,depth}) {
     const steel=highlight?[.74,.70,.63]:[.70,.72,.74];
-    const yellow=[.91,.66,.11];
     roundedHardware(0,0,0,width,height,depth,.16,steel,id,transform);
     box(.18,.18,depth-.015,width-.36,.28,.018,[.55,.57,.59],id,transform);
     box(.18,height-.36,depth-.015,width-.36,.19,.018,[.82,.83,.83],id,transform);
-
+  }
+  function drawNinonlyMagneticBar(transform,id,highlight,product) {
+    drawNinonlyRail(transform,id,highlight,product);
+    const {depth}=product;
+    const yellow=[.91,.66,.11];
     // The retracted utility knife rests against the bar by its steel blade channel.
     roundedHardware(4.08,-6.25,depth,1.84,13.9,.62,.47,toolSteel,id,transform);
     roundedHardware(3.69,-8.6,depth+.51,2.62,9.3,1.31,.58,yellow,id,transform);
@@ -2079,6 +2084,33 @@ h3 { font-size: 13px; font-weight: 650; }
     roundedHardware(22.79,-3.30,depth+4.6,4.05,3.75,.045,.91,toolBlack,id,transform);
     box(24.23,1.5,depth+2.85,1.2,.69,1.23,yellow,id,transform);
     box(21.24,-3.21,depth+2.44,.23,1.02,1.03,toolSteel,id,transform);
+  }
+  function drawWorkshopMagneticBar(transform,id,highlight,product) {
+    drawNinonlyRail(transform,id,highlight,product);
+    const {depth}=product;
+    const darkSteel=[.33,.35,.37];
+    box(2.1,-11.4,depth,2.3,17.9,.38,toolSteel,id,transform);
+    box(4.4,-11.4,depth,7.2,2.5,.38,toolSteel,id,transform);
+    for(let i=0;i<17;i++){
+      box(2.22,-10.6+i,depth+.38,i%5===0?1.04:.57,.065,.025,darkSteel,id,transform);
+    }
+    for(let i=0;i<7;i++){
+      box(4.66+i*.9,-9.62,depth+.38,.07,.55,.025,darkSteel,id,transform);
+    }
+    roundedHardware(14.35,-5.9,depth,1.85,16.85,.53,.48,darkSteel,id,transform);
+    for(let i=0;i<20;i++){
+      box(14.57,-4.9+i*.72,depth+.53,1.37,.08,.025,toolSteel,id,transform);
+    }
+    roundedHardware(13.91,-13.55,depth+.18,2.73,8.1,1.83,.82,toolBlue,id,transform);
+    roundedHardware(14.46,-12.95,depth+1.98,1.62,5.5,.14,.46,toolBlack,id,transform);
+    roundedHardware(21.72,-5.22,depth,3.65,12.22,.63,.72,darkSteel,id,transform);
+    roundedHardware(22.26,-13.18,depth+.25,2.56,8.92,1.48,.71,toolOrange,id,transform);
+    for(const x of [22.3,23.53,24.76]){
+      for(let i=0;i<9;i++){
+        const y=-4.7+i*1.35;
+        gardenRod([x,y,depth+.6],[x+.12,y+.12,depth+2.76],.14,toolSteel,id,transform);
+      }
+    }
   }
   function drawLockingHook(transform,id,highlight,{width,depth,coil}) {
     const center=width/2;
@@ -3552,80 +3584,6 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     return slots;
   }
-  function addDoorHooks(layout,spec) {
-    const bin=accessoryFootprint(accessoryCatalog.find(item=>item.id==='foraineam-bin'));
-    for(const preferred of doorHookPositions){
-      const {productId,surface,x,y}=preferred;
-      const existing=layout.find(item=>item.productId===productId);
-      if(existing && existing.surface!==null) continue;
-      const product=accessoryCatalog.find(item=>item.id===productId);
-      const footprint=accessoryFootprint(product);
-      const bins=layout.filter(item=>item.surface===surface && item.productId==='foraineam-bin' &&
-        !clearOfAccessories(footprint,x,y,[{...bin,x:item.x,y:item.y}]));
-      const cleared=layout.filter(item=>!bins.includes(item));
-      const obstacles=accessoryObstacles(surface,existing?.id,spec,footprint,cleared);
-      let slot;
-      if(accessoryFits(preferred,product,spec) && clearOfAccessories(footprint,x,y,obstacles)){
-        slot=preferred;
-        layout=cleared;
-      } else {
-        for(let door=1;door<=spec.doorCount;door++){
-          if(!accessoryFits({surface:door,x:0,y:0},product,spec)) continue;
-          [slot]=findAccessorySlots(door,product,1,existing?.id,spec,layout);
-          if(slot) break;
-        }
-      }
-      if(existing) Object.assign(existing,slot);
-      else layout.push({...(slot??{...preferred,surface:null}),id:nextAccessoryId++});
-    }
-    return layout;
-  }
-  function updateDoorStorage(layout,spec,needsHooks) {
-    const {productId,surface,x,y}=airHosePosition;
-    const hose=layout.find(item=>item.productId===productId && item.surface!==0);
-    const rack=layout.find(item=>item.surface===surface && item.productId===wrenchRackPosition.productId);
-    const product=accessoryCatalog.find(item=>item.id===productId);
-    const hoseSize=accessoryFootprint(product);
-    const binSize=accessoryFootprint(accessoryCatalog.find(item=>item.id==='foraineam-bin'));
-    function clears(position,items,excludedId){
-      const item=accessoryCatalog.find(entry=>entry.id===position.productId);
-      const footprint=accessoryFootprint(item);
-      return accessoryFits(position,item,spec) && clearOfAccessories(footprint,position.x,position.y,
-        accessoryObstacles(position.surface,excludedId,spec,footprint,items));
-    }
-    if(hose?.surface!==surface){
-      const rackProduct=accessoryCatalog.find(item=>item.id===wrenchRackPosition.productId);
-      const rackSize=accessoryFootprint(rackProduct);
-      const rackClearance=layout.filter(item=>item.surface!==wrenchRackPosition.surface ||
-        item.productId!=='foraineam-bin' ||
-        clearOfAccessories(rackSize,wrenchRackPosition.x,wrenchRackPosition.y,[{...binSize,x:item.x,y:item.y}]));
-      const moveRack=rack && !clearOfAccessories(hoseSize,x,y,accessoryOccupants(surface,null,[rack])) &&
-        clears(wrenchRackPosition,rackClearance,hose?.id);
-      const available=(moveRack?rackClearance:layout).filter(item=>!(moveRack && item===rack) &&
-        !(item.surface===surface && item.productId==='foraineam-bin' &&
-          !clearOfAccessories(hoseSize,x,y,[{...binSize,x:item.x,y:item.y}])));
-      let slot;
-      if(clears(airHosePosition,available,hose?.id)){
-        slot=airHosePosition;
-        if(moveRack){
-          Object.assign(rack,wrenchRackPosition);
-          available.push(rack);
-        }
-        layout=available;
-      } else {
-        [slot]=findAccessorySlots(surface,product,1,hose?.id,spec,layout);
-      }
-      if(slot){
-        if(hose) Object.assign(hose,slot);
-        else if(!layout.some(item=>item.productId===productId)) layout.push({...slot,id:nextAccessoryId++});
-      }
-    }
-    if(needsHooks) layout=addDoorHooks(layout,spec);
-    for(const position of addedDoorBins){
-      if(clears(position,layout)) layout.push({...position,id:nextAccessoryId++});
-    }
-    return layout;
-  }
   function revealAccessoryPanel(surface,center=false) {
     const viewAngle=surface===0?0:surface%2===1?.52:-.52;
     const doors=surface===0?[doorForBay(0),doorForBay(1)]:[surface-1];
@@ -3957,7 +3915,7 @@ h3 { font-size: 13px; font-weight: 650; }
     if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
     dimensionsToggle.checked=snapshot.cotas!==false;
     rotaryHammerToggle.checked=snapshot.rotaryHammer!==false;
-    const replaceDoors=(snapshot.accessoryLayoutRevision??0)<8 &&
+    const replaceDoors=(snapshot.accessoryLayoutRevision??0)<accessoryLayoutRevision &&
       Array.isArray(snapshot.accessoryLayouts?.[version]);
     restoreAccessories(snapshot,replaceDoors);
     const layout=accessoryLayouts[version];
@@ -3980,8 +3938,6 @@ h3 { font-size: 13px; font-weight: 650; }
         ...placed.filter(item=>item.surface===0 || item.surface===null),
         ...defaultDoorAccessories.map(item=>({...item,id:nextAccessoryId++}))
       ];
-    } else if((snapshot.accessoryLayoutRevision??0)<accessoryLayoutRevision){
-      accessoryLayouts[version]=updateDoorStorage(placed,spec,(snapshot.accessoryLayoutRevision??0)<9);
     } else accessoryLayouts[version]=placed;
     syncEditorToTray();
     update();
