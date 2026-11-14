@@ -780,7 +780,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
   const nicheDrillRack=['pokipo-drills',42.5,.5];
-  const accessoryLayoutRevision=7;
+  const accessoryLayoutRevision=8;
   const accessoryPanelNumber=surface=>surface||doorCountFor(version)+1;
   const accessorySurfaceLabel=surface=>accessoryPanelNumber(surface)+' · '+accessorySurfaceNames[surface];
   // Keep the positions the user chose and recognize copies of this older preset on reload.
@@ -797,6 +797,24 @@ h3 { font-size: 13px; font-weight: 650; }
   ];
   const onPegboard=(surface,items)=>items.map(([productId,x,y])=>({productId,surface,x,y}));
   const hardwareBins=(y,...xs)=>xs.map(x=>['foraineam-bin',x,y]);
+  const defaultDoorAccessories=[
+    ...onPegboard(1,[
+      ['casoman-pliers-14',6.4,128],['ninonly-magnetic-bar',6.6,80],['ares-62008',9.6,24],
+      ...hardwareBins(7,4,15.4,26.8),...hardwareBins(107,4,15.4,26.8)
+    ]),
+    ...onPegboard(2,[
+      ['casoman-cs325',2,101],['casoman-cs358',8.1,83],['casoman-magnetic-10',5.2,23],
+      ...hardwareBins(8,5.6,17,28.4),...hardwareBins(131,5.6,17,28.4),...hardwareBins(143,5.6,17,28.4)
+    ]),
+    ...onPegboard(3,[
+      ['workpro-rail',.5,109],['casoman-cs013',.5,70],['nihome-wrenches',.5,36],
+      ...hardwareBins(10,4,15.4,26.8),...hardwareBins(24,4,15.4,26.8),...hardwareBins(145,4,15.4,26.8)
+    ]),
+    ...onPegboard(4,[
+      ['nihome-drivers',6.2,115],['nihome-pliers',6.2,82],['klkcms-cable-ties',14,48],
+      ...hardwareBins(11,7,18.5,30),...hardwareBins(27,7,18.5,30),...hardwareBins(146,7,18.5,30)
+    ])
+  ];
   let nextAccessoryId=1+Math.max(...previousDefaultA.map(item=>item.id));
   const accessoryLayouts=[
     [
@@ -852,25 +870,7 @@ h3 { font-size: 13px; font-weight: 650; }
         ['wallpeg-7-set-3',1.2,37],['wallpeg-5-set-4',37.85,37]
       ]),
       {productId:'nihome-hammers',surface:null,x:39.5,y:1.5},
-      ...onPegboard(1,[
-        ['workpro-rail',4.8,125],['ares-62008',9.6,91.55],['nihome-drivers',4.1,64.5],
-        ['nihome-wrenches',4.1,36],['ares-62008',9.6,7],
-        ...hardwareBins(0,.5,11.7,22.9)
-      ]),
-      ...onPegboard(2,[
-        ['casoman-pliers-14',5.8,96],['casoman-magnetic-10',5.18,132.8],['nihome-pliers',3.5,74],
-        ['casoman-pliers-14',5.8,50],['klkcms-cable-ties',4,21],
-        ...hardwareBins(24,23),...hardwareBins(34,23),...hardwareBins(7,4,16,28)
-      ]),
-      ...onPegboard(3,[
-        ['nihome-wrenches',3.5,126],['workpro-rail',4.3,94],['nihome-drivers',3.5,64],
-        ['nihome-pliers',3.5,39],...hardwareBins(14,4,16,28),...hardwareBins(23,4,16,28)
-      ]),
-      ...onPegboard(4,[
-        ['casoman-pliers-14',6.2,132],['casoman-magnetic-10',5.7,100],['ares-62008',9.58,70],
-        ['klkcms-cable-ties',4,40],...hardwareBins(41,21.2,32.4),...hardwareBins(50,21.2,32.4),
-        ...hardwareBins(12,5,16.7,28.4),...hardwareBins(22,5,16.7,28.4)
-      ]),
+      ...defaultDoorAccessories,
       ...onPegboard(0,[nicheDrillRack])
     ]
   ].map((layout,index)=>[
@@ -3530,7 +3530,7 @@ h3 { font-size: 13px; font-weight: 650; }
     }
     return placed;
   }
-  function restoreAccessories(snapshot) {
+  function restoreAccessories(snapshot,replaceDoors) {
     const savedLayouts=snapshot.accessoryLayouts;
     const oldDoorPanels=(snapshot.accessoryLayoutRevision??0)<3;
     const splitPanels=snapshot.accessoryLayoutRevision===4;
@@ -3553,6 +3553,7 @@ h3 { font-size: 13px; font-weight: 650; }
         const valid=placements.filter(item=>{
           if(!item || !Number.isSafeInteger(item.id) || item.id<1 || ids.has(item.id) ||
             !Number.isFinite(item.x) || !Number.isFinite(item.y)) return false;
+          if(replaceDoors && index===version && item.surface>0) return false;
           // Remove the old example only when it is still in its original position.
           if(!snapshot.accessoryLayoutRevision && item.id===index+1 && item.productId==='klkcms-cable-ties' &&
             item.surface===0 && item.x===2.54 && item.y===12.7) return false;
@@ -3563,7 +3564,8 @@ h3 { font-size: 13px; font-weight: 650; }
           nextAccessoryId=Math.max(nextAccessoryId,item.id+1);
           return true;
         });
-        accessoryLayouts[index]=alignDoorAccessories(shouldSplit?splitDoubleDoorPegboards(valid,spec):valid,spec);
+        accessoryLayouts[index]=replaceDoors && index===version?valid:
+          alignDoorAccessories(shouldSplit?splitDoubleDoorPegboards(valid,spec):valid,spec);
       });
     }
     if(snapshot.version!==version) return;
@@ -3782,10 +3784,12 @@ h3 { font-size: 13px; font-weight: 650; }
     if(snapshot.interfaceRevision===2) selectTab(snapshot.tab);
     dimensionsToggle.checked=snapshot.cotas!==false;
     rotaryHammerToggle.checked=snapshot.rotaryHammer!==false;
-    restoreAccessories(snapshot);
+    const replaceDoors=(snapshot.accessoryLayoutRevision??0)<accessoryLayoutRevision &&
+      Array.isArray(snapshot.accessoryLayouts?.[version]);
+    restoreAccessories(snapshot,replaceDoors);
     const layout=accessoryLayouts[version];
     let restoredRack=null;
-    if((snapshot.accessoryLayoutRevision??0)<accessoryLayoutRevision){
+    if((snapshot.accessoryLayoutRevision??0)<7){
       const [productId,x,y]=nicheDrillRack;
       if(!layout.some(item=>item.productId===productId && item.surface!==null)){
         restoredRack=layout.find(item=>item.productId===productId);
@@ -3796,7 +3800,11 @@ h3 { font-size: 13px; font-weight: 650; }
         Object.assign(restoredRack,{surface:0,x,y});
       }
     }
-    accessoryLayouts[version]=clearNicheMounts(layout,dimensions(),restoredRack);
+    const placed=replaceDoors && !restoredRack?layout:clearNicheMounts(layout,dimensions(),restoredRack);
+    accessoryLayouts[version]=replaceDoors?[
+      ...placed.filter(item=>item.surface===0 || item.surface===null),
+      ...defaultDoorAccessories.map(item=>({...item,id:nextAccessoryId++}))
+    ]:placed;
     syncEditorToTray();
     update();
   }
