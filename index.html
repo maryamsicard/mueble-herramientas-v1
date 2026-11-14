@@ -805,7 +805,7 @@ h3 { font-size: 13px; font-weight: 650; }
   }
   const accessorySurfaceNames=['Nicho sobre la mesa','Puerta 1','Puerta 2','Puerta 3','Puerta 4'];
   const nicheDrillRack=['pokipo-drills',42.5,.5];
-  const accessoryLayoutRevision=11;
+  const accessoryLayoutRevision=12;
   const accessoryPanelNumber=surface=>surface||doorCountFor(version)+1;
   const accessorySurfaceLabel=surface=>accessoryPanelNumber(surface)+' · '+accessorySurfaceNames[surface];
   // Keep the positions the user chose and recognize copies of this older preset on reload.
@@ -824,28 +824,28 @@ h3 { font-size: 13px; font-weight: 650; }
   const hardwareBins=(y,...xs)=>xs.map(x=>['foraineam-bin',x,y]);
   const defaultDoorAccessories=[
     ...onPegboard(1,[
-      ['pegboard-locking-hook-air-hose',8.08,16],['ninonly-magnetic-bar',6.58,83],['casoman-pliers-14',6.33,129],
+      ['pegboard-locking-hook-air-hose',8.08,15.75],['ninonly-magnetic-bar',6.58,74.5],['casoman-pliers-14',6.33,121.75],
       ...hardwareBins(5,10.58,22.38),...hardwareBins(53,10.58,22.38),
-      ...hardwareBins(69,4.68,16.48,28.28),...hardwareBins(108,4.68,16.48,28.28),
-      ...hardwareBins(121,10.58,22.38),...hardwareBins(152,10.58,22.38)
+      ...hardwareBins(64.5,4.68,16.48,28.28),...hardwareBins(100.25,4.68,16.48,28.28),
+      ...hardwareBins(110.25,10.58,22.38),...hardwareBins(147.5,10.58,22.38)
     ]),
     ...onPegboard(2,[
-      ['ninonly-magnetic-bar-workshop',6.055,18],['casoman-cs358',8.055,81],
-      ['casoman-cs325',1.8,102],['casoman-magnetic-10',5.18,124],
-      ...hardwareBins(6,10.055,21.855),...hardwareBins(50,10.055,21.855),
-      ...hardwareBins(69,4.155,15.955,27.755),...hardwareBins(93,4.155,15.955,27.755),
-      ...hardwareBins(110,4.155,15.955,27.755),...hardwareBins(152,10.055,21.855)
+      ['ninonly-magnetic-bar-workshop',6.055,121],['casoman-cs358',8.055,79.25],
+      ['casoman-cs325',1.82,107],['casoman-magnetic-10',5.18,19.75],
+      ...hardwareBins(7,10.055,21.855),...hardwareBins(53,10.055,21.855),
+      ...hardwareBins(66.25,4.155,15.955,27.755),...hardwareBins(93.75,4.155,15.955,27.755),
+      ...hardwareBins(150,10.055,21.855)
     ]),
     ...onPegboard(3,[
-      ['ares-62008',9.055,9],['nihome-wrenches',2.16,45],['casoman-cs013',2.16,81],['workpro-rail',3.66,120],
-      ...hardwareBins(2,10.055,21.855),...hardwareBins(36,10.055,21.855),
-      ...hardwareBins(73,10.055,21.855),...hardwareBins(113,10.055,21.855),...hardwareBins(151,10.055,21.855)
+      ['ares-62008',9.055,9.75],['nihome-wrenches',2.14,44],['casoman-cs013',2.14,79.75],['workpro-rail',3.64,120],
+      ...hardwareBins(2,10.055,21.855),...hardwareBins(36.25,10.055,21.855),
+      ...hardwareBins(72,10.055,21.855),...hardwareBins(112.25,10.055,21.855),...hardwareBins(151.25,10.055,21.855)
     ]),
     ...onPegboard(4,[
-      ['pegboard-locking-hook-extension-cord',9.58,14],['klkcms-cable-ties',14.08,52],
-      ['nihome-pliers',6.01,85],['nihome-drivers',6.01,119],
-      ...hardwareBins(5,10.58,22.38),...hardwareBins(45,10.58,22.38),
-      ...hardwareBins(77,10.58,22.38),...hardwareBins(109,10.58,22.38),...hardwareBins(149,10.58,22.38)
+      ['pegboard-locking-hook-extension-cord',9.58,12],['klkcms-cable-ties',14.08,53],
+      ['nihome-pliers',6.02,88.25],['nihome-drivers',6.02,121],
+      ...hardwareBins(3.25,10.58,22.38),...hardwareBins(44.25,10.58,22.38),
+      ...hardwareBins(79.25,10.58,22.38),...hardwareBins(112,10.58,22.38),...hardwareBins(150.25,10.58,22.38)
     ])
   ];
   let nextAccessoryId=1+Math.max(...previousDefaultA.map(item=>item.id));
