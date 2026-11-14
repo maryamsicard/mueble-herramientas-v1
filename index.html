@@ -642,6 +642,8 @@ h3 { font-size: 13px; font-weight: 650; }
   const magneticMount='El respaldo magnético requiere una superficie de acero. En pegboard de madera, el montaje se simula con una placa de acero.';
   const wallMount='Soporte para atornillar a la pared. Para el pegboard, la simulación supone una placa o fijación pasante.';
   const pegboardPitch=2.54;
+  const casomanSocketRows=[{clips:16,drive:.635},{clips:15,drive:.9525},{clips:12,drive:1.27}];
+  const casomanSocketRailPitch=5.5;
   const accessoryCatalog = [{
     id:'klkcms-cable-ties',
     label:'Organizador de cinchos',
@@ -725,6 +727,16 @@ h3 { font-size: 13px; font-weight: 650; }
     mounting:'Montaje sobre el pegboard del nicho. Los tornillos deben atravesar el pegboard y fijarse a un respaldo sólido.',
     modelNote:'Cotas del rack en la ficha. El volumen cargado es de referencia y muestra dos taladros, dos atornilladores inalámbricos y destornilladores manuales.',
     draw:drawDrillRack
+  },{
+    id:'casoman-cs013',
+    label:'CASOMAN · 6 rieles para dados',
+    name:'CASOMAN CS013 · 6 rieles para dados de ¼, ⅜ y ½ pulg',
+    url:'https://www.amazon.com.mx/CASOMAN-Organizer-pulgadas-soportes-calidad/dp/B081Q1JR5V/',
+    source:'https://casoman.com/products/casoman-6pc-abs-socket-organizer-1-4-inch-3-8-inch-1-2-inch-premium-quality-socket-holders-6-piece-set-blue-red',
+    width:35,height:5*casomanSocketRailPitch+3,depth:2.4,extraDepth:5,estimated:true,
+    mounting:'Los rieles se atornillan por sus orificios. Para montarlos en el pegboard, fíjalos a un respaldo sólido.',
+    modelNote:'Cada riel mide 35 cm según el diagrama del fabricante. Los seis rieles traen 86 clips. La separación de montaje y el fondo son aproximados. Los dados se muestran como ejemplo y se venden por separado.',
+    draw:drawSocketRails
   }];
   function accessoryFootprint(product) {
     const below=product.below??0;
@@ -1866,6 +1878,34 @@ h3 { font-size: 13px; font-weight: 650; }
       if(i<6) drawWrench(x,h*.7,d-.2,19-i*.77,1.03-i*.05,id,transform);
       else drawDriver(x,h*.7,d-.35,12+(i%3),7+i%3,.86,i%2?toolBlue:toolRed,id,transform);
     }
+  }
+  function drawSocketRails(transform,id,highlight,{width}) {
+    const rail=highlight?[.29,.25,.23]:toolBlack;
+    casomanSocketRows.forEach(({clips,drive},row)=>{
+      for(const [index,color] of [toolBlue,toolRed].entries()){
+        const y=(5-row*2-index)*casomanSocketRailPitch;
+        box(0,y+.25,0,width,2.5,.8,rail,id,transform);
+        box(2,y+.71,.8,width-4,1.58,.19,[.23,.23,.24],id,transform);
+        for(const x of [0,width-2.15]) box(x,y+.13,0,2.15,2.74,1.25,rail,id,transform);
+        for(const x of [2.9,width-2.9]){
+          gardenRod([x,y+1.5,.98],[x,y+1.5,1.12],.23,toolSteel,id,transform);
+        }
+        const clipPitch=(width-8)/clips;
+        for(let i=0;i<clips;i++){
+          const x=4+(i+.5)*clipPitch;
+          box(x-drive*.55,y+.27,.94,drive*1.1,2.46,.52,color,id,transform);
+          if(i%5===4){
+            box(x-drive/2,y+1.5-drive/2,1.46,drive,drive,.94,color,id,transform);
+            continue;
+          }
+          const radius=Math.min(.46+drive*.37+i/clips*.17,(clipPitch-.08)/2);
+          const end=3.35+row*.54+(i%3===0?2.4:0);
+          const steel=i%4===0?[.27,.28,.3]:toolSteel;
+          gardenRod([x,y+1.5,1.46],[x,y+1.5,end],radius,steel,id,transform);
+          gardenRod([x,y+1.5,end],[x,y+1.5,end+.025],radius*.66,[.12,.13,.14],id,transform);
+        }
+      }
+    });
   }
   function drawPanelAccessories(surface,x,y,z,width,direction,transform) {
     accessoryLayouts[version].forEach(placement=>{
