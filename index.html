@@ -648,6 +648,7 @@ h3 { font-size: 13px; font-weight: 650; }
   const casomanBitHolderGap=1.2;
   const casomanAdapterTray={width:23.6,height:6.2,depth:2.49};
   const casomanAdapterPlate=.18;
+  const lockingHookSize={width:6.1,height:8.2,depth:9.3};
   const accessoryCatalog = [{
     id:'klkcms-cable-ties',
     label:'Organizador de cinchos',
@@ -772,7 +773,22 @@ h3 { font-size: 13px; font-weight: 650; }
     mounting:'Para el pegboard se simula el montaje con tornillos al respaldo de madera.',
     modelNote:'Se usaron las medidas de la descripción de Amazon México. El cúter con hoja retraída, la segueta compacta y el flexómetro sujeto por su clip son ejemplos. El espacio ocupado con herramientas es aproximado.',
     draw:drawNinonlyMagneticBar
-  }];
+  },...[
+    {id:'air-hose',label:'manguera de aire',diameter:27,radius:.51,turns:6,color:[.86,.62,.13]},
+    {id:'extension-cord',label:'extensión eléctrica',diameter:24,radius:.4,turns:8,color:[.91,.33,.085]}
+  ].map(({id,label,diameter,radius,turns,color})=>({
+    id:'pegboard-locking-hook-'+id,
+    label:'Gancho doble · '+label,
+    name:'Gancho doble PegbDouHokMnt2P · '+label,
+    url:'https://www.amazon.com.mx/Pegboard-Ganchos-almacenamiento-herramientas-resistentes/dp/B0HFJ66JWR',
+    width:diameter,height:lockingHookSize.height+.6,depth:lockingHookSize.depth+.9,
+    below:diameter-3.7,estimated:true,
+    mounting:'El proveedor indica tableros metálicos o plásticos. En el simulador el gancho se fija a una placa perforada de acero con separación detrás, atornillada al respaldo de madera.',
+    modelNote:'El paquete trae dos ganchos. Cada gancho mide 6.1 × 8.2 × 9.3 cm según el diagrama. Se modeló un gancho con '+label+' enrollada de aprox. '+diameter+' cm de diámetro. La placa y el rollo son de ejemplo y se consiguen aparte.',
+    publishedSize:lockingHookSize,
+    coil:{diameter,radius,turns,color,airHose:id==='air-hose'},
+    draw:drawLockingHook
+  }))];
   function accessoryFootprint(product) {
     const below=product.below??0;
     return {width:product.width,height:product.height+below+(product.above??0),
@@ -2049,6 +2065,73 @@ h3 { font-size: 13px; font-weight: 650; }
     box(24.23,1.5,depth+2.85,1.2,.69,1.23,yellow,id,transform);
     box(21.24,-3.21,depth+2.44,.23,1.02,1.03,toolSteel,id,transform);
   }
+  function drawLockingHook(transform,id,highlight,{width,depth,coil}) {
+    const center=width/2;
+    const black=highlight?[.3,.26,.23]:toolBlack;
+    const plate=[.36,.38,.39];
+    box(center-3.65,1.75,.63,7.3,7.05,.25,plate,id,transform);
+    for(const side of [-1,1]){
+      const x=center+side*3.23;
+      box(x-.18,1.75,0,.36,7.05,.63,plate,id,transform);
+      for(const y of [2.32,8.17]){
+        gardenRod([x,y,.88],[x,y,1.06],.17,toolSteel,id,transform);
+      }
+    }
+    roundedHardware(center-1.05,3.46,.88,2.1,4.65,.87,.28,black,id,transform);
+    for(const y of [4.25,7.12]){
+      gardenRod([center,y,1.75],[center,y,1.98],.27,toolSteel,id,transform);
+    }
+    gardenRod([center-1.36,6.25,2],[center+1.36,6.25,2],.32,black,id,transform);
+    for(const side of [-1,1]){
+      const armX=center+side*(lockingHookSize.width/2-.35);
+      const arm=[[center+side*1.36,6.25,2],[armX,2.08,2],[armX,1.88,2.48],
+        [armX,1.88,depth-.96],[armX,2.15,depth-.54],[armX,3.38,depth-.36]];
+      arm.slice(1).forEach((point,i)=>gardenRod(arm[i],point,.32,black,id,transform));
+    }
+    drawHangingCoil(center,coil,id,transform);
+  }
+  function drawHangingCoil(center,{diameter,radius,turns,color,airHose},id,transform) {
+    const outer=diameter/2, bend=outer-radius;
+    const centerY=3.78-outer;
+    const zStart=2.75, zEnd=8.65;
+    const segments=turns*36;
+    const startAngle=-Math.PI*.35;
+    let previous;
+    for(let i=0;i<=segments;i++){
+      const t=i/segments, angle=startAngle+t*turns*2*Math.PI;
+      const c=Math.cos(angle), s=Math.sin(angle), z=zStart+(zEnd-zStart)*t;
+      const ring=Array.from({length:8},(_,side)=>{
+        const phi=side*Math.PI/4;
+        const r=bend+radius*Math.cos(phi);
+        return transform([center+r*c,centerY+r*s,z+radius*Math.sin(phi)]);
+      });
+      if(previous){
+        for(let j=0;j<ring.length;j++){
+          const next=(j+1)%ring.length;
+          face([previous[j],ring[j],ring[next],previous[next]],color,id,.18*Math.sin((j+.5)*Math.PI/4));
+        }
+      }
+      previous=ring;
+    }
+    const tailX=center+bend*Math.cos(startAngle);
+    const tailY=centerY+bend*Math.sin(startAngle);
+    if(airHose){
+      for(const z of [zStart,zEnd]){
+        gardenRod([tailX-2.45,tailY+.9,z],[tailX,tailY,z],.52,color,id,transform);
+        gardenRod([tailX-3.7,tailY+1.36,z],[tailX-2.45,tailY+.9,z],.66,[.65,.51,.29],id,transform);
+        gardenRod([tailX-4.48,tailY+1.65,z],[tailX-3.65,tailY+1.34,z],.44,toolSteel,id,transform);
+      }
+    } else {
+      for(const [index,z] of [zStart,zEnd].entries()){
+        gardenRod([tailX-2.7,tailY+.78,z],[tailX,tailY,z],radius,color,id,transform);
+        roundedHardware(tailX-4.72,tailY+.05,z-.6,2.18,1.55,1.2,.35,color,id,transform);
+        for(const y of [tailY+.51,tailY+1.13]){
+          if(index===0) box(tailX-5.48,y,z-.09,.82,.14,.22,[.68,.56,.31],id,transform);
+          else box(tailX-4.56,y,z+.595,.48,.11,.02,toolBlack,id,transform);
+        }
+      }
+    }
+  }
   function drawPanelAccessories(surface,x,y,z,width,direction,transform) {
     accessoryLayouts[version].forEach(placement=>{
       if(placement.surface!==surface) return;
@@ -2683,9 +2766,9 @@ h3 { font-size: 13px; font-weight: 650; }
         note:'Medidas publicadas, en la orientación colgada del simulador.',
         source:'https://www.craftsman.com/en-us/product/cmch234b/v20-brushless-rp-sds-plus-cordless-rotary-hammer-tool-only'},
       ...accessoryCatalog.filter(product=>!product.legacy).map(product=>({
-        ...product,size:product,
+        ...product,size:product.publishedSize??product,
         note:product.bin?'Medida calculada del set. Cada contenedor mide '+formatToolSize(product.bin)+'.':
-          (product.estimated?'Estimación del modelo. ':'')+product.modelNote,
+          (product.estimated && !product.publishedSize?'Estimación del modelo. ':'')+product.modelNote,
         source:product.source??product.url
       }))
     ];
@@ -3117,7 +3200,8 @@ h3 { font-size: 13px; font-weight: 650; }
     accessoryCancelButton.hidden=!isMoving;
     const formatSize=size=>[size.width,size.height,size.depth].map(formatCm).join(' × ')+' cm';
     get('[data-accessory-size]').textContent=product?
-      (product.bin?'Set ':'Soporte ')+(product.estimated?'aprox. ':'')+formatSize(product)+' · ancho × alto × fondo':'';
+      (product.bin?'Set ':'Soporte ')+(product.estimated && !product.publishedSize?'aprox. ':'')+
+      formatSize(product.publishedSize??product)+' · ancho × alto × fondo':'';
     get('[data-accessory-loaded]').textContent=product?'Espacio simulado con herramientas · '+formatSize(accessoryFootprint(product)):'';
     const spec=dimensions();
     const previousSurface=accessorySurface.value;
