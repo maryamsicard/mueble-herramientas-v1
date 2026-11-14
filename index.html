@@ -763,6 +763,15 @@ h3 { font-size: 13px; font-weight: 650; }
     mounting:magneticMount,
     modelNote:'Bandeja de 23.6 × 6.2 × 2.49 cm (ancho × alto × fondo en el pegboard). Tiene 20 espacios para puntas de ¼ pulg y 15 para adaptadores, reductores y juntas universales. Las piezas y la placa del modelo son de ejemplo y se consiguen aparte.',
     draw:drawMagneticAdapterTray
+  },{
+    id:'ninonly-magnetic-bar',
+    label:'Ninonly · Barra magnética de 30 cm',
+    name:'Ninonly · Barra magnética de acero inoxidable de 30 cm',
+    url:'https://www.amazon.com.mx/Ninonly-Portacuchillos-Inoxidable-Organizador-Perforaciones/dp/B0861WXG7Z',
+    width:30,height:4,depth:2,above:8.5,below:9,extraDepth:4.7,
+    mounting:'Para el pegboard se simula el montaje con tornillos al respaldo de madera.',
+    modelNote:'Se usaron las medidas de la descripción de Amazon México. El cúter con hoja retraída, la segueta compacta y el flexómetro sujeto por su clip son ejemplos. El espacio ocupado con herramientas es aproximado.',
+    draw:drawNinonlyMagneticBar
   }];
   function accessoryFootprint(product) {
     const below=product.below??0;
@@ -2004,6 +2013,41 @@ h3 { font-size: 13px; font-weight: 650; }
       }
       box(x-.29,y-.83,z,.58,.12,.02,ink,id,transform);
     }
+  }
+  function drawNinonlyMagneticBar(transform,id,highlight,{width,height,depth}) {
+    const steel=highlight?[.74,.70,.63]:[.70,.72,.74];
+    const yellow=[.91,.66,.11];
+    roundedHardware(0,0,0,width,height,depth,.16,steel,id,transform);
+    box(.18,.18,depth-.015,width-.36,.28,.018,[.55,.57,.59],id,transform);
+    box(.18,height-.36,depth-.015,width-.36,.19,.018,[.82,.83,.83],id,transform);
+
+    // The retracted utility knife rests against the bar by its steel blade channel.
+    roundedHardware(4.08,-6.25,depth,1.84,13.9,.62,.47,toolSteel,id,transform);
+    roundedHardware(3.69,-8.6,depth+.51,2.62,9.3,1.31,.58,yellow,id,transform);
+    roundedHardware(4.04,-8.23,depth+1.79,1.9,6.5,.18,.41,toolBlack,id,transform);
+    box(4.28,.4,depth+.59,1.44,6.54,.075,toolBlack,id,transform);
+    roundedHardware(4.34,2.7,depth+.66,1.32,1.85,.22,.24,yellow,id,transform);
+
+    // The frame and blade touch the bar in the vertical storage position.
+    const frame=[[13.3,-5.2,depth+.35],[12.2,-4.5,depth+.35],
+      [11.5,10.4,depth+.35],[12.45,11.58,depth+.35],
+      [16.03,11.58,depth+.35],[16.8,10.26,depth+.35]];
+    for(let i=1;i<frame.length;i++) gardenRod(frame[i-1],frame[i],.35,toolSteel,id,transform);
+    box(16.4,-5.6,depth+.13,.72,16.35,.17,toolSteel,id,transform);
+    for(let i=0;i<31;i++){
+      const y=-5.5+i*.52;
+      face([[16.41,y,depth+.303],[16.13,y+.16,depth+.303],[16.41,y+.31,depth+.303]].map(transform),toolSteel,id);
+    }
+    roundedHardware(12.3,-8.62,depth+.12,5.65,4.28,1.71,.88,toolOrange,id,transform);
+    roundedHardware(12.7,-8.19,depth+1.80,4.83,2.3,.24,.49,toolBlack,id,transform);
+
+    // The tape measure hangs from its steel belt clip.
+    roundedHardware(24.35,-3.55,depth,1.75,6.1,.35,.35,toolSteel,id,transform);
+    roundedHardware(21.28,-4.75,depth+.34,7.1,6.8,4.24,1.65,toolBlack,id,transform);
+    roundedHardware(21.84,-4.07,depth+4.55,5.98,5.48,.045,1.27,yellow,id,transform);
+    roundedHardware(22.79,-3.30,depth+4.6,4.05,3.75,.045,.91,toolBlack,id,transform);
+    box(24.23,1.5,depth+2.85,1.2,.69,1.23,yellow,id,transform);
+    box(21.24,-3.21,depth+2.44,.23,1.02,1.03,toolSteel,id,transform);
   }
   function drawPanelAccessories(surface,x,y,z,width,direction,transform) {
     accessoryLayouts[version].forEach(placement=>{
