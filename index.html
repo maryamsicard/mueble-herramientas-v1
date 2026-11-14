@@ -644,6 +644,8 @@ h3 { font-size: 13px; font-weight: 650; }
   const pegboardPitch=2.54;
   const casomanSocketRows=[{clips:16,drive:.635},{clips:15,drive:.9525},{clips:12,drive:1.27}];
   const casomanSocketRailPitch=5.5;
+  const casomanBitHolder={width:17.78,height:2.032,depth:3.048};
+  const casomanBitHolderGap=1.2;
   const accessoryCatalog = [{
     id:'klkcms-cable-ties',
     label:'Organizador de cinchos',
@@ -737,6 +739,17 @@ h3 { font-size: 13px; font-weight: 650; }
     mounting:'Los rieles se atornillan por sus orificios. Para montarlos en el pegboard, fíjalos a un respaldo sólido.',
     modelNote:'Cada riel mide 35 cm según el diagrama del fabricante. Los seis rieles traen 86 clips. La separación de montaje y el fondo son aproximados. Los dados se muestran como ejemplo y se venden por separado.',
     draw:drawSocketRails
+  },{
+    id:'casoman-cs325',
+    label:'CASOMAN · Portapuntas magnético de ¼ pulg',
+    name:'CASOMAN CS325 · 2 portapuntas magnéticos de ¼ pulg',
+    url:'https://www.amazon.com.mx/dp/B0BV9VXL6B',
+    source:'https://casoman.com/products/casoman-2pcs-1-4-hex-bit-organizer-with-magnetic-base-red-blue-86-hole-bit-organizer-with-strong-magnetic-base-magnetic-bit-organizer-for-your-specialty',
+    width:2*casomanBitHolder.width+casomanBitHolderGap+2,height:casomanBitHolder.height+.6,
+    depth:casomanBitHolder.depth+.35,above:3.9,estimated:true,
+    mounting:'La simulación usa una repisa de acero atornillada al respaldo del pegboard. Las bases magnéticas se adhieren a la repisa, que se consigue aparte.',
+    modelNote:'Un portapuntas rojo y uno azul, con 43 espacios cada uno. Cada pieza mide 17.78 × 2.03 × 3.05 cm (ancho × alto × fondo), según CASOMAN. Las puntas y el montaje se muestran como ejemplo y se consiguen aparte.',
+    draw:drawMagneticBitHolders
   }];
   function accessoryFootprint(product) {
     const below=product.below??0;
@@ -1903,6 +1916,38 @@ h3 { font-size: 13px; font-weight: 650; }
           const steel=i%4===0?[.27,.28,.3]:toolSteel;
           gardenRod([x,y+1.5,1.46],[x,y+1.5,end],radius,steel,id,transform);
           gardenRod([x,y+1.5,end],[x,y+1.5,end+.025],radius*.66,[.12,.13,.14],id,transform);
+        }
+      }
+    });
+  }
+  function drawMagneticBitHolders(transform,id,highlight,product) {
+    const {width,height,depth}=casomanBitHolder;
+    const bracket=highlight?[.35,.31,.27]:[.26,.27,.28];
+    const rear=.18, shelf=.19, top=height+shelf;
+    box(0,0,0,product.width,product.height,rear,bracket,id,transform);
+    box(0,0,rear,product.width,shelf,product.depth-rear,bracket,id,transform);
+    for(const x of [.5,product.width-.5]){
+      gardenRod([x,1.1,rear],[x,1.1,rear+.12],.22,toolSteel,id,transform);
+    }
+    [toolBlue,toolRed].forEach((color,index)=>{
+      const left=1+index*(width+casomanBitHolderGap);
+      box(left,shelf,rear,width,.32,depth,toolBlack,id,transform);
+      roundedHardware(left,shelf+.32,rear,width,height-.32,depth,.18,color,id,transform);
+      for(const [row,count] of [14,15,14].entries()){
+        const z=rear+.53+row*.99;
+        for(let i=0;i<count;i++){
+          const x=left+width*(i+.5)/count;
+          const center=row===1 && i===7;
+          if(!center && (i+2*row+index)%5===0){
+            gardenRod([x,top,z],[x,top+.014,z],.34,toolBlack,id,transform);
+            continue;
+          }
+          const steel=(i+row)%3===0?[.27,.28,.29]:toolSteel;
+          const rise=center?1.65:1.1+((i+row+index)%4)*.64;
+          const end=top+rise;
+          gardenRod([x,top,z],[x,end-.44,z],center?.48:.33,steel,id,transform);
+          if(center) gardenRod([x,end-.44,z],[x,end,z],.48,steel,id,transform);
+          else box(x-.16,end-.45,z-.13,.32,.45,.26,steel,id,transform);
         }
       }
     });
